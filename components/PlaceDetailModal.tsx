@@ -53,15 +53,29 @@ function gapToPx(
 
 export default function PlaceDetailModal({ place, onClose }: Props) {
   const router = useRouter();
+  const [placeInfo, setPlaceInfo] = useState<PlaceData>(place);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
   const [photos, setPhotos] = useState<ImmichPhoto[]>([]);
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [nameInput, setNameInput] = useState(place.name);
+  const [radiusInput, setRadiusInput] = useState(place.radius);
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPlaceInfo(place);
+    setNameInput(place.name);
+    setRadiusInput(place.radius);
+    setEditing(false);
+    setEditError(null);
+  }, [place]);
 
   const fetchVisits = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/visits?placeId=${place.id}`);
+    const res = await fetch(`/api/visits?placeId=${placeInfo.id}`);
     if (res.ok) {
       const loaded: Visit[] = await res.json();
       setVisits(loaded);
@@ -73,7 +87,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
       }
     }
     setLoading(false);
-  }, [place.id]);
+  }, [placeInfo.id]);
 
   useEffect(() => {
     fetchVisits();
@@ -97,6 +111,46 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     onClose();
   }
 
+  async function handleSavePlace() {
+    const trimmedName = nameInput.trim();
+    if (!trimmedName) {
+      setEditError("Name is required");
+      return;
+    }
+    if (!Number.isFinite(radiusInput) || radiusInput <= 0) {
+      setEditError("Radius must be a positive number");
+      return;
+    }
+
+    setSaving(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/places/${placeInfo.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmedName, radius: radiusInput }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setEditError(data.error ?? "Failed to update place");
+        return;
+      }
+
+      const { place: updated } = await res.json();
+      setPlaceInfo(updated);
+      setNameInput(updated.name);
+      setRadiusInput(updated.radius);
+      setEditing(false);
+      window.dispatchEvent(new CustomEvent("opentimeline:place-updated"));
+      router.refresh();
+    } catch {
+      setEditError("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const displayed = visits.filter((v) =>
     filter === "confirmed" ? v.status === "confirmed" : v.status !== "rejected"
   );
@@ -117,17 +171,74 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
         {/* Header */}
         <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">{place.name}</h2>
-            <p className="mt-0.5 text-xs text-gray-400">
-              Radius: {place.radius}m &middot; {place.lat.toFixed(5)}, {place.lon.toFixed(5)}
-            </p>
+            {editing ? (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  autoFocus
+                />
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500">Radius (m)</label>
+                  <input
+                    type="number"
+                    value={radiusInput}
+                    onChange={(e) => setRadiusInput(Number(e.target.value))}
+                    min={1}
+                    className="w-24 rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-base font-semibold text-gray-900">{placeInfo.name}</h2>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  Radius: {placeInfo.radius}m &middot; {placeInfo.lat.toFixed(5)}, {placeInfo.lon.toFixed(5)}
+                </p>
+              </>
+            )}
+            {editError && <p className="mt-1 text-xs text-red-600">{editError}</p>}
           </div>
-          <button
-            onClick={onClose}
-            className="ml-4 mt-0.5 shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            ✕
-          </button>
+          <div className="ml-4 flex shrink-0 items-start gap-1.5">
+            {editing ? (
+              <>
+                <button
+                  onClick={handleSavePlace}
+                  className="rounded bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  disabled={saving || !nameInput.trim()}
+                >
+                  {saving ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditing(false);
+                    setNameInput(placeInfo.name);
+                    setRadiusInput(placeInfo.radius);
+                    setEditError(null);
+                  }}
+                  className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setEditing(true)}
+                className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+              >
+                Edit
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="mt-0.5 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Filter */}

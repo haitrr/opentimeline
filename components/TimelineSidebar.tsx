@@ -47,9 +47,16 @@ function VisitPhotos({
   if (matching.length === 0) return null;
   return (
     <>
-      <div className="mt-1.5 flex gap-1 overflow-x-auto pb-0.5">
+      <div className="mt-1.5 flex flex-nowrap gap-1 overflow-x-auto pb-0.5 pr-0.5">
         {matching.map((p, i) => (
-          <button key={p.id} onClick={(e) => { e.stopPropagation(); setPhotoModal({ list: matching, index: i }); }}>
+          <button
+            key={p.id}
+            className="shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPhotoModal({ list: matching, index: i });
+            }}
+          >
             <img
               src={`/api/immich/thumbnail?id=${p.id}`}
               alt=""
