@@ -4,8 +4,10 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
+import type { ImmichPhoto } from "@/lib/immich";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import PlaceDetailModal from "@/components/PlaceDetailModal";
+import PhotoModal from "@/components/PhotoModal";
 
 const LeafletMap = dynamic(() => import("@/components/map/LeafletMap"), {
   ssr: false,
@@ -37,6 +39,8 @@ export type UnknownVisitData = {
 export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
   const [places, setPlaces] = useState<PlaceData[]>([]);
   const [unknownVisits, setUnknownVisits] = useState<UnknownVisitData[]>([]);
+  const [photos, setPhotos] = useState<ImmichPhoto[]>([]);
+  const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [modalCoords, setModalCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlaceData | null>(null);
   const [pendingUnknownVisit, setPendingUnknownVisit] = useState<UnknownVisitData | null>(null);
@@ -51,14 +55,22 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
     if (res.ok) setUnknownVisits(await res.json());
   }, []);
 
+  const fetchPhotos = useCallback(async () => {
+    if (!rangeStart || !rangeEnd) return;
+    const params = new URLSearchParams({ start: rangeStart, end: rangeEnd });
+    const res = await fetch(`/api/immich?${params}`);
+    if (res.ok) setPhotos(await res.json());
+  }, [rangeStart, rangeEnd]);
+
   useEffect(() => {
     fetchPlaces();
     fetchUnknownVisits();
+    fetchPhotos();
     window.addEventListener("opentimeline:unknown-visits-detected", fetchUnknownVisits);
     return () => {
       window.removeEventListener("opentimeline:unknown-visits-detected", fetchUnknownVisits);
     };
-  }, [fetchPlaces, fetchUnknownVisits]);
+  }, [fetchPlaces, fetchUnknownVisits, fetchPhotos]);
 
   function handleMapClick(lat: number, lon: number) {
     setSelectedPlace(null);
@@ -105,9 +117,14 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
               )
             : unknownVisits
         }
+        photos={photos}
         onMapClick={handleMapClick}
         onPlaceClick={handlePlaceClick}
         onUnknownVisitCreatePlace={handleUnknownVisitCreatePlace}
+        onPhotoClick={(photo) => {
+          const idx = photos.findIndex((p) => p.id === photo.id);
+          setPhotoModal({ list: photos, index: idx >= 0 ? idx : 0 });
+        }}
       />
       {modalCoords && (
         <PlaceCreationModal
@@ -121,6 +138,13 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
         <PlaceDetailModal
           place={selectedPlace}
           onClose={() => setSelectedPlace(null)}
+        />
+      )}
+      {photoModal && (
+        <PhotoModal
+          photos={photoModal.list}
+          initialIndex={photoModal.index}
+          onClose={() => setPhotoModal(null)}
         />
       )}
     </div>

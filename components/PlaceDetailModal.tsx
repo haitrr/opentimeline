@@ -3,6 +3,8 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { format, differenceInMinutes } from "date-fns";
 import type { PlaceData } from "@/lib/detectVisits";
+import type { ImmichPhoto } from "@/lib/immich";
+import PhotoModal from "@/components/PhotoModal";
 
 type Visit = {
   id: number;
@@ -52,11 +54,22 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
+  const [photos, setPhotos] = useState<ImmichPhoto[]>([]);
+  const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
 
   const fetchVisits = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`/api/visits?placeId=${place.id}`);
-    if (res.ok) setVisits(await res.json());
+    if (res.ok) {
+      const loaded: Visit[] = await res.json();
+      setVisits(loaded);
+      if (loaded.length > 0) {
+        const start = loaded.reduce((min, v) => v.arrivalAt < min ? v.arrivalAt : min, loaded[0].arrivalAt);
+        const end = loaded.reduce((max, v) => v.departureAt > max ? v.departureAt : max, loaded[0].departureAt);
+        const photoRes = await fetch(`/api/immich?start=${start}&end=${end}`);
+        if (photoRes.ok) setPhotos(await photoRes.json());
+      }
+    }
     setLoading(false);
   }, [place.id]);
 
@@ -202,6 +215,32 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                             )}
                           </div>
                         </div>
+                        {(() => {
+                          const start = arrival.getTime();
+                          const end = departure.getTime();
+                          const matching = photos.filter((p) => {
+                            const t = new Date(p.takenAt).getTime();
+                            return t >= start && t <= end;
+                          });
+                          if (matching.length === 0) return null;
+                          return (
+                            <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">
+                              {matching.map((p, mi) => (
+                                <button
+                                  key={p.id}
+                                  onClick={() => setPhotoModal({ list: matching, index: mi })}
+                                  className="shrink-0"
+                                >
+                                  <img
+                                    src={`/api/immich/thumbnail?id=${p.id}`}
+                                    alt=""
+                                    className="h-12 w-16 rounded object-cover hover:opacity-80 transition-opacity"
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -225,6 +264,13 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
           )}
         </div>
       </div>
+      {photoModal && (
+        <PhotoModal
+          photos={photoModal.list}
+          initialIndex={photoModal.index}
+          onClose={() => setPhotoModal(null)}
+        />
+      )}
     </div>
   );
 }

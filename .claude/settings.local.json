@@ -9,7 +9,13 @@
       "Bash(ls:*)",
       "Bash(npx prisma migrate dev:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx prisma generate:*)"
+      "Bash(npx prisma generate:*)",
+      "WebFetch(domain:api.immich.app)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:immich.app)",
+      "WebFetch(domain:docs.immich.app)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

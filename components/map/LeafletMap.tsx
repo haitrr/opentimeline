@@ -16,14 +16,17 @@ import "leaflet/dist/leaflet.css";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { UnknownVisitData } from "@/components/map/MapWrapper";
+import type { ImmichPhoto } from "@/lib/immich";
 
 type Props = {
   points: SerializedPoint[];
   places?: PlaceData[];
   unknownVisits?: UnknownVisitData[];
+  photos?: ImmichPhoto[];
   onMapClick?: (lat: number, lon: number) => void;
   onPlaceClick?: (place: PlaceData) => void;
   onUnknownVisitCreatePlace?: (uv: UnknownVisitData) => void;
+  onPhotoClick?: (photo: ImmichPhoto) => void;
 };
 
 function FlyToHandler() {
@@ -70,7 +73,7 @@ function computeBounds(
   ];
 }
 
-export default function LeafletMap({ points, places = [], unknownVisits = [], onMapClick, onPlaceClick, onUnknownVisitCreatePlace }: Props) {
+export default function LeafletMap({ points, places = [], unknownVisits = [], photos = [], onMapClick, onPlaceClick, onUnknownVisitCreatePlace, onPhotoClick }: Props) {
   const positions = useMemo(
     () => points.map((p) => [p.lat, p.lon] as [number, number]),
     [points]
@@ -200,6 +203,33 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], on
             </div>
           </Popup>
         </Circle>
+      ))}
+
+      {photos.filter((p) => p.lat !== null && p.lon !== null).map((photo) => (
+        <CircleMarker
+          key={photo.id}
+          center={[photo.lat!, photo.lon!]}
+          radius={6}
+          fillColor="#a855f7"
+          color="#7e22ce"
+          weight={1.5}
+          fillOpacity={0.9}
+        >
+          <Popup>
+            <div className="text-xs" style={{ minWidth: 120 }}>
+              <button onClick={() => onPhotoClick?.(photo)} style={{ display: "block", padding: 0, border: "none", background: "none", cursor: "pointer" }}>
+                <img
+                  src={`/api/immich/thumbnail?id=${photo.id}`}
+                  alt=""
+                  style={{ width: 128, height: 96, objectFit: "cover", borderRadius: 4, marginBottom: 4 }}
+                />
+              </button>
+              <p className="text-gray-500 text-center">
+                {format(new Date(photo.takenAt), "HH:mm")}
+              </p>
+            </div>
+          </Popup>
+        </CircleMarker>
       ))}
     </MapContainer>
   );

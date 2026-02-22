@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
+import PhotoModal from "@/components/PhotoModal";
+import type { ImmichPhoto } from "@/lib/immich";
 
 type KnownVisit = {
   kind: "known";
@@ -26,6 +28,47 @@ type UnknownVisit = {
 
 type TimelineItem = KnownVisit | UnknownVisit;
 
+function VisitPhotos({
+  photos,
+  arrivalAt,
+  departureAt,
+}: {
+  photos: ImmichPhoto[];
+  arrivalAt: string;
+  departureAt: string;
+}) {
+  const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
+  const start = new Date(arrivalAt).getTime();
+  const end = new Date(departureAt).getTime();
+  const matching = photos.filter((p) => {
+    const t = new Date(p.takenAt).getTime();
+    return t >= start && t <= end;
+  });
+  if (matching.length === 0) return null;
+  return (
+    <>
+      <div className="mt-1.5 flex gap-1 overflow-x-auto pb-0.5">
+        {matching.map((p, i) => (
+          <button key={p.id} onClick={(e) => { e.stopPropagation(); setPhotoModal({ list: matching, index: i }); }}>
+            <img
+              src={`/api/immich/thumbnail?id=${p.id}`}
+              alt=""
+              className="h-12 w-16 shrink-0 rounded object-cover hover:opacity-80 transition-opacity"
+            />
+          </button>
+        ))}
+      </div>
+      {photoModal && (
+        <PhotoModal
+          photos={photoModal.list}
+          initialIndex={photoModal.index}
+          onClose={() => setPhotoModal(null)}
+        />
+      )}
+    </>
+  );
+}
+
 function durationLabel(arrival: string, departure: string): string {
   const mins = Math.round(
     (new Date(departure).getTime() - new Date(arrival).getTime()) / 60000
@@ -46,12 +89,20 @@ export default function TimelineSidebar({
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingPlace, setCreatingPlace] = useState<UnknownVisit | null>(null);
+  const [photos, setPhotos] = useState<ImmichPhoto[]>([]);
 
   function buildParams(extra?: Record<string, string>) {
     const p = new URLSearchParams(extra);
     if (rangeStart) p.set("start", rangeStart);
     if (rangeEnd) p.set("end", rangeEnd);
     return p;
+  }
+
+  async function loadPhotos() {
+    if (!rangeStart || !rangeEnd) return;
+    const params = new URLSearchParams({ start: rangeStart, end: rangeEnd });
+    const res = await fetch(`/api/immich?${params}`);
+    if (res.ok) setPhotos(await res.json());
   }
 
   async function load() {
@@ -84,6 +135,7 @@ export default function TimelineSidebar({
 
   useEffect(() => {
     load();
+    loadPhotos();
     const events = [
       "opentimeline:visits-updated",
       "opentimeline:place-created",
@@ -199,6 +251,12 @@ export default function TimelineSidebar({
                         {durationLabel(item.arrivalAt, item.departureAt)}
                       </span>
                     </p>
+
+                    <VisitPhotos
+                      photos={photos}
+                      arrivalAt={item.arrivalAt}
+                      departureAt={item.departureAt}
+                    />
 
                     {/* Actions for suggested known visit */}
                     {item.kind === "known" && isSuggested && (

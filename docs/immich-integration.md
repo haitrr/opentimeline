@@ -1,0 +1,4 @@
+- Integration with immich using https://api.immich.app/sdk.
+- Add 2 env variables are needed: `IMMICH_BASE_URL` and `IMMICH_API_KEY` to enable the integration.
+- Show images within the selected time range on the map.
+- When view visits and suggestion show images taken during the visit/suggestion time range.
