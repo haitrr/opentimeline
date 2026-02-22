@@ -5,6 +5,7 @@ import MapWrapper from "@/components/map/MapWrapper";
 import ImportGpxButton from "@/components/ImportGpxButton";
 import PlacesPanel from "@/components/PlacesPanel";
 import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
+import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
 import BackgroundDetector from "@/components/BackgroundDetector";
 import type { DailyStats as DailyStatsType } from "@/lib/groupByHour";
 import type { SerializedPoint } from "@/lib/groupByHour";
@@ -14,6 +15,8 @@ type Props = {
   date: string;
   range: RangeType;
   endDate?: string;
+  rangeStart?: string;
+  rangeEnd?: string;
   points: SerializedPoint[];
   stats: DailyStatsType;
 };
@@ -22,6 +25,8 @@ export default function TimelineLayout({
   date,
   range,
   endDate,
+  rangeStart,
+  rangeEnd,
   points,
   stats,
 }: Props) {
@@ -45,11 +50,12 @@ export default function TimelineLayout({
         <TimelineSidebar groups={stats.groups} />
         <PlacesPanel />
         <VisitSuggestionsPanel />
+        <UnknownVisitSuggestionsPanel />
       </aside>
 
       {/* Map */}
       <main className="relative flex-1">
-        <MapWrapper points={points} />
+        <MapWrapper points={points} rangeStart={rangeStart} rangeEnd={rangeEnd} />
         <BackgroundDetector />
       </main>
     </div>

@@ -48,3 +48,16 @@ model Visit {
   @@index([placeId])
   @@index([status])
 }
+
+model UnknownVisitSuggestion {
+  id          Int      @id @default(autoincrement())
+  lat         Float
+  lon         Float
+  arrivalAt   DateTime
+  departureAt DateTime
+  pointCount  Int      @default(0)
+  status      String   @default("suggested")
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+}

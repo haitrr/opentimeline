@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { detectVisitsForPlace } from "@/lib/detectVisits";
+import { haversineKm } from "@/lib/geo";
 
 export async function GET() {
   const places = await prisma.place.findMany({
@@ -47,6 +48,22 @@ export async function POST(request: NextRequest) {
       radius: radius != null ? Number(radius) : 50,
     },
   });
+
+  // Dismiss any unknown visit suggestions whose cluster center falls within
+  // the new place's radius, before running visit detection to avoid duplicates.
+  const placeRadiusKm = place.radius / 1000;
+  const unknownSuggestions = await prisma.unknownVisitSuggestion.findMany({
+    where: { status: "suggested" },
+  });
+  const overlapping = unknownSuggestions.filter(
+    (s) => haversineKm(s.lat, s.lon, place.lat, place.lon) <= placeRadiusKm
+  );
+  if (overlapping.length > 0) {
+    await prisma.unknownVisitSuggestion.updateMany({
+      where: { id: { in: overlapping.map((s) => s.id) } },
+      data: { status: "confirmed" },
+    });
+  }
 
   const newVisits = await detectVisitsForPlace(place.id);
 

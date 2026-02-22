@@ -10,6 +10,17 @@ export default function BackgroundDetector() {
       } catch {
         // silent — background task
       }
+      try {
+        const res = await fetch("/api/unknown-visits/detect", { method: "POST" });
+        if (res.ok) {
+          const { created } = await res.json();
+          if (created > 0) {
+            window.dispatchEvent(new CustomEvent("opentimeline:unknown-visits-detected"));
+          }
+        }
+      } catch {
+        // silent — background task
+      }
     }
 
     detect();

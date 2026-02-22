@@ -14,12 +14,15 @@ import { format } from "date-fns";
 import "leaflet/dist/leaflet.css";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
+import type { UnknownVisitData } from "@/components/map/MapWrapper";
 
 type Props = {
   points: SerializedPoint[];
   places?: PlaceData[];
+  unknownVisits?: UnknownVisitData[];
   onMapClick?: (lat: number, lon: number) => void;
   onPlaceClick?: (place: PlaceData) => void;
+  onUnknownVisitCreatePlace?: (uv: UnknownVisitData) => void;
 };
 
 function MapClickHandler({
@@ -53,7 +56,7 @@ function computeBounds(
   ];
 }
 
-export default function LeafletMap({ points, places = [], onMapClick, onPlaceClick }: Props) {
+export default function LeafletMap({ points, places = [], unknownVisits = [], onMapClick, onPlaceClick, onUnknownVisitCreatePlace }: Props) {
   const positions = useMemo(
     () => points.map((p) => [p.lat, p.lon] as [number, number]),
     [points]
@@ -148,6 +151,40 @@ export default function LeafletMap({ points, places = [], onMapClick, onPlaceCli
               : undefined
           }
         />
+      ))}
+
+      {unknownVisits.map((uv) => (
+        <Circle
+          key={uv.id}
+          center={[uv.lat, uv.lon]}
+          radius={50}
+          pathOptions={{
+            color: "#eab308",
+            fillColor: "#eab308",
+            fillOpacity: 0.2,
+            weight: 2,
+            dashArray: "5, 5",
+          }}
+        >
+          <Popup>
+            <div className="text-xs">
+              <p className="font-semibold text-yellow-700">Unknown place</p>
+              <p className="text-gray-600 mt-0.5">
+                {format(new Date(uv.arrivalAt), "MMM d, HH:mm")} –{" "}
+                {format(new Date(uv.departureAt), "HH:mm")}
+              </p>
+              <p className="text-gray-400 mb-2">{uv.pointCount} points</p>
+              {onUnknownVisitCreatePlace && (
+                <button
+                  onClick={() => onUnknownVisitCreatePlace(uv)}
+                  className="w-full rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
+                >
+                  Create Place
+                </button>
+              )}
+            </div>
+          </Popup>
+        </Circle>
       ))}
     </MapContainer>
   );

@@ -57,11 +57,15 @@ export default async function TimelineDatePage({ params, searchParams }: Props) 
     : "day";
 
   let points;
+  let rangeStart: string | undefined;
+  let rangeEnd: string | undefined;
   if (rangeType === "all") {
     points = await getAllPoints();
   } else {
-    const { start, end: rangeEnd } = getRangeBounds(parsedDate, rangeType, end);
-    points = await getPointsForRange(start, rangeEnd);
+    const { start, end: rangeBoundEnd } = getRangeBounds(parsedDate, rangeType, end);
+    rangeStart = start.toISOString();
+    rangeEnd = rangeBoundEnd.toISOString();
+    points = await getPointsForRange(start, rangeBoundEnd);
   }
   const stats = computePeriodStats(points, rangeType === "day" ? "hour" : "day");
 
@@ -70,6 +74,8 @@ export default async function TimelineDatePage({ params, searchParams }: Props) 
       date={date}
       range={rangeType}
       endDate={end}
+      rangeStart={rangeStart}
+      rangeEnd={rangeEnd}
       points={points}
       stats={stats}
     />
