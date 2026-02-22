@@ -35,7 +35,7 @@ function FlyToHandler() {
   useEffect(() => {
     function handler(e: Event) {
       const { lat, lon } = (e as CustomEvent<{ lat: number; lon: number }>).detail;
-      map.flyTo([lat, lon], 18, { duration: 1 });
+      map.flyTo([lat, lon], 17, { duration: 1 });
     }
     window.addEventListener("opentimeline:fly-to", handler);
     return () => window.removeEventListener("opentimeline:fly-to", handler);

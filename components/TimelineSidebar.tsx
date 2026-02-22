@@ -160,7 +160,7 @@ export default function TimelineSidebar({
       : [];
 
     const merged = [...known, ...unknown].sort(
-      (a, b) => new Date(a.arrivalAt).getTime() - new Date(b.arrivalAt).getTime()
+      (a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime()
     );
 
     setItems(merged);

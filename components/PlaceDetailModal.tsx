@@ -195,9 +195,11 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     }
   }
 
-  const displayed = visits.filter((v) =>
-    filter === "confirmed" ? v.status === "confirmed" : v.status !== "rejected"
-  );
+  const displayed = visits
+    .filter((v) =>
+      filter === "confirmed" ? v.status === "confirmed" : v.status !== "rejected"
+    )
+    .sort((a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime());
 
   // Pre-compute idle-time gaps between consecutive visits (order-agnostic)
   const gapsMs = displayed.slice(0, -1).map((v, i) => {
