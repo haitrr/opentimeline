@@ -13,7 +13,7 @@ type Place = {
 
 export default function PlacesPanel() {
   const [places, setPlaces] = useState<Place[]>([]);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const fetchPlaces = useCallback(async () => {
     const res = await fetch("/api/places");

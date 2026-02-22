@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -8,6 +8,7 @@ import {
   CircleMarker,
   Circle,
   Popup,
+  useMap,
   useMapEvents,
 } from "react-leaflet";
 import { format } from "date-fns";
@@ -24,6 +25,19 @@ type Props = {
   onPlaceClick?: (place: PlaceData) => void;
   onUnknownVisitCreatePlace?: (uv: UnknownVisitData) => void;
 };
+
+function FlyToHandler() {
+  const map = useMap();
+  useEffect(() => {
+    function handler(e: Event) {
+      const { lat, lon } = (e as CustomEvent<{ lat: number; lon: number }>).detail;
+      map.flyTo([lat, lon], Math.max(map.getZoom(), 15), { duration: 1 });
+    }
+    window.addEventListener("opentimeline:fly-to", handler);
+    return () => window.removeEventListener("opentimeline:fly-to", handler);
+  }, [map]);
+  return null;
+}
 
 function MapClickHandler({
   onMapClick,
@@ -82,6 +96,7 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], on
         maxZoom={19}
       />
 
+      <FlyToHandler />
       {onMapClick && <MapClickHandler onMapClick={onMapClick} placeClickedRef={placeClickedRef} />}
 
       {positions.length > 1 && (

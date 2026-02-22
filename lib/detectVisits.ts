@@ -26,7 +26,7 @@ export async function detectVisitsForPlace(
 
   // Filter to points within radius
   const nearbyPoints = allPoints.filter(
-    (p) => haversineKm(p.lat, p.lon, place.lat, place.lon) <= radiusKm
+    (p: (typeof allPoints)[number]) => haversineKm(p.lat, p.lon, place.lat, place.lon) <= radiusKm
   );
 
   if (nearbyPoints.length === 0) return 0;
@@ -56,6 +56,9 @@ export async function detectVisitsForPlace(
   for (const group of groups) {
     const arrivalAt = new Date(group[0].recordedAt);
     const departureAt = new Date(group[group.length - 1].recordedAt);
+
+    // Skip sessions shorter than the time window
+    if (departureAt.getTime() - arrivalAt.getTime() < timeWindowMs) continue;
 
     // Check for overlapping visit already recorded
     const existing = await prisma.visit.findFirst({

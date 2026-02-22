@@ -13,7 +13,7 @@ type Visit = {
 
 export default function VisitSuggestionsPanel() {
   const [visits, setVisits] = useState<Visit[]>([]);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const fetchVisits = useCallback(async () => {
     const res = await fetch("/api/visits?status=suggested");

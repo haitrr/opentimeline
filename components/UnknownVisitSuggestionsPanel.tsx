@@ -17,7 +17,7 @@ type UnknownVisit = {
 
 export default function UnknownVisitSuggestionsPanel() {
   const [suggestions, setSuggestions] = useState<UnknownVisit[]>([]);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<UnknownVisit | null>(null);
 
   const fetchSuggestions = useCallback(async () => {

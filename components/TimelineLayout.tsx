@@ -47,7 +47,7 @@ export default function TimelineLayout({
           </div>
         </header>
         <DailyStats stats={stats} range={range} />
-        <TimelineSidebar groups={stats.groups} />
+        <TimelineSidebar rangeStart={rangeStart} rangeEnd={rangeEnd} />
         <PlacesPanel />
         <VisitSuggestionsPanel />
         <UnknownVisitSuggestionsPanel />
