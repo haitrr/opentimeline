@@ -15,6 +15,19 @@ export type PlaceData = {
 type CandidateVisit = {
   arrivalAt: Date;
   departureAt: Date;
+  distanceKm: number;
+};
+
+type CandidateVisitWithPlace = CandidateVisit & {
+  placeId: number;
+};
+
+type NearbyPoint = {
+  id: number;
+  lat: number;
+  lon: number;
+  recordedAt: Date;
+  distanceKm: number;
 };
 
 type ExistingSuggestedVisit = {
@@ -24,6 +37,11 @@ type ExistingSuggestedVisit = {
 };
 
 type ExistingVisitRange = {
+  arrivalAt: Date;
+  departureAt: Date;
+};
+
+type VisitRange = {
   arrivalAt: Date;
   departureAt: Date;
 };
@@ -43,10 +61,15 @@ async function detectCandidateVisitsForPlace(
   const timeWindowMs = timeWindowMinutes * 60 * 1000;
   const radiusKm = place.radius / 1000;
 
-  const nearbyPoints = allPoints.filter(
-    (p: (typeof allPoints)[number]) =>
-      haversineKm(p.lat, p.lon, place.lat, place.lon) <= radiusKm
-  );
+  const nearbyPoints: NearbyPoint[] = allPoints
+    .map((point: (typeof allPoints)[number]) => {
+      const distanceKm = haversineKm(point.lat, point.lon, place.lat, place.lon);
+      return {
+        ...point,
+        distanceKm,
+      };
+    })
+    .filter((point: NearbyPoint) => point.distanceKm <= radiusKm);
 
   if (nearbyPoints.length === 0) return [];
 
@@ -75,14 +98,78 @@ async function detectCandidateVisitsForPlace(
     const departureAt = new Date(group[group.length - 1].recordedAt);
 
     if (departureAt.getTime() - arrivalAt.getTime() < timeWindowMs) continue;
-    candidates.push({ arrivalAt, departureAt });
+    const distanceKm = group.reduce(
+      (minDistance: number, point: NearbyPoint) =>
+        Math.min(minDistance, point.distanceKm),
+      Number.POSITIVE_INFINITY
+    );
+    candidates.push({ arrivalAt, departureAt, distanceKm });
   }
 
   return candidates;
 }
 
-function overlaps(a: CandidateVisit, b: CandidateVisit): boolean {
+function overlaps(a: VisitRange, b: VisitRange): boolean {
   return a.arrivalAt <= b.departureAt && a.departureAt >= b.arrivalAt;
+}
+
+function selectClosestCandidatesPerTimeRange(
+  candidates: CandidateVisitWithPlace[]
+): CandidateVisitWithPlace[] {
+  if (candidates.length === 0) return [];
+
+  const sorted = [...candidates].sort((left, right) => {
+    const startDiff = left.arrivalAt.getTime() - right.arrivalAt.getTime();
+    if (startDiff !== 0) return startDiff;
+
+    const endDiff = left.departureAt.getTime() - right.departureAt.getTime();
+    if (endDiff !== 0) return endDiff;
+
+    if (left.distanceKm !== right.distanceKm) {
+      return left.distanceKm - right.distanceKm;
+    }
+
+    return left.placeId - right.placeId;
+  });
+
+  const selected: CandidateVisitWithPlace[] = [];
+  let currentGroup: CandidateVisitWithPlace[] = [sorted[0]];
+  let currentGroupEnd = sorted[0].departureAt;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const candidate = sorted[i];
+
+    if (candidate.arrivalAt <= currentGroupEnd) {
+      currentGroup.push(candidate);
+      if (candidate.departureAt > currentGroupEnd) {
+        currentGroupEnd = candidate.departureAt;
+      }
+      continue;
+    }
+
+    const winner = currentGroup.reduce((best, current) => {
+      if (current.distanceKm !== best.distanceKm) {
+        return current.distanceKm < best.distanceKm ? current : best;
+      }
+
+      return current.placeId < best.placeId ? current : best;
+    });
+    selected.push(winner);
+
+    currentGroup = [candidate];
+    currentGroupEnd = candidate.departureAt;
+  }
+
+  const winner = currentGroup.reduce((best, current) => {
+    if (current.distanceKm !== best.distanceKm) {
+      return current.distanceKm < best.distanceKm ? current : best;
+    }
+
+    return current.placeId < best.placeId ? current : best;
+  });
+  selected.push(winner);
+
+  return selected;
 }
 
 export async function detectVisitsForPlace(
@@ -100,7 +187,6 @@ export async function detectVisitsForPlace(
     // Check for overlapping visit already recorded
     const existing = await prisma.visit.findFirst({
       where: {
-        placeId,
         arrivalAt: { lte: candidate.departureAt },
         departureAt: { gte: candidate.arrivalAt },
       },
@@ -190,9 +276,89 @@ export async function detectVisitsForAllPlaces(
   timeWindowMinutes = 15
 ): Promise<number> {
   const places = await prisma.place.findMany();
-  let total = 0;
+
+  const allCandidates: CandidateVisitWithPlace[] = [];
   for (const place of places) {
-    total += await detectVisitsForPlace(place.id, timeWindowMinutes);
+    const candidates = await detectCandidateVisitsForPlace(
+      place.id,
+      timeWindowMinutes
+    );
+
+    for (const candidate of candidates) {
+      allCandidates.push({
+        placeId: place.id,
+        arrivalAt: candidate.arrivalAt,
+        departureAt: candidate.departureAt,
+        distanceKm: candidate.distanceKm,
+      });
+    }
   }
-  return total;
+
+  const winningCandidates = selectClosestCandidatesPerTimeRange(allCandidates);
+
+  const existingSuggested: Array<{
+    id: number;
+    placeId: number;
+    arrivalAt: Date;
+    departureAt: Date;
+  }> = await prisma.visit.findMany({
+    where: { status: "suggested" },
+    select: { id: true, placeId: true, arrivalAt: true, departureAt: true },
+  });
+
+  const toRemove = existingSuggested
+    .filter(
+      (suggestedVisit: {
+        id: number;
+        placeId: number;
+        arrivalAt: Date;
+        departureAt: Date;
+      }) =>
+        !winningCandidates.some(
+          (candidate) =>
+            candidate.placeId === suggestedVisit.placeId &&
+            overlaps(candidate, {
+              arrivalAt: suggestedVisit.arrivalAt,
+              departureAt: suggestedVisit.departureAt,
+            })
+        )
+    )
+    .map((visit: { id: number }) => visit.id);
+
+  if (toRemove.length > 0) {
+    await prisma.visit.deleteMany({ where: { id: { in: toRemove } } });
+  }
+
+  const allExistingVisits = await prisma.visit.findMany({
+    select: { arrivalAt: true, departureAt: true },
+  });
+
+  let added = 0;
+  for (const candidate of winningCandidates) {
+    const hasOverlap = allExistingVisits.some((visit: ExistingVisitRange) =>
+      overlaps(candidate, {
+        arrivalAt: visit.arrivalAt,
+        departureAt: visit.departureAt,
+      })
+    );
+
+    if (!hasOverlap) {
+      await prisma.visit.create({
+        data: {
+          placeId: candidate.placeId,
+          arrivalAt: candidate.arrivalAt,
+          departureAt: candidate.departureAt,
+          status: "suggested",
+        },
+      });
+
+      allExistingVisits.push({
+        arrivalAt: candidate.arrivalAt,
+        departureAt: candidate.departureAt,
+      });
+      added++;
+    }
+  }
+
+  return added;
 }
