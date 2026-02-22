@@ -86,6 +86,14 @@ function durationLabel(arrival: string, departure: string): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+function toDateTimeLocalValue(value: string): string {
+  const date = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
 export default function TimelineSidebar({
   rangeStart,
   rangeEnd,
@@ -97,6 +105,12 @@ export default function TimelineSidebar({
   const [loading, setLoading] = useState(true);
   const [creatingPlace, setCreatingPlace] = useState<UnknownVisit | null>(null);
   const [photos, setPhotos] = useState<ImmichPhoto[]>([]);
+  const [editingVisit, setEditingVisit] = useState<KnownVisit | null>(null);
+  const [editArrivalAt, setEditArrivalAt] = useState("");
+  const [editDepartureAt, setEditDepartureAt] = useState("");
+  const [editStatus, setEditStatus] = useState("suggested");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   function buildParams(extra?: Record<string, string>) {
     const p = new URLSearchParams(extra);
@@ -119,10 +133,14 @@ export default function TimelineSidebar({
     ]);
 
     const known: KnownVisit[] = visitsRes.ok
-      ? (await visitsRes.json()).map((v: Omit<KnownVisit, "kind">) => ({
-          kind: "known" as const,
-          ...v,
-        }))
+      ? (await visitsRes.json())
+          .filter((v: Omit<KnownVisit, "kind">) =>
+            ["suggested", "confirmed"].includes(v.status)
+          )
+          .map((v: Omit<KnownVisit, "kind">) => ({
+            kind: "known" as const,
+            ...v,
+          }))
       : [];
 
     const unknown: UnknownVisit[] = unknownRes.ok
@@ -193,6 +211,96 @@ export default function TimelineSidebar({
     load();
   }
 
+  function openEditVisit(visit: KnownVisit) {
+    setEditingVisit(visit);
+    setEditArrivalAt(toDateTimeLocalValue(visit.arrivalAt));
+    setEditDepartureAt(toDateTimeLocalValue(visit.departureAt));
+    setEditStatus(visit.status);
+    setEditError(null);
+  }
+
+  function closeEditVisit() {
+    setEditingVisit(null);
+    setEditArrivalAt("");
+    setEditDepartureAt("");
+    setEditStatus("suggested");
+    setEditError(null);
+    setSavingEdit(false);
+  }
+
+  async function saveVisitChanges() {
+    if (!editingVisit) return;
+
+    const arrivalDate = new Date(editArrivalAt);
+    const departureDate = new Date(editDepartureAt);
+
+    if (Number.isNaN(arrivalDate.getTime()) || Number.isNaN(departureDate.getTime())) {
+      setEditError("Arrival and departure time are required");
+      return;
+    }
+
+    if (departureDate.getTime() <= arrivalDate.getTime()) {
+      setEditError("Departure time must be after arrival time");
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/visits/${editingVisit.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          arrivalAt: arrivalDate.toISOString(),
+          departureAt: departureDate.toISOString(),
+          status: editStatus,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setEditError(data.error ?? "Failed to update visit");
+        return;
+      }
+
+      closeEditVisit();
+      window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
+      load();
+    } catch {
+      setEditError("Network error");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deleteVisit() {
+    if (!editingVisit) return;
+    const shouldDelete = window.confirm("Delete this visit? This action cannot be undone.");
+    if (!shouldDelete) return;
+
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/visits/${editingVisit.id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setEditError(data.error ?? "Failed to delete visit");
+        return;
+      }
+
+      closeEditVisit();
+      window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
+      load();
+    } catch {
+      setEditError("Network error");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
@@ -242,9 +350,20 @@ export default function TimelineSidebar({
                   />
                   <div className="min-w-0 flex-1">
                     {item.kind === "known" ? (
-                      <p className="truncate text-sm font-medium text-gray-900">
-                        {item.place.name}
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium text-gray-900">{item.place.name}</p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditVisit(item);
+                          }}
+                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="Edit visit"
+                          aria-label="Edit visit"
+                        >
+                          ✎
+                        </button>
+                      </div>
                     ) : (
                       <p className="truncate text-xs font-medium text-gray-500">
                         {item.lat.toFixed(4)}, {item.lon.toFixed(4)}
@@ -315,6 +434,92 @@ export default function TimelineSidebar({
           onClose={() => setCreatingPlace(null)}
           onCreated={() => handlePlaceCreated(creatingPlace)}
         />
+      )}
+
+      {editingVisit && (
+        <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Edit Visit</h2>
+                <p className="mt-0.5 text-xs text-gray-500">{editingVisit.place.name}</p>
+              </div>
+              <button
+                onClick={closeEditVisit}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                disabled={savingEdit}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 px-5 py-4">
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Arrival</label>
+                <input
+                  type="datetime-local"
+                  value={editArrivalAt}
+                  onChange={(e) => setEditArrivalAt(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingEdit}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Departure</label>
+                <input
+                  type="datetime-local"
+                  value={editDepartureAt}
+                  onChange={(e) => setEditDepartureAt(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingEdit}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingEdit}
+                >
+                  <option value="suggested">Suggested</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              {editError && <p className="text-xs text-red-600">{editError}</p>}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-gray-200 px-5 py-3">
+              <button
+                onClick={deleteVisit}
+                className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                disabled={savingEdit}
+              >
+                Delete
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={closeEditVisit}
+                  className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                  disabled={savingEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveVisitChanges}
+                  className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  disabled={savingEdit || !editArrivalAt || !editDepartureAt}
+                >
+                  {savingEdit ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
