@@ -63,6 +63,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const [nameInput, setNameInput] = useState(place.name);
   const [radiusInput, setRadiusInput] = useState(place.radius);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -151,6 +152,35 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     }
   }
 
+  async function handleDeletePlace() {
+    const confirmed = window.confirm(
+      `Delete place \"${placeInfo.name}\"? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/places/${placeInfo.id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setEditError(data.error ?? "Failed to delete place");
+        return;
+      }
+
+      window.dispatchEvent(new CustomEvent("opentimeline:place-updated"));
+      router.refresh();
+      onClose();
+    } catch {
+      setEditError("Network error");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const displayed = visits.filter((v) =>
     filter === "confirmed" ? v.status === "confirmed" : v.status !== "rejected"
   );
@@ -207,9 +237,16 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                 <button
                   onClick={handleSavePlace}
                   className="rounded bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                  disabled={saving || !nameInput.trim()}
+                  disabled={saving || deleting || !nameInput.trim()}
                 >
                   {saving ? "Saving…" : "Save"}
+                </button>
+                <button
+                  onClick={handleDeletePlace}
+                  className="rounded border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  disabled={saving || deleting}
+                >
+                  {deleting ? "Deleting…" : "Delete"}
                 </button>
                 <button
                   onClick={() => {
@@ -219,7 +256,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                     setEditError(null);
                   }}
                   className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                  disabled={saving}
+                  disabled={saving || deleting}
                 >
                   Cancel
                 </button>
