@@ -5,7 +5,8 @@
       "Bash(pnpm prisma generate:*)",
       "Bash(pnpm build:*)",
       "Bash(node -e:*)",
-      "Bash(pnpm prisma migrate dev:*)"
+      "Bash(pnpm prisma migrate dev:*)",
+      "Bash(ls:*)"
     ]
   }
 }

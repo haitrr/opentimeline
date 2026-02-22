@@ -2,6 +2,7 @@ import DateNav from "@/components/DateNav";
 import TimelineSidebar from "@/components/TimelineSidebar";
 import DailyStats from "@/components/DailyStats";
 import MapWrapper from "@/components/map/MapWrapper";
+import ImportGpxButton from "@/components/ImportGpxButton";
 import type { DailyStats as DailyStatsType } from "@/lib/groupByHour";
 import type { SerializedPoint } from "@/lib/groupByHour";
 
@@ -24,6 +25,9 @@ export default function TimelineLayout({ date, points, stats }: Props) {
             </h1>
           </div>
           <DateNav currentDate={date} />
+          <div className="mt-2">
+            <ImportGpxButton />
+          </div>
         </header>
         <DailyStats stats={stats} />
         <TimelineSidebar hourGroups={stats.hourGroups} />
