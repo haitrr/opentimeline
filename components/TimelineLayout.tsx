@@ -79,7 +79,7 @@ export default function TimelineLayout({
         <button
           type="button"
           onClick={() => setMobilePanelsOpen((open) => !open)}
-          className="absolute right-3 top-3 z-[900] rounded border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow md:hidden"
+          className="absolute left-3 top-3 z-[900] rounded border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow md:hidden"
         >
           {mobilePanelsOpen ? "Hide panel" : "Show panel"}
         </button>

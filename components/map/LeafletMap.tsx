@@ -118,6 +118,7 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
       zoom={bounds ? undefined : defaultZoom}
       bounds={bounds}
       boundsOptions={{ padding: [40, 40] }}
+      zoomControl={false}
       className="h-full w-full"
     >
       <TileLayer
