@@ -15,8 +15,10 @@ services:
     restart: always
     ports:
       - "3348:3000"
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres?schema=public"
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/postgres?schema=public}
     depends_on:
       - postgres
   postgres-backup:
