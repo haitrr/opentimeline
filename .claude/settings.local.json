@@ -6,7 +6,10 @@
       "Bash(pnpm build:*)",
       "Bash(node -e:*)",
       "Bash(pnpm prisma migrate dev:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx prisma generate:*)"
     ]
   }
 }

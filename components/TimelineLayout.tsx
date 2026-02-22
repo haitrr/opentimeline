@@ -3,6 +3,9 @@ import TimelineSidebar from "@/components/TimelineSidebar";
 import DailyStats from "@/components/DailyStats";
 import MapWrapper from "@/components/map/MapWrapper";
 import ImportGpxButton from "@/components/ImportGpxButton";
+import PlacesPanel from "@/components/PlacesPanel";
+import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
+import BackgroundDetector from "@/components/BackgroundDetector";
 import type { DailyStats as DailyStatsType } from "@/lib/groupByHour";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { RangeType } from "@/app/timeline/[date]/page";
@@ -40,11 +43,14 @@ export default function TimelineLayout({
         </header>
         <DailyStats stats={stats} range={range} />
         <TimelineSidebar groups={stats.groups} />
+        <PlacesPanel />
+        <VisitSuggestionsPanel />
       </aside>
 
       {/* Map */}
       <main className="relative flex-1">
         <MapWrapper points={points} />
+        <BackgroundDetector />
       </main>
     </div>
   );

@@ -6,13 +6,29 @@ import {
   TileLayer,
   Polyline,
   CircleMarker,
+  Circle,
   Popup,
+  useMapEvents,
 } from "react-leaflet";
 import { format } from "date-fns";
 import "leaflet/dist/leaflet.css";
 import type { SerializedPoint } from "@/lib/groupByHour";
+import type { PlaceData } from "@/lib/detectVisits";
 
-type Props = { points: SerializedPoint[] };
+type Props = {
+  points: SerializedPoint[];
+  places?: PlaceData[];
+  onMapClick?: (lat: number, lon: number) => void;
+};
+
+function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onMapClick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 function computeBounds(
   points: SerializedPoint[]
@@ -26,7 +42,7 @@ function computeBounds(
   ];
 }
 
-export default function LeafletMap({ points }: Props) {
+export default function LeafletMap({ points, places = [], onMapClick }: Props) {
   const positions = useMemo(
     () => points.map((p) => [p.lat, p.lon] as [number, number]),
     [points]
@@ -50,6 +66,8 @@ export default function LeafletMap({ points }: Props) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         maxZoom={19}
       />
+
+      {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
 
       {positions.length > 1 && (
         <Polyline
@@ -95,6 +113,30 @@ export default function LeafletMap({ points }: Props) {
           </CircleMarker>
         );
       })}
+
+      {places.map((place) => (
+        <Circle
+          key={place.id}
+          center={[place.lat, place.lon]}
+          radius={place.radius}
+          pathOptions={{
+            color: "#f97316",
+            fillColor: "#f97316",
+            fillOpacity: 0.15,
+            weight: 2,
+          }}
+        >
+          <Popup>
+            <div className="text-xs">
+              <p className="font-semibold text-orange-700">{place.name}</p>
+              <p className="text-gray-500">Radius: {place.radius}m</p>
+              <p className="text-gray-400 mt-1">
+                {place.lat.toFixed(5)}, {place.lon.toFixed(5)}
+              </p>
+            </div>
+          </Popup>
+        </Circle>
+      ))}
     </MapContainer>
   );
 }

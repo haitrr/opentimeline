@@ -1,7 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useCallback, useEffect, useState } from "react";
 import type { SerializedPoint } from "@/lib/groupByHour";
+import type { PlaceData } from "@/lib/detectVisits";
+import PlaceCreationModal from "@/components/PlaceCreationModal";
 
 const LeafletMap = dynamic(() => import("@/components/map/LeafletMap"), {
   ssr: false,
@@ -15,10 +18,48 @@ const LeafletMap = dynamic(() => import("@/components/map/LeafletMap"), {
   ),
 });
 
-export default function MapWrapper({ points }: { points: SerializedPoint[] }) {
+type Props = {
+  points: SerializedPoint[];
+};
+
+export default function MapWrapper({ points }: Props) {
+  const [places, setPlaces] = useState<PlaceData[]>([]);
+  const [modalCoords, setModalCoords] = useState<{ lat: number; lon: number } | null>(null);
+
+  const fetchPlaces = useCallback(async () => {
+    const res = await fetch("/api/places");
+    if (res.ok) setPlaces(await res.json());
+  }, []);
+
+  useEffect(() => {
+    fetchPlaces();
+  }, [fetchPlaces]);
+
+  function handleMapClick(lat: number, lon: number) {
+    setModalCoords({ lat, lon });
+  }
+
+  function handlePlaceCreated(_place: PlaceData) {
+    setModalCoords(null);
+    fetchPlaces();
+    window.dispatchEvent(new CustomEvent("opentimeline:place-created"));
+  }
+
   return (
     <div className="h-full w-full">
-      <LeafletMap points={points} />
+      <LeafletMap
+        points={points}
+        places={places}
+        onMapClick={handleMapClick}
+      />
+      {modalCoords && (
+        <PlaceCreationModal
+          lat={modalCoords.lat}
+          lon={modalCoords.lon}
+          onClose={() => setModalCoords(null)}
+          onCreated={handlePlaceCreated}
+        />
+      )}
     </div>
   );
 }
