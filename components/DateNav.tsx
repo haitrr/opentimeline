@@ -150,16 +150,16 @@ export default function DateNav({
   return (
     <div className="py-2">
       {/* Range type selector */}
-      <div className="mb-2 flex overflow-hidden rounded-md border border-gray-200 text-xs">
+      <div className="mb-2 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-gray-200 bg-gray-200 p-px text-xs">
         {(["day", "week", "month", "year", "custom", "all"] as RangeType[]).map(
           (r) => (
             <button
               key={r}
               onClick={() => switchRange(r)}
-              className={`flex-1 py-1 capitalize transition-colors ${
+              className={`rounded py-1 capitalize transition-colors ${
                 range === r
                   ? "bg-blue-500 font-medium text-white"
-                  : "text-gray-500 hover:bg-gray-50"
+                  : "bg-white text-gray-500 hover:bg-gray-50"
               }`}
             >
               {RANGE_LABELS[r]}
@@ -169,7 +169,7 @@ export default function DateNav({
       </div>
 
       {/* Navigation row */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-1 sm:flex-nowrap">
         <button
           onClick={goPrev}
           className={`rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 ${range === "all" ? "invisible" : ""}`}
@@ -186,12 +186,12 @@ export default function DateNav({
             onChange={(e) => {
               if (e.target.value) navigate(parseISO(e.target.value));
             }}
-            className="cursor-pointer rounded border-none bg-transparent text-center text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="min-w-0 flex-1 cursor-pointer rounded border-none bg-transparent text-center text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
           />
         )}
 
         {range === "custom" && (
-          <div className="flex items-center gap-1">
+          <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-1 sm:w-auto">
             <input
               type="date"
               value={currentDate}
@@ -200,7 +200,7 @@ export default function DateNav({
                 if (e.target.value)
                   navigate(parseISO(e.target.value), "custom", endDate);
               }}
-              className="cursor-pointer rounded border border-gray-200 bg-transparent px-1 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="min-w-0 cursor-pointer rounded border border-gray-200 bg-transparent px-1 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
             <span className="text-xs text-gray-400">–</span>
             <input
@@ -211,13 +211,13 @@ export default function DateNav({
               onChange={(e) => {
                 if (e.target.value) navigate(date, "custom", e.target.value);
               }}
-              className="cursor-pointer rounded border border-gray-200 bg-transparent px-1 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="min-w-0 cursor-pointer rounded border border-gray-200 bg-transparent px-1 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
           </div>
         )}
 
         {periodLabel && (
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-gray-700 sm:text-center">
             {periodLabel}
           </span>
         )}

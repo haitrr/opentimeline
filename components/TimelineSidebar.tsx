@@ -475,8 +475,8 @@ export default function TimelineSidebar({
       )}
 
       {editingVisit && (
-        <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40">
-          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-1000 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
+          <div className="max-h-[90vh] w-full overflow-hidden rounded-lg bg-white shadow-xl sm:max-w-md">
             <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
               <div>
                 <h2 className="text-base font-semibold text-gray-900">Edit Visit</h2>
@@ -491,7 +491,7 @@ export default function TimelineSidebar({
               </button>
             </div>
 
-            <div className="space-y-3 px-5 py-4">
+            <div className="space-y-3 overflow-y-auto px-5 py-4">
               <div>
                 <label className="mb-1 block text-xs text-gray-500">Arrival</label>
                 <input
@@ -558,7 +558,7 @@ export default function TimelineSidebar({
               {editError && <p className="text-xs text-red-600">{editError}</p>}
             </div>
 
-            <div className="flex items-center justify-between border-t border-gray-200 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-5 py-3">
               <button
                 onClick={deleteVisit}
                 className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
@@ -566,7 +566,7 @@ export default function TimelineSidebar({
               >
                 Delete
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                 <button
                   onClick={closeEditVisit}
                   className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"

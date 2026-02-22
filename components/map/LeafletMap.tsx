@@ -207,10 +207,10 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
                   mouseout: () => setHoveredPlaceId((current) => (current === place.id ? null : current)),
                 }}
               >
-                <Tooltip
+                  <Tooltip
                   permanent={hasVisitsInRange || isHovered}
                   direction="top"
-                  className="opentimeline-tooltip"
+                  className="!border-border !bg-background !text-foreground"
                   offset={[0, -8]}
                 >
                   <span className="text-xs font-medium text-foreground">{place.name}</span>

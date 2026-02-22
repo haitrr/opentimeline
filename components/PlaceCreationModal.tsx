@@ -43,8 +43,8 @@ export default function PlaceCreationModal({ lat, lon, onClose, onCreated }: Pro
   }
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40">
-      <div className="w-80 rounded-lg bg-white p-5 shadow-xl">
+    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
+      <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Create Place</h2>
         <p className="mb-4 text-xs text-gray-500">
           {lat.toFixed(5)}, {lon.toFixed(5)}

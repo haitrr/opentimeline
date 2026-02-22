@@ -34,10 +34,10 @@ export default function PhotoModal({ photos, initialIndex, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="relative flex flex-col max-h-[90vh] max-w-[90vw]"
+        className="relative flex max-h-[94vh] w-[96vw] max-w-5xl flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative h-[calc(90vh-48px)] w-[90vw] rounded-t-lg bg-black/60">
+        <div className="relative h-[calc(94vh-56px)] w-full rounded-t-lg bg-black/60">
           {isLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-white/70">
               Loading photo...
@@ -52,7 +52,7 @@ export default function PhotoModal({ photos, initialIndex, onClose }: Props) {
             className={`h-full w-full object-contain shadow-2xl ${isLoading ? "invisible" : "visible"}`}
           />
         </div>
-        <div className="flex items-center justify-between rounded-b-lg bg-black/70 px-3 py-2">
+        <div className="flex items-center justify-between rounded-b-lg bg-black/70 px-2 py-2 sm:px-3">
           <button
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
             disabled={index === 0}
