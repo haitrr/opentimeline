@@ -25,6 +25,11 @@ const MIN_GAP_PX = 10;
 const MAX_GAP_PX = 80;
 const YEAR_BADGE_MIN_PX = 32; // enough vertical room to show the year badge
 
+function parseTimeMs(value: string): number | null {
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
 function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
   const h = Math.floor(minutes / 60);
@@ -39,6 +44,14 @@ function gapToPx(
   maxMs: number,
   yearChanges: boolean
 ): number {
+  if (!Number.isFinite(gapMs) || gapMs < 0) {
+    return yearChanges ? YEAR_BADGE_MIN_PX : MIN_GAP_PX;
+  }
+
+  if (!Number.isFinite(minMs) || !Number.isFinite(maxMs)) {
+    return yearChanges ? Math.max(MIN_GAP_PX, YEAR_BADGE_MIN_PX) : MIN_GAP_PX;
+  }
+
   let px: number;
   if (minMs === maxMs) {
     px = (MIN_GAP_PX + MAX_GAP_PX) / 2;
@@ -48,7 +61,8 @@ function gapToPx(
       (Math.log(maxMs + 1) - Math.log(minMs + 1));
     px = MIN_GAP_PX + Math.max(0, Math.min(1, t)) * (MAX_GAP_PX - MIN_GAP_PX);
   }
-  return yearChanges ? Math.max(px, YEAR_BADGE_MIN_PX) : px;
+  const safePx = Number.isFinite(px) ? px : MIN_GAP_PX;
+  return yearChanges ? Math.max(safePx, YEAR_BADGE_MIN_PX) : safePx;
 }
 
 export default function PlaceDetailModal({ place, onClose }: Props) {
@@ -185,12 +199,35 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     filter === "confirmed" ? v.status === "confirmed" : v.status !== "rejected"
   );
 
-  // Pre-compute ms gaps between consecutive visits (descending order)
-  const gapsMs = displayed.slice(0, -1).map((v, i) =>
-    new Date(v.arrivalAt).getTime() - new Date(displayed[i + 1].arrivalAt).getTime()
-  );
-  const minMs = gapsMs.length ? Math.min(...gapsMs) : 0;
-  const maxMs = gapsMs.length ? Math.max(...gapsMs) : 0;
+  // Pre-compute idle-time gaps between consecutive visits (order-agnostic)
+  const gapsMs = displayed.slice(0, -1).map((v, i) => {
+    const nextVisit = displayed[i + 1];
+    if (!nextVisit) return NaN;
+
+    const currentStart = parseTimeMs(v.arrivalAt);
+    const currentEnd = parseTimeMs(v.departureAt);
+    const nextStart = parseTimeMs(nextVisit.arrivalAt);
+    const nextEnd = parseTimeMs(nextVisit.departureAt);
+
+    if (
+      currentStart === null ||
+      currentEnd === null ||
+      nextStart === null ||
+      nextEnd === null
+    ) {
+      return NaN;
+    }
+
+    const rawGap =
+      currentStart <= nextStart
+        ? nextStart - currentEnd
+        : currentStart - nextEnd;
+
+    return Math.max(0, rawGap);
+  });
+  const finiteGaps = gapsMs.filter((gap): gap is number => Number.isFinite(gap) && gap >= 0);
+  const minMs = finiteGaps.length ? Math.min(...finiteGaps) : 0;
+  const maxMs = finiteGaps.length ? Math.max(...finiteGaps) : 0;
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40">
@@ -321,7 +358,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                   arrival.getFullYear() !== new Date(nextV.arrivalAt).getFullYear();
                 const spacerPx = isLast
                   ? 0
-                  : gapToPx(gapsMs[i], minMs, maxMs, yearChanges);
+                  : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, yearChanges);
                 const nextYear = yearChanges
                   ? new Date(nextV.arrivalAt).getFullYear()
                   : null;
