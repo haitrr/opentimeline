@@ -19,6 +19,19 @@ export async function PUT(
 
   const body = await request.json();
 
+  const nextPlaceId = body.placeId != null ? Number(body.placeId) : visit.placeId;
+  if (!Number.isInteger(nextPlaceId)) {
+    return NextResponse.json(
+      { error: "placeId must be an integer" },
+      { status: 400 }
+    );
+  }
+
+  const place = await prisma.place.findUnique({ where: { id: nextPlaceId } });
+  if (!place) {
+    return NextResponse.json({ error: "placeId not found" }, { status: 400 });
+  }
+
   const status = body.status != null ? String(body.status) : visit.status;
   if (!["suggested", "confirmed", "rejected"].includes(status)) {
     return NextResponse.json(
@@ -47,7 +60,7 @@ export async function PUT(
 
   const updated = await prisma.visit.update({
     where: { id: visitId },
-    data: { status, arrivalAt, departureAt },
+    data: { placeId: nextPlaceId, status, arrivalAt, departureAt },
   });
 
   return NextResponse.json(updated);

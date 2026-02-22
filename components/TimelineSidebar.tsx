@@ -28,6 +28,12 @@ type UnknownVisit = {
 
 type TimelineItem = KnownVisit | UnknownVisit;
 
+type NearbyPlaceOption = {
+  id: number;
+  name: string;
+  distanceM: number;
+};
+
 function VisitPhotos({
   photos,
   arrivalAt,
@@ -108,6 +114,9 @@ export default function TimelineSidebar({
   const [editingVisit, setEditingVisit] = useState<KnownVisit | null>(null);
   const [editArrivalAt, setEditArrivalAt] = useState("");
   const [editDepartureAt, setEditDepartureAt] = useState("");
+  const [editPlaceId, setEditPlaceId] = useState<number | null>(null);
+  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlaceOption[]>([]);
+  const [loadingNearbyPlaces, setLoadingNearbyPlaces] = useState(false);
   const [editStatus, setEditStatus] = useState("suggested");
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -211,18 +220,41 @@ export default function TimelineSidebar({
     load();
   }
 
+  async function loadNearbyPlaces(visitId: number) {
+    setLoadingNearbyPlaces(true);
+    try {
+      const res = await fetch(`/api/visits/${visitId}/nearby-places`);
+      if (!res.ok) {
+        setNearbyPlaces([]);
+        return;
+      }
+      const data = await res.json();
+      setNearbyPlaces(Array.isArray(data.places) ? data.places : []);
+    } catch {
+      setNearbyPlaces([]);
+    } finally {
+      setLoadingNearbyPlaces(false);
+    }
+  }
+
   function openEditVisit(visit: KnownVisit) {
     setEditingVisit(visit);
     setEditArrivalAt(toDateTimeLocalValue(visit.arrivalAt));
     setEditDepartureAt(toDateTimeLocalValue(visit.departureAt));
+    setEditPlaceId(visit.place.id);
+    setNearbyPlaces([]);
     setEditStatus(visit.status);
     setEditError(null);
+    void loadNearbyPlaces(visit.id);
   }
 
   function closeEditVisit() {
     setEditingVisit(null);
     setEditArrivalAt("");
     setEditDepartureAt("");
+    setEditPlaceId(null);
+    setNearbyPlaces([]);
+    setLoadingNearbyPlaces(false);
     setEditStatus("suggested");
     setEditError(null);
     setSavingEdit(false);
@@ -244,6 +276,11 @@ export default function TimelineSidebar({
       return;
     }
 
+    if (editPlaceId == null) {
+      setEditError("Please select a place");
+      return;
+    }
+
     setSavingEdit(true);
     setEditError(null);
     try {
@@ -251,6 +288,7 @@ export default function TimelineSidebar({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          placeId: editPlaceId,
           arrivalAt: arrivalDate.toISOString(),
           departureAt: departureDate.toISOString(),
           status: editStatus,
@@ -355,7 +393,7 @@ export default function TimelineSidebar({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            openEditVisit(item);
+                            void openEditVisit(item);
                           }}
                           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                           title="Edit visit"
@@ -477,6 +515,33 @@ export default function TimelineSidebar({
               </div>
 
               <div>
+                <label className="mb-1 block text-xs text-gray-500">Place</label>
+                <select
+                  value={editPlaceId != null ? String(editPlaceId) : ""}
+                  onChange={(e) =>
+                    setEditPlaceId(
+                      e.target.value ? Number(e.target.value) : null
+                    )
+                  }
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingEdit || loadingNearbyPlaces}
+                >
+                  <option value="">Select nearby place</option>
+                  {nearbyPlaces.map((place) => (
+                    <option key={place.id} value={place.id}>
+                      {`${place.name} (${place.distanceM}m)`}
+                    </option>
+                  ))}
+                </select>
+                {loadingNearbyPlaces && (
+                  <p className="mt-1 text-xs text-gray-400">Loading nearby places…</p>
+                )}
+                {!loadingNearbyPlaces && nearbyPlaces.length === 0 && (
+                  <p className="mt-1 text-xs text-gray-400">No places found within 100m.</p>
+                )}
+              </div>
+
+              <div>
                 <label className="mb-1 block text-xs text-gray-500">Status</label>
                 <select
                   value={editStatus}
@@ -512,7 +577,7 @@ export default function TimelineSidebar({
                 <button
                   onClick={saveVisitChanges}
                   className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                  disabled={savingEdit || !editArrivalAt || !editDepartureAt}
+                  disabled={savingEdit || !editArrivalAt || !editDepartureAt || editPlaceId == null}
                 >
                   {savingEdit ? "Saving…" : "Save"}
                 </button>
