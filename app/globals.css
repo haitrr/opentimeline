@@ -3,6 +3,31 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --surface: #ffffff;
+  --surface-muted: #f9fafb;
+  --surface-hover: #f3f4f6;
+  --line: #e5e7eb;
+  --line-strong: #d1d5db;
+  --line-soft: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-faint: #9ca3af;
+}
+
+html.dark {
+  --background: #0b1020;
+  --foreground: #e5e7eb;
+  --surface: #111827;
+  --surface-muted: #1f2937;
+  --surface-hover: #374151;
+  --line: #374151;
+  --line-strong: #4b5563;
+  --line-soft: #1f2937;
+  --text-primary: #f3f4f6;
+  --text-secondary: #e5e7eb;
+  --text-muted: #9ca3af;
+  --text-faint: #6b7280;
 }
 
 @theme inline {
@@ -12,21 +37,108 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark .bg-white {
+  background-color: var(--surface);
+}
+
+html.dark .bg-gray-50 {
+  background-color: var(--surface-muted);
+}
+
+html.dark .bg-gray-100 {
+  background-color: var(--surface-hover);
+}
+
+html.dark .bg-gray-200 {
+  background-color: var(--line);
+}
+
+html.dark .border-gray-100 {
+  border-color: var(--line-soft);
+}
+
+html.dark .border-gray-200 {
+  border-color: var(--line);
+}
+
+html.dark .border-gray-300 {
+  border-color: var(--line-strong);
+}
+
+html.dark .text-gray-900 {
+  color: var(--text-primary);
+}
+
+html.dark .text-gray-800,
+html.dark .text-gray-700 {
+  color: var(--text-secondary);
+}
+
+html.dark .text-gray-600,
+html.dark .text-gray-500 {
+  color: var(--text-muted);
+}
+
+html.dark .text-gray-400,
+html.dark .text-gray-300 {
+  color: var(--text-faint);
+}
+
+html.dark .hover\:bg-gray-50:hover,
+html.dark .hover\:bg-gray-100:hover {
+  background-color: var(--surface-hover);
+}
+
+html.dark .hover\:text-gray-600:hover,
+html.dark .hover\:text-gray-800:hover {
+  color: var(--text-primary);
+}
+
 /* Ensure Leaflet map fills its container */
 .leaflet-container {
   height: 100%;
   width: 100%;
+  background: var(--surface-muted) !important;
+}
+
+html.dark .leaflet-tile {
+  background: var(--surface-muted) !important;
+}
+
+html.dark .leaflet-tile-container img,
+html.dark img.leaflet-tile {
+  background-color: var(--surface-muted) !important;
+}
+
+.leaflet-tooltip.opentimeline-tooltip {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
+}
+
+.leaflet-tooltip-top.opentimeline-tooltip:before {
+  border-top-color: var(--line) !important;
+}
+
+.leaflet-tooltip-bottom.opentimeline-tooltip:before {
+  border-bottom-color: var(--line) !important;
+}
+
+.leaflet-tooltip-left.opentimeline-tooltip:before {
+  border-left-color: var(--line) !important;
+}
+
+.leaflet-tooltip-right.opentimeline-tooltip:before {
+  border-right-color: var(--line) !important;
 }

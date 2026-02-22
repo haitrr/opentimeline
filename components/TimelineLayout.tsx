@@ -7,6 +7,7 @@ import PlacesPanel from "@/components/PlacesPanel";
 import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
 import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
 import BackgroundDetector from "@/components/BackgroundDetector";
+import ThemeToggle from "@/components/ThemeToggle";
 import type { DailyStats as DailyStatsType } from "@/lib/groupByHour";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { RangeType } from "@/app/timeline/[date]/page";
@@ -35,11 +36,14 @@ export default function TimelineLayout({
       {/* Left Sidebar */}
       <aside className="flex w-80 shrink-0 flex-col border-r border-gray-200 bg-white">
         <header className="border-b border-gray-200 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-blue-500" />
-            <h1 className="text-base font-semibold text-gray-900">
-              OpenTimeline
-            </h1>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-blue-500" />
+              <h1 className="text-base font-semibold text-gray-900">
+                OpenTimeline
+              </h1>
+            </div>
+            <ThemeToggle />
           </div>
           <DateNav currentDate={date} range={range} endDate={endDate} />
           <div className="mt-2">

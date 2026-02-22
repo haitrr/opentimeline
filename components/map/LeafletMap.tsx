@@ -83,6 +83,31 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
   const bounds = useMemo(() => computeBounds(points), [points]);
   const placeClickedRef = useRef(false);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
+  const [isDarkTheme, setIsDarkTheme] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const updateTheme = () => setIsDarkTheme(root.classList.contains("dark"));
+    updateTheme();
+
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  const tileConfig = isDarkTheme
+    ? {
+        url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: "abcd",
+      }
+    : {
+        url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        subdomains: "abc",
+      };
 
   const defaultCenter: [number, number] = [20, 0];
   const defaultZoom = 2;
@@ -96,8 +121,10 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
       className="h-full w-full"
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        key={isDarkTheme ? "dark" : "light"}
+        url={tileConfig.url}
+        attribution={tileConfig.attribution}
+        subdomains={tileConfig.subdomains}
         maxZoom={19}
       />
 
@@ -180,8 +207,13 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
                   mouseout: () => setHoveredPlaceId((current) => (current === place.id ? null : current)),
                 }}
               >
-                <Tooltip permanent={hasVisitsInRange || isHovered} direction="top" offset={[0, -8]}>
-                  <span className="text-xs font-medium">{place.name}</span>
+                <Tooltip
+                  permanent={hasVisitsInRange || isHovered}
+                  direction="top"
+                  className="opentimeline-tooltip"
+                  offset={[0, -8]}
+                >
+                  <span className="text-xs font-medium text-foreground">{place.name}</span>
                 </Tooltip>
               </Circle>
             )}
