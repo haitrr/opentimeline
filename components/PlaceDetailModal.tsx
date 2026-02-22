@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { format, differenceInMinutes } from "date-fns";
+import { useRouter } from "next/navigation";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
 import PhotoModal from "@/components/PhotoModal";
@@ -51,6 +52,7 @@ function gapToPx(
 }
 
 export default function PlaceDetailModal({ place, onClose }: Props) {
+  const router = useRouter();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,12 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
       fetchVisits();
       window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
     }
+  }
+
+  function handleViewDay(arrivalAt: string) {
+    const day = format(new Date(arrivalAt), "yyyy-MM-dd");
+    router.push(`/timeline/${day}`);
+    onClose();
   }
 
   const displayed = visits.filter((v) =>
@@ -206,11 +214,27 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                               {isSuggested ? "Suggested" : "Confirmed"}
                             </span>
                             {isSuggested && (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => handleConfirm(v.id)}
+                                  className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  onClick={() => handleViewDay(v.arrivalAt)}
+                                  className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                                >
+                                  View Day
+                                </button>
+                              </div>
+                            )}
+                            {!isSuggested && (
                               <button
-                                onClick={() => handleConfirm(v.id)}
-                                className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
+                                onClick={() => handleViewDay(v.arrivalAt)}
+                                className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
                               >
-                                Confirm
+                                View Day
                               </button>
                             )}
                           </div>
