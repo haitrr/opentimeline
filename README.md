@@ -52,6 +52,12 @@ Create `.env` in the project root with:
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:54324/postgres?schema=public"
 
+# Optional: periodic Postgres dump backup schedule/retention
+POSTGRES_BACKUP_SCHEDULE="@daily"
+POSTGRES_BACKUP_KEEP_DAYS="7"
+POSTGRES_BACKUP_KEEP_WEEKS="4"
+POSTGRES_BACKUP_KEEP_MONTHS="6"
+
 # Optional: Immich integration
 IMMICH_BASE_URL="http://localhost:2283"
 IMMICH_API_KEY="your_api_key"
@@ -76,6 +82,37 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`. The root route redirects to `/timeline/YYYY-MM-DD` for today.
+
+## Database Backups
+
+Docker Compose includes a `postgres-backup` sidecar that runs `pg_dump` on a schedule.
+
+- Schedule is controlled by `POSTGRES_BACKUP_SCHEDULE` (default `@daily`).
+- Retention is controlled by:
+  - `POSTGRES_BACKUP_KEEP_DAYS`
+  - `POSTGRES_BACKUP_KEEP_WEEKS`
+  - `POSTGRES_BACKUP_KEEP_MONTHS`
+- Backup files are written to the `postgres_backups` Docker volume.
+
+### Restore from backup
+
+1. List backup files:
+
+	```bash
+	docker compose run --rm postgres-backup ls -la /backups
+	```
+
+2. Restore a selected dump (replace `<backup-file.sql.gz>`):
+
+	```bash
+	docker compose run --rm postgres-backup sh -c "gunzip -c /backups/<backup-file.sql.gz> | psql -h postgres -U postgres -d postgres"
+	```
+
+If you are using production compose, replace `docker compose` with:
+
+```bash
+docker compose -f docker-compose.prod.yml
+```
 
 ## Data Ingestion
 

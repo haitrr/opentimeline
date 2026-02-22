@@ -19,6 +19,25 @@ services:
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres?schema=public"
     depends_on:
       - postgres
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      SCHEDULE: ${POSTGRES_BACKUP_SCHEDULE:-@daily}
+      BACKUP_KEEP_DAYS: ${POSTGRES_BACKUP_KEEP_DAYS:-7}
+      BACKUP_KEEP_WEEKS: ${POSTGRES_BACKUP_KEEP_WEEKS:-4}
+      BACKUP_KEEP_MONTHS: ${POSTGRES_BACKUP_KEEP_MONTHS:-6}
+      HEALTHCHECK_PORT: 8080
+    volumes:
+      - postgres_backups:/nfs/opentimeline/backups
 
 volumes:
   postgres_data:
+  postgres_backups:
