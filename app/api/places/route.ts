@@ -35,12 +35,12 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  const result = places.map((p) => {
+  const result = places.map((p: (typeof places)[number]) => {
     const confirmedVisitsInRange = p.visits.filter(
-      (visit) => visit.status === "confirmed"
+      (visit: (typeof p.visits)[number]) => visit.status === "confirmed"
     ).length;
     const suggestedVisitsInRange = p.visits.filter(
-      (visit) => visit.status === "suggested"
+      (visit: (typeof p.visits)[number]) => visit.status === "suggested"
     ).length;
 
     return {
@@ -88,11 +88,14 @@ export async function POST(request: NextRequest) {
     where: { status: "suggested" },
   });
   const overlapping = unknownSuggestions.filter(
-    (s) => haversineKm(s.lat, s.lon, place.lat, place.lon) <= placeRadiusKm
+    (s: (typeof unknownSuggestions)[number]) =>
+      haversineKm(s.lat, s.lon, place.lat, place.lon) <= placeRadiusKm
   );
   if (overlapping.length > 0) {
     await prisma.unknownVisitSuggestion.updateMany({
-      where: { id: { in: overlapping.map((s) => s.id) } },
+      where: {
+        id: { in: overlapping.map((s: (typeof overlapping)[number]) => s.id) },
+      },
       data: { status: "confirmed" },
     });
   }
