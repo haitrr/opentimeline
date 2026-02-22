@@ -59,7 +59,7 @@ export default function PlaceCreationModal({ lat, lon, onClose, onCreated }: Pro
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Home, Work, Gym"
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
               autoFocus
               required
             />
@@ -74,7 +74,7 @@ export default function PlaceCreationModal({ lat, lon, onClose, onCreated }: Pro
               onChange={(e) => setRadius(Number(e.target.value))}
               min={10}
               max={5000}
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
             />
           </div>
           {error && <p className="text-xs text-red-600">{error}</p>}
