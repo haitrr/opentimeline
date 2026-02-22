@@ -14,7 +14,7 @@ services:
     build: .
     restart: always
     ports:
-      - "3000:3000"
+      - "3348:3000"
     environment:
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/postgres?schema=public"
     depends_on:
