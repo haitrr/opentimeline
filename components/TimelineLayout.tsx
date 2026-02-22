@@ -5,14 +5,23 @@ import MapWrapper from "@/components/map/MapWrapper";
 import ImportGpxButton from "@/components/ImportGpxButton";
 import type { DailyStats as DailyStatsType } from "@/lib/groupByHour";
 import type { SerializedPoint } from "@/lib/groupByHour";
+import type { RangeType } from "@/app/timeline/[date]/page";
 
 type Props = {
   date: string;
+  range: RangeType;
+  endDate?: string;
   points: SerializedPoint[];
   stats: DailyStatsType;
 };
 
-export default function TimelineLayout({ date, points, stats }: Props) {
+export default function TimelineLayout({
+  date,
+  range,
+  endDate,
+  points,
+  stats,
+}: Props) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-50">
       {/* Left Sidebar */}
@@ -24,13 +33,13 @@ export default function TimelineLayout({ date, points, stats }: Props) {
               OpenTimeline
             </h1>
           </div>
-          <DateNav currentDate={date} />
+          <DateNav currentDate={date} range={range} endDate={endDate} />
           <div className="mt-2">
             <ImportGpxButton />
           </div>
         </header>
-        <DailyStats stats={stats} />
-        <TimelineSidebar hourGroups={stats.hourGroups} />
+        <DailyStats stats={stats} range={range} />
+        <TimelineSidebar groups={stats.groups} />
       </aside>
 
       {/* Map */}
