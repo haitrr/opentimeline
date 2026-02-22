@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -19,11 +19,22 @@ type Props = {
   points: SerializedPoint[];
   places?: PlaceData[];
   onMapClick?: (lat: number, lon: number) => void;
+  onPlaceClick?: (place: PlaceData) => void;
 };
 
-function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lon: number) => void }) {
+function MapClickHandler({
+  onMapClick,
+  placeClickedRef,
+}: {
+  onMapClick: (lat: number, lon: number) => void;
+  placeClickedRef: React.MutableRefObject<boolean>;
+}) {
   useMapEvents({
     click(e) {
+      if (placeClickedRef.current) {
+        placeClickedRef.current = false;
+        return;
+      }
       onMapClick(e.latlng.lat, e.latlng.lng);
     },
   });
@@ -42,13 +53,14 @@ function computeBounds(
   ];
 }
 
-export default function LeafletMap({ points, places = [], onMapClick }: Props) {
+export default function LeafletMap({ points, places = [], onMapClick, onPlaceClick }: Props) {
   const positions = useMemo(
     () => points.map((p) => [p.lat, p.lon] as [number, number]),
     [points]
   );
 
   const bounds = useMemo(() => computeBounds(points), [points]);
+  const placeClickedRef = useRef(false);
 
   const defaultCenter: [number, number] = [20, 0];
   const defaultZoom = 2;
@@ -67,7 +79,7 @@ export default function LeafletMap({ points, places = [], onMapClick }: Props) {
         maxZoom={19}
       />
 
-      {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
+      {onMapClick && <MapClickHandler onMapClick={onMapClick} placeClickedRef={placeClickedRef} />}
 
       {positions.length > 1 && (
         <Polyline
@@ -125,17 +137,17 @@ export default function LeafletMap({ points, places = [], onMapClick }: Props) {
             fillOpacity: 0.15,
             weight: 2,
           }}
-        >
-          <Popup>
-            <div className="text-xs">
-              <p className="font-semibold text-orange-700">{place.name}</p>
-              <p className="text-gray-500">Radius: {place.radius}m</p>
-              <p className="text-gray-400 mt-1">
-                {place.lat.toFixed(5)}, {place.lon.toFixed(5)}
-              </p>
-            </div>
-          </Popup>
-        </Circle>
+          eventHandlers={
+            onPlaceClick
+              ? {
+                  click() {
+                    placeClickedRef.current = true;
+                    onPlaceClick(place);
+                  },
+                }
+              : undefined
+          }
+        />
       ))}
     </MapContainer>
   );

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
+import PlaceDetailModal from "@/components/PlaceDetailModal";
 
 const LeafletMap = dynamic(() => import("@/components/map/LeafletMap"), {
   ssr: false,
@@ -25,6 +26,7 @@ type Props = {
 export default function MapWrapper({ points }: Props) {
   const [places, setPlaces] = useState<PlaceData[]>([]);
   const [modalCoords, setModalCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceData | null>(null);
 
   const fetchPlaces = useCallback(async () => {
     const res = await fetch("/api/places");
@@ -36,7 +38,13 @@ export default function MapWrapper({ points }: Props) {
   }, [fetchPlaces]);
 
   function handleMapClick(lat: number, lon: number) {
+    setSelectedPlace(null);
     setModalCoords({ lat, lon });
+  }
+
+  function handlePlaceClick(place: PlaceData) {
+    setModalCoords(null);
+    setSelectedPlace(place);
   }
 
   function handlePlaceCreated(_place: PlaceData) {
@@ -51,6 +59,7 @@ export default function MapWrapper({ points }: Props) {
         points={points}
         places={places}
         onMapClick={handleMapClick}
+        onPlaceClick={handlePlaceClick}
       />
       {modalCoords && (
         <PlaceCreationModal
@@ -58,6 +67,12 @@ export default function MapWrapper({ points }: Props) {
           lon={modalCoords.lon}
           onClose={() => setModalCoords(null)}
           onCreated={handlePlaceCreated}
+        />
+      )}
+      {selectedPlace && (
+        <PlaceDetailModal
+          place={selectedPlace}
+          onClose={() => setSelectedPlace(null)}
         />
       )}
     </div>
