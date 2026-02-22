@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     where: { tst: { gte: minTst, lte: maxTst } },
     select: { tst: true },
   });
-  const existingTsts = new Set(existing.map((p) => p.tst));
+  const existingTsts = new Set<number>(existing.map((point: { tst: number }) => point.tst));
 
   const newPoints = points.filter((p) => !existingTsts.has(p.tst));
 

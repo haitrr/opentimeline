@@ -10,6 +10,7 @@ RUN pnpm install --frozen-lockfile
 
 FROM deps AS builder
 COPY . .
+RUN pnpm prisma generate
 RUN pnpm build
 
 FROM node:20-bookworm-slim AS runner

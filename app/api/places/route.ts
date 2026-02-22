@@ -18,11 +18,11 @@ export async function GET(request: NextRequest) {
 
   const visitsWhere = hasValidRange
     ? {
-        status: { in: ["confirmed", "suggested"] as const },
+        status: { in: ["confirmed", "suggested"] },
         arrivalAt: { lte: end! },
         departureAt: { gte: start! },
       }
-    : { status: { in: ["confirmed", "suggested"] as const } };
+    : { status: { in: ["confirmed", "suggested"] } };
 
   const places = await prisma.place.findMany({
     include: {
