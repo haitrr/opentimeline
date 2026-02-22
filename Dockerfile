@@ -6,11 +6,12 @@ WORKDIR /app
 FROM base AS deps
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
+RUN pnpm prisma generate
 
 FROM deps AS builder
 COPY . .
-RUN pnpm prisma generate
 RUN pnpm build
 
 FROM node:20-bookworm-slim AS runner
