@@ -14,6 +14,7 @@ type Place = {
 export default function PlacesPanel() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const fetchPlaces = useCallback(async () => {
     const res = await fetch("/api/places");
@@ -30,10 +31,9 @@ export default function PlacesPanel() {
     };
   }, [fetchPlaces]);
 
-  async function handleDelete(id: number) {
-    const res = await fetch(`/api/places/${id}`, { method: "DELETE" });
-    if (res.ok) fetchPlaces();
-  }
+  const filtered = places.filter((p) =>
+    p.name.toLowerCase().includes(query.toLowerCase())
+  );
 
   return (
     <div className="border-t border-gray-200">
@@ -45,37 +45,48 @@ export default function PlacesPanel() {
         <span className="text-gray-400">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="px-4 pb-3">
+        <div className="px-4 pb-3 max-h-[40vh] overflow-y-auto">
           {places.length === 0 ? (
             <p className="text-xs text-gray-400">
               Click anywhere on the map to add a place.
             </p>
           ) : (
-            <ul className="space-y-1">
-              {places.map((p) => (
-                <li
-                  key={p.id}
-                  className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-gray-50"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-gray-800">
-                      {p.name}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {p.radius}m · {p.confirmedVisits} visit
-                      {p.confirmedVisits !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    className="ml-2 shrink-0 rounded p-1 text-gray-300 hover:bg-red-50 hover:text-red-500"
-                    title="Delete place"
-                  >
-                    ✕
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search places…"
+                className="mb-2 w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 outline-none focus:border-gray-400"
+              />
+              {filtered.length === 0 ? (
+                <p className="text-xs text-gray-400">No places match.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {filtered.map((p) => (
+                    <li
+                      key={p.id}
+                      className="cursor-pointer rounded px-2 py-1.5 hover:bg-gray-50"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("opentimeline:fly-to", {
+                            detail: { lat: p.lat, lon: p.lon },
+                          })
+                        )
+                      }
+                    >
+                      <p className="truncate text-sm font-medium text-gray-800">
+                        {p.name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {p.radius}m · {p.confirmedVisits} visit
+                        {p.confirmedVisits !== 1 ? "s" : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       )}
