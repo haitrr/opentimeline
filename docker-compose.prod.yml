@@ -21,6 +21,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/postgres?schema=public}
     depends_on:
       - postgres
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
   postgres-backup:
     image: prodrigestivill/postgres-backup-local
     restart: always
