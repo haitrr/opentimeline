@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -8,6 +8,7 @@ import {
   CircleMarker,
   Circle,
   Popup,
+  Tooltip,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -81,6 +82,7 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
 
   const bounds = useMemo(() => computeBounds(points), [points]);
   const placeClickedRef = useRef(false);
+  const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
 
   const defaultCenter: [number, number] = [20, 0];
   const defaultZoom = 2;
@@ -147,29 +149,61 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
         );
       })}
 
-      {places.map((place) => (
-        <Circle
-          key={place.id}
-          center={[place.lat, place.lon]}
-          radius={place.radius}
-          pathOptions={{
-            color: "#f97316",
-            fillColor: "#f97316",
-            fillOpacity: 0.15,
-            weight: 2,
-          }}
-          eventHandlers={
-            onPlaceClick
-              ? {
-                  click() {
-                    placeClickedRef.current = true;
-                    onPlaceClick(place);
-                  },
-                }
-              : undefined
-          }
-        />
-      ))}
+      {places.map((place) => {
+        const hasConfirmedInRange = (place.confirmedVisitsInRange ?? 0) > 0;
+        const hasSuggestedInRange = (place.suggestedVisitsInRange ?? 0) > 0;
+        const hasVisitsInRange = hasConfirmedInRange || hasSuggestedInRange;
+        const isHovered = hoveredPlaceId === place.id;
+
+        const handlePlaceClick = () => {
+          if (!onPlaceClick) return;
+          placeClickedRef.current = true;
+          onPlaceClick(place);
+        };
+
+        return (
+          <React.Fragment key={place.id}>
+            {(hasVisitsInRange || isHovered) && (
+              <Circle
+                center={[place.lat, place.lon]}
+                radius={place.radius}
+                pathOptions={{
+                  color: hasVisitsInRange ? "#16a34a" : "#7e22ce",
+                  fillColor: hasVisitsInRange ? "#22c55e" : "#a855f7",
+                  fillOpacity: hasVisitsInRange ? 0.2 : 0.15,
+                  weight: 2,
+                  dashArray: hasConfirmedInRange || !hasSuggestedInRange ? undefined : "6, 6",
+                }}
+                eventHandlers={{
+                  click: handlePlaceClick,
+                  mouseover: () => setHoveredPlaceId(place.id),
+                  mouseout: () => setHoveredPlaceId((current) => (current === place.id ? null : current)),
+                }}
+              >
+                <Tooltip permanent={hasVisitsInRange || isHovered} direction="top" offset={[0, -8]}>
+                  <span className="text-xs font-medium">{place.name}</span>
+                </Tooltip>
+              </Circle>
+            )}
+
+            <CircleMarker
+              center={[place.lat, place.lon]}
+              radius={hasVisitsInRange ? 5 : 3}
+              pathOptions={{
+                color: hasVisitsInRange ? "#15803d" : "#7e22ce",
+                fillColor: hasVisitsInRange ? "#22c55e" : "#a855f7",
+                fillOpacity: 0.9,
+                weight: hasVisitsInRange ? 2 : 1.5,
+              }}
+              eventHandlers={{
+                click: handlePlaceClick,
+                mouseover: () => setHoveredPlaceId(place.id),
+                mouseout: () => setHoveredPlaceId((current) => (current === place.id ? null : current)),
+              }}
+            />
+          </React.Fragment>
+        );
+      })}
 
       {unknownVisits.map((uv) => (
         <Circle
@@ -184,9 +218,12 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
             dashArray: "5, 5",
           }}
         >
+          <Tooltip permanent direction="top" offset={[0, -8]}>
+            <span className="text-xs font-medium">Unknown</span>
+          </Tooltip>
           <Popup>
             <div className="text-xs">
-              <p className="font-semibold text-yellow-700">Unknown place</p>
+              <p className="font-semibold text-yellow-700">Unknown</p>
               <p className="text-gray-600 mt-0.5">
                 {format(new Date(uv.arrivalAt), "MMM d, HH:mm")} –{" "}
                 {format(new Date(uv.departureAt), "HH:mm")}

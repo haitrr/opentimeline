@@ -46,9 +46,15 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
   const [pendingUnknownVisit, setPendingUnknownVisit] = useState<UnknownVisitData | null>(null);
 
   const fetchPlaces = useCallback(async () => {
-    const res = await fetch("/api/places");
+    const params = new URLSearchParams();
+    if (rangeStart && rangeEnd) {
+      params.set("start", rangeStart);
+      params.set("end", rangeEnd);
+    }
+    const url = params.toString() ? `/api/places?${params}` : "/api/places";
+    const res = await fetch(url);
     if (res.ok) setPlaces(await res.json());
-  }, []);
+  }, [rangeStart, rangeEnd]);
 
   const fetchUnknownVisits = useCallback(async () => {
     const res = await fetch("/api/unknown-visits?status=suggested");

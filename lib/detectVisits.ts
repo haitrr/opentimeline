@@ -7,6 +7,9 @@ export type PlaceData = {
   lat: number;
   lon: number;
   radius: number;
+  visitsInRange?: number;
+  confirmedVisitsInRange?: number;
+  suggestedVisitsInRange?: number;
 };
 
 type CandidateVisit = {

@@ -3,28 +3,60 @@ import { prisma } from "@/lib/prisma";
 import { detectVisitsForPlace } from "@/lib/detectVisits";
 import { haversineKm } from "@/lib/geo";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const startParam = request.nextUrl.searchParams.get("start");
+  const endParam = request.nextUrl.searchParams.get("end");
+
+  const start = startParam ? new Date(startParam) : null;
+  const end = endParam ? new Date(endParam) : null;
+
+  const hasValidRange =
+    start != null &&
+    end != null &&
+    !Number.isNaN(start.getTime()) &&
+    !Number.isNaN(end.getTime());
+
+  const visitsWhere = hasValidRange
+    ? {
+        status: { in: ["confirmed", "suggested"] as const },
+        arrivalAt: { lte: end! },
+        departureAt: { gte: start! },
+      }
+    : { status: { in: ["confirmed", "suggested"] as const } };
+
   const places = await prisma.place.findMany({
     include: {
       _count: { select: { visits: true } },
       visits: {
-        where: { status: "confirmed" },
-        select: { id: true },
+        where: visitsWhere,
+        select: { status: true },
       },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const result = places.map((p) => ({
-    id: p.id,
-    name: p.name,
-    lat: p.lat,
-    lon: p.lon,
-    radius: p.radius,
-    createdAt: p.createdAt,
-    totalVisits: p._count.visits,
-    confirmedVisits: p.visits.length,
-  }));
+  const result = places.map((p) => {
+    const confirmedVisitsInRange = p.visits.filter(
+      (visit) => visit.status === "confirmed"
+    ).length;
+    const suggestedVisitsInRange = p.visits.filter(
+      (visit) => visit.status === "suggested"
+    ).length;
+
+    return {
+      id: p.id,
+      name: p.name,
+      lat: p.lat,
+      lon: p.lon,
+      radius: p.radius,
+      createdAt: p.createdAt,
+      totalVisits: p._count.visits,
+      confirmedVisits: confirmedVisitsInRange,
+      visitsInRange: confirmedVisitsInRange + suggestedVisitsInRange,
+      confirmedVisitsInRange,
+      suggestedVisitsInRange,
+    };
+  });
 
   return NextResponse.json(result);
 }
