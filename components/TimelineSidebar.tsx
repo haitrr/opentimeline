@@ -524,19 +524,28 @@ export default function TimelineSidebar({
                     {item.kind === "known" && isSuggested && (
                       <div className="mt-1.5 flex gap-1.5">
                         <button
-                          onClick={() => setCreatingPlaceForVisit(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCreatingPlaceForVisit(item);
+                          }}
                           className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
                         >
                           Create Place
                         </button>
                         <button
-                          onClick={() => confirmVisit(item.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void confirmVisit(item.id);
+                          }}
                           className="flex-1 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
                         >
                           Confirm
                         </button>
                         <button
-                          onClick={() => rejectVisit(item.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void rejectVisit(item.id);
+                          }}
                           className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
                         >
                           Reject
@@ -548,13 +557,19 @@ export default function TimelineSidebar({
                     {item.kind === "unknown" && (
                       <div className="mt-1.5 flex gap-1.5">
                         <button
-                          onClick={() => setCreatingPlace(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCreatingPlace(item);
+                          }}
                           className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
                         >
                           Create Place
                         </button>
                         <button
-                          onClick={() => dismissUnknown(item.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void dismissUnknown(item.id);
+                          }}
                           className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
                         >
                           Dismiss
