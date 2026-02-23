@@ -55,7 +55,7 @@ async function detectCandidateVisitsForPlace(
   const place = await prisma.place.findUnique({ where: { id: placeId } });
   if (!place) return [];
 
-  const bufferMs = timeWindowMinutes * 60 * 1000;
+  const dayBufferMs = 5 * 24 * 60 * 60 * 1000;
   const allPoints = await prisma.locationPoint.findMany({
     orderBy: { recordedAt: "asc" },
     select: { id: true, lat: true, lon: true, recordedAt: true },
@@ -67,7 +67,7 @@ async function detectCandidateVisitsForPlace(
                 ? [
                     {
                       recordedAt: {
-                        gte: new Date(rangeStart.getTime() - bufferMs),
+                        gte: new Date(rangeStart.getTime() - dayBufferMs),
                       },
                     },
                   ]
@@ -76,7 +76,7 @@ async function detectCandidateVisitsForPlace(
                 ? [
                     {
                       recordedAt: {
-                        lte: new Date(rangeEnd.getTime() + bufferMs),
+                        lte: new Date(rangeEnd.getTime() + dayBufferMs),
                       },
                     },
                   ]
@@ -340,9 +340,13 @@ export async function detectVisitsForAllPlaces(
   const rangeFiltered =
     rangeStart || rangeEnd
       ? allCandidates.filter((c) => {
-          if (rangeStart && c.arrivalAt < rangeStart) return false;
-          if (rangeEnd && c.departureAt > rangeEnd) return false;
-          return true;
+          const arrivalInRange =
+            (!rangeStart || c.arrivalAt >= rangeStart) &&
+            (!rangeEnd || c.arrivalAt <= rangeEnd);
+          const departureInRange =
+            (!rangeStart || c.departureAt >= rangeStart) &&
+            (!rangeEnd || c.departureAt <= rangeEnd);
+          return arrivalInRange || departureInRange;
         })
       : allCandidates;
 

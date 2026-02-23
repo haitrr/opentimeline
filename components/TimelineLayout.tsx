@@ -62,6 +62,9 @@ export default function TimelineLayout({
       if (r1.ok) {
         const { newVisits } = await r1.json();
         total += newVisits ?? 0;
+        if (newVisits > 0) {
+          window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
+        }
       }
       const r2 = await fetch("/api/unknown-visits/detect", {
         method: "POST",

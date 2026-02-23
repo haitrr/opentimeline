@@ -23,7 +23,6 @@ export default function BackgroundDetector() {
       }
     }
 
-    detect();
     const interval = setInterval(detect, 60 * 60 * 1000); // every hour
     return () => clearInterval(interval);
   }, []);

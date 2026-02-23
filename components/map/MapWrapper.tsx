@@ -73,9 +73,11 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
     fetchUnknownVisits();
     fetchPhotos();
     window.addEventListener("opentimeline:place-updated", fetchPlaces);
+    window.addEventListener("opentimeline:visits-updated", fetchPlaces);
     window.addEventListener("opentimeline:unknown-visits-detected", fetchUnknownVisits);
     return () => {
       window.removeEventListener("opentimeline:place-updated", fetchPlaces);
+      window.removeEventListener("opentimeline:visits-updated", fetchPlaces);
       window.removeEventListener("opentimeline:unknown-visits-detected", fetchUnknownVisits);
     };
   }, [fetchPlaces, fetchUnknownVisits, fetchPhotos]);

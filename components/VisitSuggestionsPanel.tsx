@@ -23,8 +23,10 @@ export default function VisitSuggestionsPanel() {
   useEffect(() => {
     fetchVisits();
     window.addEventListener("opentimeline:place-created", fetchVisits);
+    window.addEventListener("opentimeline:visits-updated", fetchVisits);
     return () => {
       window.removeEventListener("opentimeline:place-created", fetchVisits);
+      window.removeEventListener("opentimeline:visits-updated", fetchVisits);
     };
   }, [fetchVisits]);
 
