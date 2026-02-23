@@ -78,13 +78,13 @@ export default function ImportGpxButton() {
       <button
         onClick={() => inputRef.current?.click()}
         disabled={status === "parsing" || status === "uploading"}
-        className="flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 16 16"
           fill="currentColor"
-          className="h-3.5 w-3.5"
+          className="h-4 w-4 shrink-0"
         >
           <path
             fillRule="evenodd"
