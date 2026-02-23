@@ -15,10 +15,17 @@ type UnknownVisit = {
   status: string;
 };
 
+function toDatetimeLocal(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function UnknownVisitSuggestionsPanel() {
   const [suggestions, setSuggestions] = useState<UnknownVisit[]>([]);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<UnknownVisit | null>(null);
+  const [editing, setEditing] = useState<{ id: number; arrivalAt: string; departureAt: string } | null>(null);
 
   const fetchSuggestions = useCallback(async () => {
     const res = await fetch("/api/unknown-visits?status=suggested");
@@ -40,6 +47,27 @@ export default function UnknownVisitSuggestionsPanel() {
       body: JSON.stringify({ status: "rejected" }),
     });
     if (res.ok) fetchSuggestions();
+  }
+
+  async function handleDelete(id: number) {
+    const res = await fetch(`/api/unknown-visits/${id}`, { method: "DELETE" });
+    if (res.ok) fetchSuggestions();
+  }
+
+  async function handleEditSave(id: number) {
+    if (!editing) return;
+    const res = await fetch(`/api/unknown-visits/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        arrivalAt: new Date(editing.arrivalAt).toISOString(),
+        departureAt: new Date(editing.departureAt).toISOString(),
+      }),
+    });
+    if (res.ok) {
+      setEditing(null);
+      fetchSuggestions();
+    }
   }
 
   async function handlePlaceCreated(visit: UnknownVisit, _place: PlaceData) {
@@ -82,25 +110,76 @@ export default function UnknownVisitSuggestionsPanel() {
                     <p className="text-xs font-medium text-gray-700">
                       {s.lat.toFixed(5)}, {s.lon.toFixed(5)}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {format(new Date(s.arrivalAt), "MMM d, HH:mm")} –{" "}
-                      {format(new Date(s.departureAt), "HH:mm")}
-                    </p>
-                    <p className="text-xs text-gray-400">{s.pointCount} points</p>
-                    <div className="mt-1.5 flex gap-1.5">
-                      <button
-                        onClick={() => setConfirming(s)}
-                        className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
-                      >
-                        Create Place
-                      </button>
-                      <button
-                        onClick={() => handleReject(s.id)}
-                        className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
+                    {editing?.id === s.id ? (
+                      <div className="mt-1 space-y-1">
+                        <div>
+                          <label className="text-xs text-gray-500">Arrival</label>
+                          <input
+                            type="datetime-local"
+                            value={editing.arrivalAt}
+                            onChange={(e) => setEditing({ ...editing, arrivalAt: e.target.value })}
+                            className="mt-0.5 w-full rounded border border-gray-300 px-1.5 py-1 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Departure</label>
+                          <input
+                            type="datetime-local"
+                            value={editing.departureAt}
+                            onChange={(e) => setEditing({ ...editing, departureAt: e.target.value })}
+                            className="mt-0.5 w-full rounded border border-gray-300 px-1.5 py-1 text-xs"
+                          />
+                        </div>
+                        <div className="flex gap-1.5 pt-0.5">
+                          <button
+                            onClick={() => handleEditSave(s.id)}
+                            className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditing(null)}
+                            className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs text-gray-500">
+                          {format(new Date(s.arrivalAt), "MMM d, HH:mm")} –{" "}
+                          {format(new Date(s.departureAt), "HH:mm")}
+                        </p>
+                        <p className="text-xs text-gray-400">{s.pointCount} points</p>
+                        <div className="mt-1.5 flex gap-1.5">
+                          <button
+                            onClick={() => setConfirming(s)}
+                            className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
+                          >
+                            Create Place
+                          </button>
+                          <button
+                            onClick={() => setEditing({ id: s.id, arrivalAt: toDatetimeLocal(s.arrivalAt), departureAt: toDatetimeLocal(s.departureAt) })}
+                            className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleReject(s.id)}
+                            className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                          >
+                            Dismiss
+                          </button>
+                          <button
+                            onClick={() => handleDelete(s.id)}
+                            className="rounded border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>

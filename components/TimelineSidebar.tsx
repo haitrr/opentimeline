@@ -121,6 +121,12 @@ export default function TimelineSidebar({
   const [editError, setEditError] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  const [editingUnknown, setEditingUnknown] = useState<UnknownVisit | null>(null);
+  const [editUnknownArrivalAt, setEditUnknownArrivalAt] = useState("");
+  const [editUnknownDepartureAt, setEditUnknownDepartureAt] = useState("");
+  const [editUnknownError, setEditUnknownError] = useState<string | null>(null);
+  const [savingUnknownEdit, setSavingUnknownEdit] = useState(false);
+
   function buildParams(extra?: Record<string, string>) {
     const p = new URLSearchParams(extra);
     if (rangeStart) p.set("start", rangeStart);
@@ -207,6 +213,80 @@ export default function TimelineSidebar({
       body: JSON.stringify({ status: "rejected" }),
     });
     load();
+  }
+
+  function openEditUnknown(visit: UnknownVisit) {
+    setEditingUnknown(visit);
+    setEditUnknownArrivalAt(toDateTimeLocalValue(visit.arrivalAt));
+    setEditUnknownDepartureAt(toDateTimeLocalValue(visit.departureAt));
+    setEditUnknownError(null);
+  }
+
+  function closeEditUnknown() {
+    setEditingUnknown(null);
+    setEditUnknownArrivalAt("");
+    setEditUnknownDepartureAt("");
+    setEditUnknownError(null);
+    setSavingUnknownEdit(false);
+  }
+
+  async function saveUnknownChanges() {
+    if (!editingUnknown) return;
+    const arrivalDate = new Date(editUnknownArrivalAt);
+    const departureDate = new Date(editUnknownDepartureAt);
+    if (Number.isNaN(arrivalDate.getTime()) || Number.isNaN(departureDate.getTime())) {
+      setEditUnknownError("Arrival and departure time are required");
+      return;
+    }
+    if (departureDate.getTime() <= arrivalDate.getTime()) {
+      setEditUnknownError("Departure time must be after arrival time");
+      return;
+    }
+    setSavingUnknownEdit(true);
+    setEditUnknownError(null);
+    try {
+      const res = await fetch(`/api/unknown-visits/${editingUnknown.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          arrivalAt: arrivalDate.toISOString(),
+          departureAt: departureDate.toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setEditUnknownError(data.error ?? "Failed to update");
+        return;
+      }
+      closeEditUnknown();
+      load();
+    } catch {
+      setEditUnknownError("Network error");
+    } finally {
+      setSavingUnknownEdit(false);
+    }
+  }
+
+  async function deleteUnknownVisit() {
+    if (!editingUnknown) return;
+    const shouldDelete = window.confirm("Delete this unknown visit? This action cannot be undone.");
+    if (!shouldDelete) return;
+    setSavingUnknownEdit(true);
+    setEditUnknownError(null);
+    try {
+      const res = await fetch(`/api/unknown-visits/${editingUnknown.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        setEditUnknownError(data.error ?? "Failed to delete");
+        return;
+      }
+      closeEditUnknown();
+      load();
+    } catch {
+      setEditUnknownError("Network error");
+    } finally {
+      setSavingUnknownEdit(false);
+    }
   }
 
   async function handlePlaceCreated(visit: UnknownVisit) {
@@ -403,9 +483,22 @@ export default function TimelineSidebar({
                         </button>
                       </div>
                     ) : (
-                      <p className="truncate text-xs font-medium text-gray-500">
-                        {item.lat.toFixed(4)}, {item.lon.toFixed(4)}
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-xs font-medium text-gray-500">
+                          {item.lat.toFixed(4)}, {item.lon.toFixed(4)}
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditUnknown(item);
+                          }}
+                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title="Edit unknown visit"
+                          aria-label="Edit unknown visit"
+                        >
+                          ✎
+                        </button>
+                      </div>
                     )}
                     <p className="text-xs text-gray-500">
                       {format(new Date(item.arrivalAt), "HH:mm")}
@@ -472,6 +565,78 @@ export default function TimelineSidebar({
           onClose={() => setCreatingPlace(null)}
           onCreated={() => handlePlaceCreated(creatingPlace)}
         />
+      )}
+
+      {editingUnknown && (
+        <div className="fixed inset-0 z-1000 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
+          <div className="max-h-[90vh] w-full overflow-hidden rounded-lg bg-white shadow-xl sm:max-w-md">
+            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Edit Unknown Visit</h2>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {editingUnknown.lat.toFixed(5)}, {editingUnknown.lon.toFixed(5)}
+                </p>
+              </div>
+              <button
+                onClick={closeEditUnknown}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                disabled={savingUnknownEdit}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 overflow-y-auto px-5 py-4">
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Arrival</label>
+                <input
+                  type="datetime-local"
+                  value={editUnknownArrivalAt}
+                  onChange={(e) => setEditUnknownArrivalAt(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingUnknownEdit}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Departure</label>
+                <input
+                  type="datetime-local"
+                  value={editUnknownDepartureAt}
+                  onChange={(e) => setEditUnknownDepartureAt(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingUnknownEdit}
+                />
+              </div>
+              {editUnknownError && <p className="text-xs text-red-600">{editUnknownError}</p>}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-5 py-3">
+              <button
+                onClick={deleteUnknownVisit}
+                className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                disabled={savingUnknownEdit}
+              >
+                Delete
+              </button>
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                <button
+                  onClick={closeEditUnknown}
+                  className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                  disabled={savingUnknownEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveUnknownChanges}
+                  className="rounded bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                  disabled={savingUnknownEdit || !editUnknownArrivalAt || !editUnknownDepartureAt}
+                >
+                  {savingUnknownEdit ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {editingVisit && (
