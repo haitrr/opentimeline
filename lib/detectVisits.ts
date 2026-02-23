@@ -98,6 +98,17 @@ async function detectCandidateVisitsForPlace(
     const departureAt = new Date(group[group.length - 1].recordedAt);
 
     if (departureAt.getTime() - arrivalAt.getTime() < timeWindowMs) continue;
+
+    // Only count a visit if the person has clearly left: there must be a point
+    // outside the place radius recorded at least 15 minutes after the last
+    // point in this group. This avoids counting ongoing visits with wrong duration.
+    const hasLeftPlace = allPoints.some((point: (typeof allPoints)[number]) => {
+      const pointMs = new Date(point.recordedAt).getTime();
+      if (pointMs <= departureAt.getTime() + timeWindowMs) return false;
+      return haversineKm(point.lat, point.lon, place.lat, place.lon) > radiusKm;
+    });
+    if (!hasLeftPlace) continue;
+
     const distanceKm = group.reduce(
       (minDistance: number, point: NearbyPoint) =>
         Math.min(minDistance, point.distanceKm),
