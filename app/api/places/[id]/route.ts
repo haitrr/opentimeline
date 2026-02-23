@@ -21,6 +21,8 @@ export async function PUT(
   const body = await request.json();
   const name = body.name != null ? String(body.name).trim() : place.name;
   const radius = body.radius != null ? Number(body.radius) : place.radius;
+  const lat = body.lat != null ? Number(body.lat) : place.lat;
+  const lon = body.lon != null ? Number(body.lon) : place.lon;
 
   if (!name) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -33,9 +35,23 @@ export async function PUT(
     );
   }
 
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+    return NextResponse.json(
+      { error: "lat must be between -90 and 90" },
+      { status: 400 }
+    );
+  }
+
+  if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+    return NextResponse.json(
+      { error: "lon must be between -180 and 180" },
+      { status: 400 }
+    );
+  }
+
   const updated = await prisma.place.update({
     where: { id: placeId },
-    data: { name, radius },
+    data: { name, radius, lat, lon },
   });
 
   const reconciliation = await reconcileVisitSuggestionsForPlace(placeId);

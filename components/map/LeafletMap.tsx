@@ -7,12 +7,14 @@ import {
   Polyline,
   CircleMarker,
   Circle,
+  Marker,
   Popup,
   Tooltip,
   useMap,
   useMapEvents,
 } from "react-leaflet";
 import { format } from "date-fns";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
@@ -26,6 +28,7 @@ type Props = {
   photos?: ImmichPhoto[];
   onMapClick?: (lat: number, lon: number) => void;
   onPlaceClick?: (place: PlaceData) => void;
+  onPlaceMoveRequest?: (place: PlaceData, lat: number, lon: number) => void;
   onUnknownVisitCreatePlace?: (uv: UnknownVisitData) => void;
   onPhotoClick?: (photo: ImmichPhoto) => void;
 };
@@ -74,7 +77,7 @@ function computeBounds(
   ];
 }
 
-export default function LeafletMap({ points, places = [], unknownVisits = [], photos = [], onMapClick, onPlaceClick, onUnknownVisitCreatePlace, onPhotoClick }: Props) {
+export default function LeafletMap({ points, places = [], unknownVisits = [], photos = [], onMapClick, onPlaceClick, onPlaceMoveRequest, onUnknownVisitCreatePlace, onPhotoClick }: Props) {
   const positions = useMemo(
     () => points.map((p) => [p.lat, p.lon] as [number, number]),
     [points]
@@ -84,6 +87,7 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
   const placeClickedRef = useRef(false);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -94,6 +98,43 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
     observer.observe(root, { attributes: true, attributeFilter: ["class"] });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Meta") {
+        setIsCtrlPressed(true);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Meta") {
+        setIsCtrlPressed(false);
+      }
+    };
+
+    const handleWindowBlur = () => setIsCtrlPressed(false);
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, []);
+
+  const dragHandleIcon = useMemo(
+    () =>
+      L.divIcon({
+        className: "",
+        html: '<div class="h-4 w-4 rounded-full border-2 border-blue-700 bg-blue-500 opacity-80 shadow"></div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      }),
+    []
+  );
 
   const tileConfig = isDarkTheme
     ? {
@@ -232,6 +273,20 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
                 click: handlePlaceClick,
                 mouseover: () => setHoveredPlaceId(place.id),
                 mouseout: () => setHoveredPlaceId((current) => (current === place.id ? null : current)),
+              }}
+            />
+            <Marker
+              position={[place.lat, place.lon]}
+              icon={dragHandleIcon}
+              draggable={isCtrlPressed}
+              opacity={isCtrlPressed ? 1 : 0}
+              eventHandlers={{
+                dragend: (event) => {
+                  const marker = event.target as L.Marker;
+                  const next = marker.getLatLng();
+                  onPlaceMoveRequest?.(place, next.lat, next.lng);
+                  marker.setLatLng([place.lat, place.lon]);
+                },
               }}
             />
           </React.Fragment>

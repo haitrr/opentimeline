@@ -43,6 +43,9 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
   const [modalCoords, setModalCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlaceData | null>(null);
   const [pendingUnknownVisit, setPendingUnknownVisit] = useState<UnknownVisitData | null>(null);
+  const [pendingPlaceMove, setPendingPlaceMove] = useState<{ place: PlaceData; lat: number; lon: number } | null>(null);
+  const [updatingPlaceMove, setUpdatingPlaceMove] = useState(false);
+  const [placeMoveError, setPlaceMoveError] = useState<string | null>(null);
 
   const { data: places = [] } = useQuery<PlaceData[]>({
     queryKey: ["places", rangeStart, rangeEnd],
@@ -89,6 +92,42 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
     setSelectedPlace(place);
   }
 
+  function handlePlaceMoveRequest(place: PlaceData, lat: number, lon: number) {
+    setSelectedPlace(null);
+    setModalCoords(null);
+    setPlaceMoveError(null);
+    setPendingPlaceMove({ place, lat, lon });
+  }
+
+  async function handleConfirmPlaceMove() {
+    if (!pendingPlaceMove) return;
+
+    setUpdatingPlaceMove(true);
+    setPlaceMoveError(null);
+    try {
+      const res = await fetch(`/api/places/${pendingPlaceMove.place.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: pendingPlaceMove.lat, lon: pendingPlaceMove.lon }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setPlaceMoveError(data?.error ?? "Failed to update place location");
+        return;
+      }
+
+      setPendingPlaceMove(null);
+      queryClient.invalidateQueries({ queryKey: ["places"] });
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
+    } catch {
+      setPlaceMoveError("Network error");
+    } finally {
+      setUpdatingPlaceMove(false);
+    }
+  }
+
   async function handlePlaceCreated(_place: PlaceData) {
     setModalCoords(null);
     if (pendingUnknownVisit) {
@@ -127,6 +166,7 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
         photos={photos}
         onMapClick={handleMapClick}
         onPlaceClick={handlePlaceClick}
+        onPlaceMoveRequest={handlePlaceMoveRequest}
         onUnknownVisitCreatePlace={handleUnknownVisitCreatePlace}
         onPhotoClick={(photo) => {
           const idx = photos.findIndex((p) => p.id === photo.id);
@@ -146,6 +186,43 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
           place={selectedPlace}
           onClose={() => setSelectedPlace(null)}
         />
+      )}
+      {pendingPlaceMove && (
+        <div className="fixed inset-0 z-900 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl">
+            <h2 className="text-base font-semibold text-gray-900">Update place location?</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Move <span className="font-medium text-gray-800">{pendingPlaceMove.place.name}</span> to this location?
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              {pendingPlaceMove.lat.toFixed(5)}, {pendingPlaceMove.lon.toFixed(5)}
+            </p>
+            {placeMoveError && <p className="mt-2 text-xs text-red-600">{placeMoveError}</p>}
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (updatingPlaceMove) return;
+                  setPendingPlaceMove(null);
+                  setPlaceMoveError(null);
+                }}
+                className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                disabled={updatingPlaceMove}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPlaceMove}
+                className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                disabled={updatingPlaceMove}
+              >
+                {updatingPlaceMove ? "Updating…" : "Update location"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {photoModal && (
         <PhotoModal
