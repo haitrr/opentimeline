@@ -21,10 +21,42 @@ function updateCenter(cluster: Cluster, point: Point): void {
   cluster.centerLon = (cluster.centerLon * n + point.lon) / (n + 1);
 }
 
-export async function detectUnknownVisits(): Promise<number> {
+export async function detectUnknownVisits(
+  rangeStart?: Date,
+  rangeEnd?: Date
+): Promise<number> {
   const allPoints = await prisma.locationPoint.findMany({
     orderBy: { recordedAt: "asc" },
     select: { id: true, lat: true, lon: true, recordedAt: true },
+    where:
+      rangeStart || rangeEnd
+        ? {
+            AND: [
+              ...(rangeStart
+                ? [
+                    {
+                      recordedAt: {
+                        gte: new Date(
+                          rangeStart.getTime() - TIME_GAP_MINUTES * 60 * 1000
+                        ),
+                      },
+                    },
+                  ]
+                : []),
+              ...(rangeEnd
+                ? [
+                    {
+                      recordedAt: {
+                        lte: new Date(
+                          rangeEnd.getTime() + TIME_GAP_MINUTES * 60 * 1000
+                        ),
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          }
+        : undefined,
   });
 
   if (allPoints.length === 0) return 0;
@@ -86,7 +118,10 @@ export async function detectUnknownVisits(): Promise<number> {
   );
 
   // Remove clusters whose center is within any known place's radius
+  // Also exclude clusters that are ongoing at either range boundary
   const unknownClusters = dwellClusters.filter((c) => {
+    if (rangeStart && c.arrivalAt < rangeStart) return false;
+    if (rangeEnd && c.departureAt > rangeEnd) return false;
     return !places.some(
       (p) =>
         haversineKm(c.centerLat, c.centerLon, p.lat, p.lon) <=

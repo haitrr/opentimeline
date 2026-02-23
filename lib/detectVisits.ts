@@ -48,14 +48,42 @@ type VisitRange = {
 
 async function detectCandidateVisitsForPlace(
   placeId: number,
-  timeWindowMinutes = 15
+  timeWindowMinutes = 15,
+  rangeStart?: Date,
+  rangeEnd?: Date
 ): Promise<CandidateVisit[]> {
   const place = await prisma.place.findUnique({ where: { id: placeId } });
   if (!place) return [];
 
+  const bufferMs = timeWindowMinutes * 60 * 1000;
   const allPoints = await prisma.locationPoint.findMany({
     orderBy: { recordedAt: "asc" },
     select: { id: true, lat: true, lon: true, recordedAt: true },
+    where:
+      rangeStart || rangeEnd
+        ? {
+            AND: [
+              ...(rangeStart
+                ? [
+                    {
+                      recordedAt: {
+                        gte: new Date(rangeStart.getTime() - bufferMs),
+                      },
+                    },
+                  ]
+                : []),
+              ...(rangeEnd
+                ? [
+                    {
+                      recordedAt: {
+                        lte: new Date(rangeEnd.getTime() + bufferMs),
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          }
+        : undefined,
   });
 
   const timeWindowMs = timeWindowMinutes * 60 * 1000;
@@ -284,7 +312,9 @@ export async function reconcileVisitSuggestionsForPlace(
 }
 
 export async function detectVisitsForAllPlaces(
-  timeWindowMinutes = 15
+  timeWindowMinutes = 15,
+  rangeStart?: Date,
+  rangeEnd?: Date
 ): Promise<number> {
   const places = await prisma.place.findMany();
 
@@ -292,7 +322,9 @@ export async function detectVisitsForAllPlaces(
   for (const place of places) {
     const candidates = await detectCandidateVisitsForPlace(
       place.id,
-      timeWindowMinutes
+      timeWindowMinutes,
+      rangeStart,
+      rangeEnd
     );
 
     for (const candidate of candidates) {
@@ -305,7 +337,16 @@ export async function detectVisitsForAllPlaces(
     }
   }
 
-  const winningCandidates = selectClosestCandidatesPerTimeRange(allCandidates);
+  const rangeFiltered =
+    rangeStart || rangeEnd
+      ? allCandidates.filter((c) => {
+          if (rangeStart && c.arrivalAt < rangeStart) return false;
+          if (rangeEnd && c.departureAt > rangeEnd) return false;
+          return true;
+        })
+      : allCandidates;
+
+  const winningCandidates = selectClosestCandidatesPerTimeRange(rangeFiltered);
 
   const existingSuggested: Array<{
     id: number;
@@ -313,7 +354,17 @@ export async function detectVisitsForAllPlaces(
     arrivalAt: Date;
     departureAt: Date;
   }> = await prisma.visit.findMany({
-    where: { status: "suggested" },
+    where: {
+      status: "suggested",
+      ...(rangeStart || rangeEnd
+        ? {
+            AND: [
+              ...(rangeStart ? [{ departureAt: { gte: rangeStart } }] : []),
+              ...(rangeEnd ? [{ arrivalAt: { lte: rangeEnd } }] : []),
+            ],
+          }
+        : {}),
+    },
     select: { id: true, placeId: true, arrivalAt: true, departureAt: true },
   });
 

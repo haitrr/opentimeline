@@ -13,7 +13,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import type { DailyStats as DailyStatsType } from "@/lib/groupByHour";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { RangeType } from "@/app/timeline/[date]/page";
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 type Props = {
   date: string;
@@ -36,6 +36,57 @@ export default function TimelineLayout({
 }: Props) {
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(message: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(message);
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
+  }
+
+  async function detectVisits() {
+    setDetecting(true);
+    const body = JSON.stringify({
+      ...(rangeStart ? { start: rangeStart } : {}),
+      ...(rangeEnd ? { end: rangeEnd } : {}),
+    });
+    let total = 0;
+    try {
+      const r1 = await fetch("/api/visits/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      if (r1.ok) {
+        const { newVisits } = await r1.json();
+        total += newVisits ?? 0;
+      }
+      const r2 = await fetch("/api/unknown-visits/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      if (r2.ok) {
+        const { created } = await r2.json();
+        total += created ?? 0;
+        if (created > 0) {
+          window.dispatchEvent(
+            new CustomEvent("opentimeline:unknown-visits-detected")
+          );
+        }
+      }
+    } finally {
+      setDetecting(false);
+      setSettingsOpen(false);
+      showToast(
+        total === 0
+          ? "No new visit suggestions found"
+          : `${total} new visit suggestion${total === 1 ? "" : "s"} detected`
+      );
+    }
+  }
 
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-gray-50 md:h-screen md:w-screen md:flex-row">
@@ -73,6 +124,17 @@ export default function TimelineLayout({
           {settingsOpen && (
             <div className="absolute bottom-full left-0 mb-2 w-56 rounded-md border border-gray-200 bg-white p-2 shadow-lg">
               <ImportGpxButton />
+              <button
+                type="button"
+                onClick={detectVisits}
+                disabled={detecting}
+                className="mt-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
+                </svg>
+                {detecting ? "Detecting…" : "Detect visits"}
+              </button>
             </div>
           )}
           <button
@@ -101,6 +163,11 @@ export default function TimelineLayout({
       <main className="relative min-h-0 flex-1">
         <MapWrapper points={points} rangeStart={rangeStart} rangeEnd={rangeEnd} />
         <BackgroundDetector />
+        {toast && (
+          <div className="absolute top-4 left-1/2 z-900 -translate-x-1/2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-lg">
+            {toast}
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setMobilePanelsOpen((open) => !open)}
