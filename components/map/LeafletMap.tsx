@@ -130,6 +130,30 @@ function HeatLayer({
 
 const MAP_LAYER_SETTINGS_KEY = "opentimeline:map-layer-settings";
 
+type MapLayerSettings = {
+  showHeatmap?: boolean;
+  showLine?: boolean;
+  showVisitedPlaces?: boolean;
+  showPoints?: boolean;
+  showPlaces?: boolean;
+  hidePoints?: boolean;
+  hidePlaces?: boolean;
+};
+
+const DEFAULT_MAP_LAYER_SETTINGS: {
+  showHeatmap: boolean;
+  showLine: boolean;
+  showVisitedPlaces: boolean;
+  hidePoints: boolean;
+  hidePlaces: boolean;
+} = {
+  showHeatmap: false,
+  showLine: true,
+  showVisitedPlaces: true,
+  hidePoints: false,
+  hidePlaces: false,
+};
+
 function MapClickHandler({
   onMapClick,
   placeClickedRef,
@@ -172,50 +196,58 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
   const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(false);
-  const [showLine, setShowLine] = useState(true);
-  const [showVisitedPlaces, setShowVisitedPlaces] = useState(true);
-  const [hidePoints, setHidePoints] = useState(false);
-  const [hidePlaces, setHidePlaces] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(DEFAULT_MAP_LAYER_SETTINGS.showHeatmap);
+  const [showLine, setShowLine] = useState(DEFAULT_MAP_LAYER_SETTINGS.showLine);
+  const [showVisitedPlaces, setShowVisitedPlaces] = useState(DEFAULT_MAP_LAYER_SETTINGS.showVisitedPlaces);
+  const [hidePoints, setHidePoints] = useState(DEFAULT_MAP_LAYER_SETTINGS.hidePoints);
+  const [hidePlaces, setHidePlaces] = useState(DEFAULT_MAP_LAYER_SETTINGS.hidePlaces);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [layersMenuOpen, setLayersMenuOpen] = useState(false);
 
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(MAP_LAYER_SETTINGS_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        showHeatmap?: boolean;
-        showLine?: boolean;
-        showVisitedPlaces?: boolean;
-        hidePoints?: boolean;
-        hidePlaces?: boolean;
-      };
+      const parsed = JSON.parse(raw) as MapLayerSettings;
       if (typeof parsed.showHeatmap === "boolean") setShowHeatmap(parsed.showHeatmap);
       if (typeof parsed.showLine === "boolean") setShowLine(parsed.showLine);
       if (typeof parsed.showVisitedPlaces === "boolean") {
         setShowVisitedPlaces(parsed.showVisitedPlaces);
       }
-      if (typeof parsed.hidePoints === "boolean") {
+      if (typeof parsed.showPoints === "boolean") {
+        setHidePoints(!parsed.showPoints);
+      } else if (typeof parsed.hidePoints === "boolean") {
         setHidePoints(parsed.hidePoints);
       }
-      if (typeof parsed.hidePlaces === "boolean") {
+      if (typeof parsed.showPlaces === "boolean") {
+        setHidePlaces(!parsed.showPlaces);
+      } else if (typeof parsed.hidePlaces === "boolean") {
         setHidePlaces(parsed.hidePlaces);
       }
     } catch {
       // ignore invalid local storage values
+    } finally {
+      setSettingsLoaded(true);
     }
   }, []);
 
   useEffect(() => {
+    if (!settingsLoaded) return;
     try {
       window.localStorage.setItem(
         MAP_LAYER_SETTINGS_KEY,
-        JSON.stringify({ showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces })
+        JSON.stringify({
+          showHeatmap,
+          showLine,
+          showVisitedPlaces,
+          showPoints: !hidePoints,
+          showPlaces: !hidePlaces,
+        })
       );
     } catch {
       // ignore local storage write errors
     }
-  }, [showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces]);
+  }, [settingsLoaded, showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -514,7 +546,7 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
               />
             </label>
             <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Visited places</span>
+              <span>Highlight visited places</span>
               <input
                 type="checkbox"
                 checked={showVisitedPlaces}
@@ -523,23 +555,41 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
               />
             </label>
             <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Hide points</span>
+              <span>Points</span>
               <input
                 type="checkbox"
-                checked={hidePoints}
-                onChange={(event) => setHidePoints(event.target.checked)}
+                checked={!hidePoints}
+                onChange={(event) => setHidePoints(!event.target.checked)}
                 className="h-4 w-4"
               />
             </label>
             <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Hide places</span>
+              <span>Place</span>
               <input
                 type="checkbox"
-                checked={hidePlaces}
-                onChange={(event) => setHidePlaces(event.target.checked)}
+                checked={!hidePlaces}
+                onChange={(event) => setHidePlaces(!event.target.checked)}
                 className="h-4 w-4"
               />
             </label>
+            <button
+              type="button"
+              onClick={() => {
+                setShowHeatmap(DEFAULT_MAP_LAYER_SETTINGS.showHeatmap);
+                setShowLine(DEFAULT_MAP_LAYER_SETTINGS.showLine);
+                setShowVisitedPlaces(DEFAULT_MAP_LAYER_SETTINGS.showVisitedPlaces);
+                setHidePoints(DEFAULT_MAP_LAYER_SETTINGS.hidePoints);
+                setHidePlaces(DEFAULT_MAP_LAYER_SETTINGS.hidePlaces);
+                try {
+                  window.localStorage.removeItem(MAP_LAYER_SETTINGS_KEY);
+                } catch {
+                  // ignore local storage errors
+                }
+              }}
+              className="mt-2 w-full rounded border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
+            >
+              Reset map settings
+            </button>
           </div>
         )}
         <button
