@@ -275,20 +275,21 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
                 mouseout: () => setHoveredPlaceId((current) => (current === place.id ? null : current)),
               }}
             />
-            <Marker
-              position={[place.lat, place.lon]}
-              icon={dragHandleIcon}
-              draggable={isCtrlPressed}
-              opacity={isCtrlPressed ? 1 : 0}
-              eventHandlers={{
-                dragend: (event) => {
-                  const marker = event.target as L.Marker;
-                  const next = marker.getLatLng();
-                  onPlaceMoveRequest?.(place, next.lat, next.lng);
-                  marker.setLatLng([place.lat, place.lon]);
-                },
-              }}
-            />
+            {isCtrlPressed && (
+              <Marker
+                position={[place.lat, place.lon]}
+                icon={dragHandleIcon}
+                draggable
+                eventHandlers={{
+                  dragend: (event) => {
+                    const marker = event.target as L.Marker;
+                    const next = marker.getLatLng();
+                    onPlaceMoveRequest?.(place, next.lat, next.lng);
+                    marker.setLatLng([place.lat, place.lon]);
+                  },
+                }}
+              />
+            )}
           </React.Fragment>
         );
       })}
