@@ -110,6 +110,7 @@ export default function TimelineSidebar({
 }) {
   const queryClient = useQueryClient();
   const [creatingPlace, setCreatingPlace] = useState<UnknownVisit | null>(null);
+  const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<KnownVisit | null>(null);
   const [editingVisit, setEditingVisit] = useState<KnownVisit | null>(null);
   const [editArrivalAt, setEditArrivalAt] = useState("");
   const [editDepartureAt, setEditDepartureAt] = useState("");
@@ -290,6 +291,17 @@ export default function TimelineSidebar({
     setCreatingPlace(null);
     queryClient.invalidateQueries({ queryKey: ["visits"] });
     queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
+  }
+
+  async function handlePlaceCreatedForVisit(visit: KnownVisit, placeId: number) {
+    await fetch(`/api/visits/${visit.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placeId }),
+    });
+    setCreatingPlaceForVisit(null);
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
     queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
@@ -512,6 +524,12 @@ export default function TimelineSidebar({
                     {item.kind === "known" && isSuggested && (
                       <div className="mt-1.5 flex gap-1.5">
                         <button
+                          onClick={() => setCreatingPlaceForVisit(item)}
+                          className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
+                        >
+                          Create Place
+                        </button>
+                        <button
                           onClick={() => confirmVisit(item.id)}
                           className="flex-1 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
                         >
@@ -557,6 +575,15 @@ export default function TimelineSidebar({
           lon={creatingPlace.lon}
           onClose={() => setCreatingPlace(null)}
           onCreated={() => handlePlaceCreated(creatingPlace)}
+        />
+      )}
+
+      {creatingPlaceForVisit && (
+        <PlaceCreationModal
+          lat={creatingPlaceForVisit.place.lat}
+          lon={creatingPlaceForVisit.place.lon}
+          onClose={() => setCreatingPlaceForVisit(null)}
+          onCreated={(place) => handlePlaceCreatedForVisit(creatingPlaceForVisit, place.id)}
         />
       )}
 

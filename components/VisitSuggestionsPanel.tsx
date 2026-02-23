@@ -3,18 +3,20 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import PlaceCreationModal from "@/components/PlaceCreationModal";
 
 type Visit = {
   id: number;
   arrivalAt: string;
   departureAt: string;
   status: string;
-  place: { id: number; name: string };
+  place: { id: number; name: string; lat: number; lon: number };
 };
 
 export default function VisitSuggestionsPanel() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<Visit | null>(null);
 
   const { data: visits = [] } = useQuery<Visit[]>({
     queryKey: ["visits", "suggested"],
@@ -32,6 +34,20 @@ export default function VisitSuggestionsPanel() {
       body: JSON.stringify({ status }),
     });
     if (res.ok) {
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["places"] });
+    }
+  }
+
+  async function handlePlaceCreatedForVisit(visitId: number, placeId: number) {
+    const res = await fetch(`/api/visits/${visitId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placeId }),
+    });
+
+    if (res.ok) {
+      setCreatingPlaceForVisit(null);
       queryClient.invalidateQueries({ queryKey: ["visits"] });
       queryClient.invalidateQueries({ queryKey: ["places"] });
     }
@@ -68,6 +84,12 @@ export default function VisitSuggestionsPanel() {
                   </p>
                   <div className="mt-1.5 flex gap-1.5">
                     <button
+                      onClick={() => setCreatingPlaceForVisit(v)}
+                      className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
+                    >
+                      Create Place
+                    </button>
+                    <button
                       onClick={() => handleAction(v.id, "confirmed")}
                       className="flex-1 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
                     >
@@ -85,6 +107,15 @@ export default function VisitSuggestionsPanel() {
             </ul>
           )}
         </div>
+      )}
+
+      {creatingPlaceForVisit && (
+        <PlaceCreationModal
+          lat={creatingPlaceForVisit.place.lat}
+          lon={creatingPlaceForVisit.place.lon}
+          onClose={() => setCreatingPlaceForVisit(null)}
+          onCreated={(place) => handlePlaceCreatedForVisit(creatingPlaceForVisit.id, place.id)}
+        />
       )}
     </div>
   );
