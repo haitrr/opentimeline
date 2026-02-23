@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 type Place = {
   id: number;
@@ -12,24 +13,17 @@ type Place = {
 };
 
 export default function PlacesPanel() {
-  const [places, setPlaces] = useState<Place[]>([]);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  const fetchPlaces = useCallback(async () => {
-    const res = await fetch("/api/places");
-    if (res.ok) setPlaces(await res.json());
-  }, []);
-
-  useEffect(() => {
-    fetchPlaces();
-    window.addEventListener("opentimeline:place-created", fetchPlaces);
-    window.addEventListener("opentimeline:visits-updated", fetchPlaces);
-    return () => {
-      window.removeEventListener("opentimeline:place-created", fetchPlaces);
-      window.removeEventListener("opentimeline:visits-updated", fetchPlaces);
-    };
-  }, [fetchPlaces]);
+  const { data: places = [] } = useQuery<Place[]>({
+    queryKey: ["places"],
+    queryFn: async () => {
+      const res = await fetch("/api/places");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   const filtered = places.filter((p) =>
     p.name.toLowerCase().includes(query.toLowerCase())

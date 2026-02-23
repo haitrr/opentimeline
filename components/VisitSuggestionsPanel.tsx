@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 
 type Visit = {
@@ -12,23 +13,17 @@ type Visit = {
 };
 
 export default function VisitSuggestionsPanel() {
-  const [visits, setVisits] = useState<Visit[]>([]);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  const fetchVisits = useCallback(async () => {
-    const res = await fetch("/api/visits?status=suggested");
-    if (res.ok) setVisits(await res.json());
-  }, []);
-
-  useEffect(() => {
-    fetchVisits();
-    window.addEventListener("opentimeline:place-created", fetchVisits);
-    window.addEventListener("opentimeline:visits-updated", fetchVisits);
-    return () => {
-      window.removeEventListener("opentimeline:place-created", fetchVisits);
-      window.removeEventListener("opentimeline:visits-updated", fetchVisits);
-    };
-  }, [fetchVisits]);
+  const { data: visits = [] } = useQuery<Visit[]>({
+    queryKey: ["visits", "suggested"],
+    queryFn: async () => {
+      const res = await fetch("/api/visits?status=suggested");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   async function handleAction(id: number, status: "confirmed" | "rejected") {
     const res = await fetch(`/api/visits/${id}`, {
@@ -37,8 +32,8 @@ export default function VisitSuggestionsPanel() {
       body: JSON.stringify({ status }),
     });
     if (res.ok) {
-      fetchVisits();
-      window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["places"] });
     }
   }
 

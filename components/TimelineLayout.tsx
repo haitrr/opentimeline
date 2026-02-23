@@ -14,6 +14,7 @@ import type { DailyStats as DailyStatsType } from "@/lib/groupByHour";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { RangeType } from "@/app/timeline/[date]/page";
 import { useState, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Props = {
   date: string;
@@ -34,6 +35,7 @@ export default function TimelineLayout({
   points,
   stats,
 }: Props) {
+  const queryClient = useQueryClient();
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detecting, setDetecting] = useState(false);
@@ -63,7 +65,8 @@ export default function TimelineLayout({
         const { newVisits } = await r1.json();
         total += newVisits ?? 0;
         if (newVisits > 0) {
-          window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
+          queryClient.invalidateQueries({ queryKey: ["visits"] });
+          queryClient.invalidateQueries({ queryKey: ["places"] });
         }
       }
       const r2 = await fetch("/api/unknown-visits/detect", {
@@ -75,9 +78,8 @@ export default function TimelineLayout({
         const { created } = await r2.json();
         total += created ?? 0;
         if (created > 0) {
-          window.dispatchEvent(
-            new CustomEvent("opentimeline:unknown-visits-detected")
-          );
+          queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
+          queryClient.invalidateQueries({ queryKey: ["places"] });
         }
       }
     } finally {

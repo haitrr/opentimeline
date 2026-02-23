@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import type { PlaceData } from "@/lib/detectVisits";
@@ -22,23 +23,19 @@ function toDatetimeLocal(iso: string) {
 }
 
 export default function UnknownVisitSuggestionsPanel() {
-  const [suggestions, setSuggestions] = useState<UnknownVisit[]>([]);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<UnknownVisit | null>(null);
   const [editing, setEditing] = useState<{ id: number; arrivalAt: string; departureAt: string } | null>(null);
 
-  const fetchSuggestions = useCallback(async () => {
-    const res = await fetch("/api/unknown-visits?status=suggested");
-    if (res.ok) setSuggestions(await res.json());
-  }, []);
-
-  useEffect(() => {
-    fetchSuggestions();
-    window.addEventListener("opentimeline:unknown-visits-detected", fetchSuggestions);
-    return () => {
-      window.removeEventListener("opentimeline:unknown-visits-detected", fetchSuggestions);
-    };
-  }, [fetchSuggestions]);
+  const { data: suggestions = [] } = useQuery<UnknownVisit[]>({
+    queryKey: ["unknown-visits", "suggested"],
+    queryFn: async () => {
+      const res = await fetch("/api/unknown-visits?status=suggested");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   async function handleReject(id: number) {
     const res = await fetch(`/api/unknown-visits/${id}`, {
@@ -46,12 +43,12 @@ export default function UnknownVisitSuggestionsPanel() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "rejected" }),
     });
-    if (res.ok) fetchSuggestions();
+    if (res.ok) queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
   }
 
   async function handleDelete(id: number) {
     const res = await fetch(`/api/unknown-visits/${id}`, { method: "DELETE" });
-    if (res.ok) fetchSuggestions();
+    if (res.ok) queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
   }
 
   async function handleEditSave(id: number) {
@@ -66,20 +63,20 @@ export default function UnknownVisitSuggestionsPanel() {
     });
     if (res.ok) {
       setEditing(null);
-      fetchSuggestions();
+      queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
     }
   }
 
   async function handlePlaceCreated(visit: UnknownVisit, _place: PlaceData) {
-    // Mark the unknown visit as confirmed now that a place exists
     await fetch(`/api/unknown-visits/${visit.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "confirmed" }),
     });
     setConfirming(null);
-    fetchSuggestions();
-    window.dispatchEvent(new CustomEvent("opentimeline:place-created"));
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
+    queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
   return (

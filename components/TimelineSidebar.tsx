@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import PhotoModal from "@/components/PhotoModal";
@@ -107,10 +108,8 @@ export default function TimelineSidebar({
   rangeStart?: string;
   rangeEnd?: string;
 }) {
-  const [items, setItems] = useState<TimelineItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [creatingPlace, setCreatingPlace] = useState<UnknownVisit | null>(null);
-  const [photos, setPhotos] = useState<ImmichPhoto[]>([]);
   const [editingVisit, setEditingVisit] = useState<KnownVisit | null>(null);
   const [editArrivalAt, setEditArrivalAt] = useState("");
   const [editDepartureAt, setEditDepartureAt] = useState("");
@@ -127,64 +126,57 @@ export default function TimelineSidebar({
   const [editUnknownError, setEditUnknownError] = useState<string | null>(null);
   const [savingUnknownEdit, setSavingUnknownEdit] = useState(false);
 
-  function buildParams(extra?: Record<string, string>) {
-    const p = new URLSearchParams(extra);
-    if (rangeStart) p.set("start", rangeStart);
-    if (rangeEnd) p.set("end", rangeEnd);
-    return p;
-  }
+  const { data: knownVisits = [], isLoading: loadingVisits } = useQuery({
+    queryKey: ["visits", rangeStart, rangeEnd],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (rangeStart) params.set("start", rangeStart);
+      if (rangeEnd) params.set("end", rangeEnd);
+      const res = await fetch(`/api/visits?${params}`);
+      if (!res.ok) return [];
+      return (await res.json())
+        .filter((v: Omit<KnownVisit, "kind">) =>
+          ["suggested", "confirmed"].includes(v.status)
+        )
+        .map((v: Omit<KnownVisit, "kind">) => ({ kind: "known" as const, ...v }));
+    },
+  });
 
-  async function loadPhotos() {
-    if (!rangeStart || !rangeEnd) return;
-    const params = new URLSearchParams({ start: rangeStart, end: rangeEnd });
-    const res = await fetch(`/api/immich?${params}`);
-    if (res.ok) setPhotos(await res.json());
-  }
+  const { data: unknownVisitItems = [], isLoading: loadingUnknown } = useQuery({
+    queryKey: ["unknown-visits", "suggested", rangeStart, rangeEnd],
+    queryFn: async () => {
+      const params = new URLSearchParams({ status: "suggested" });
+      if (rangeStart) params.set("start", rangeStart);
+      if (rangeEnd) params.set("end", rangeEnd);
+      const res = await fetch(`/api/unknown-visits?${params}`);
+      if (!res.ok) return [];
+      return (await res.json()).map((u: Omit<UnknownVisit, "kind">) => ({
+        kind: "unknown" as const,
+        ...u,
+      }));
+    },
+  });
 
-  async function load() {
-    const [visitsRes, unknownRes] = await Promise.all([
-      fetch(`/api/visits?${buildParams()}`),
-      fetch(`/api/unknown-visits?${buildParams({ status: "suggested" })}`),
-    ]);
+  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
+    queryKey: ["immich", rangeStart, rangeEnd],
+    queryFn: async () => {
+      const params = new URLSearchParams({ start: rangeStart!, end: rangeEnd! });
+      const res = await fetch(`/api/immich?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!(rangeStart && rangeEnd),
+  });
 
-    const known: KnownVisit[] = visitsRes.ok
-      ? (await visitsRes.json())
-          .filter((v: Omit<KnownVisit, "kind">) =>
-            ["suggested", "confirmed"].includes(v.status)
-          )
-          .map((v: Omit<KnownVisit, "kind">) => ({
-            kind: "known" as const,
-            ...v,
-          }))
-      : [];
+  const items = useMemo<TimelineItem[]>(
+    () =>
+      [...knownVisits, ...unknownVisitItems].sort(
+        (a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime()
+      ),
+    [knownVisits, unknownVisitItems]
+  );
 
-    const unknown: UnknownVisit[] = unknownRes.ok
-      ? (await unknownRes.json()).map((u: Omit<UnknownVisit, "kind">) => ({
-          kind: "unknown" as const,
-          ...u,
-        }))
-      : [];
-
-    const merged = [...known, ...unknown].sort(
-      (a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime()
-    );
-
-    setItems(merged);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    load();
-    loadPhotos();
-    const events = [
-      "opentimeline:visits-updated",
-      "opentimeline:place-created",
-      "opentimeline:unknown-visits-detected",
-    ];
-    events.forEach((e) => window.addEventListener(e, load));
-    return () => events.forEach((e) => window.removeEventListener(e, load));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rangeStart, rangeEnd]);
+  const loading = loadingVisits || loadingUnknown;
 
   async function confirmVisit(id: number) {
     await fetch(`/api/visits/${id}`, {
@@ -192,8 +184,8 @@ export default function TimelineSidebar({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "confirmed" }),
     });
-    window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
-    load();
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
   async function rejectVisit(id: number) {
@@ -202,8 +194,8 @@ export default function TimelineSidebar({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "rejected" }),
     });
-    window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
-    load();
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
   async function dismissUnknown(id: number) {
@@ -212,7 +204,7 @@ export default function TimelineSidebar({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "rejected" }),
     });
-    load();
+    queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
   }
 
   function openEditUnknown(visit: UnknownVisit) {
@@ -259,7 +251,7 @@ export default function TimelineSidebar({
         return;
       }
       closeEditUnknown();
-      load();
+      queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
     } catch {
       setEditUnknownError("Network error");
     } finally {
@@ -281,7 +273,7 @@ export default function TimelineSidebar({
         return;
       }
       closeEditUnknown();
-      load();
+      queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
     } catch {
       setEditUnknownError("Network error");
     } finally {
@@ -296,8 +288,9 @@ export default function TimelineSidebar({
       body: JSON.stringify({ status: "confirmed" }),
     });
     setCreatingPlace(null);
-    window.dispatchEvent(new CustomEvent("opentimeline:place-created"));
-    load();
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
+    queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
   async function loadNearbyPlaces(visitId: number) {
@@ -382,8 +375,8 @@ export default function TimelineSidebar({
       }
 
       closeEditVisit();
-      window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
-      load();
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["places"] });
     } catch {
       setEditError("Network error");
     } finally {
@@ -410,8 +403,8 @@ export default function TimelineSidebar({
       }
 
       closeEditVisit();
-      window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
-      load();
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["places"] });
     } catch {
       setEditError("Network error");
     } finally {

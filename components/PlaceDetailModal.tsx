@@ -1,8 +1,9 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import { format, differenceInMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
 import PhotoModal from "@/components/PhotoModal";
@@ -23,7 +24,7 @@ type Filter = "all" | "confirmed";
 
 const MIN_GAP_PX = 10;
 const MAX_GAP_PX = 80;
-const YEAR_BADGE_MIN_PX = 32; // enough vertical room to show the year badge
+const YEAR_BADGE_MIN_PX = 32;
 
 function parseTimeMs(value: string): number | null {
   const ms = new Date(value).getTime();
@@ -37,7 +38,6 @@ function formatDuration(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
-/** Log-scale normalisation of a gap (ms) to pixels. */
 function gapToPx(
   gapMs: number,
   minMs: number,
@@ -47,11 +47,9 @@ function gapToPx(
   if (!Number.isFinite(gapMs) || gapMs < 0) {
     return yearChanges ? YEAR_BADGE_MIN_PX : MIN_GAP_PX;
   }
-
   if (!Number.isFinite(minMs) || !Number.isFinite(maxMs)) {
     return yearChanges ? Math.max(MIN_GAP_PX, YEAR_BADGE_MIN_PX) : MIN_GAP_PX;
   }
-
   let px: number;
   if (minMs === maxMs) {
     px = (MIN_GAP_PX + MAX_GAP_PX) / 2;
@@ -67,11 +65,9 @@ function gapToPx(
 
 export default function PlaceDetailModal({ place, onClose }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [placeInfo, setPlaceInfo] = useState<PlaceData>(place);
-  const [visits, setVisits] = useState<Visit[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
-  const [loading, setLoading] = useState(true);
-  const [photos, setPhotos] = useState<ImmichPhoto[]>([]);
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(place.name);
@@ -80,33 +76,31 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setPlaceInfo(place);
-    setNameInput(place.name);
-    setRadiusInput(place.radius);
-    setEditing(false);
-    setEditError(null);
-  }, [place]);
+  const { data: visits = [], isLoading } = useQuery<Visit[]>({
+    queryKey: ["visits", "place", placeInfo.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/visits?placeId=${placeInfo.id}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
-  const fetchVisits = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch(`/api/visits?placeId=${placeInfo.id}`);
-    if (res.ok) {
-      const loaded: Visit[] = await res.json();
-      setVisits(loaded);
-      if (loaded.length > 0) {
-        const start = loaded.reduce((min, v) => v.arrivalAt < min ? v.arrivalAt : min, loaded[0].arrivalAt);
-        const end = loaded.reduce((max, v) => v.departureAt > max ? v.departureAt : max, loaded[0].departureAt);
-        const photoRes = await fetch(`/api/immich?start=${start}&end=${end}`);
-        if (photoRes.ok) setPhotos(await photoRes.json());
-      }
-    }
-    setLoading(false);
-  }, [placeInfo.id]);
+  const photoStart = visits.length > 0
+    ? visits.reduce((min, v) => v.arrivalAt < min ? v.arrivalAt : min, visits[0].arrivalAt)
+    : null;
+  const photoEnd = visits.length > 0
+    ? visits.reduce((max, v) => v.departureAt > max ? v.departureAt : max, visits[0].departureAt)
+    : null;
 
-  useEffect(() => {
-    fetchVisits();
-  }, [fetchVisits]);
+  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
+    queryKey: ["immich", photoStart, photoEnd],
+    queryFn: async () => {
+      const res = await fetch(`/api/immich?start=${photoStart}&end=${photoEnd}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!(photoStart && photoEnd),
+  });
 
   async function handleConfirm(visitId: number) {
     const res = await fetch(`/api/visits/${visitId}`, {
@@ -115,8 +109,8 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
       body: JSON.stringify({ status: "confirmed" }),
     });
     if (res.ok) {
-      fetchVisits();
-      window.dispatchEvent(new CustomEvent("opentimeline:visits-updated"));
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["places"] });
     }
   }
 
@@ -157,7 +151,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
       setNameInput(updated.name);
       setRadiusInput(updated.radius);
       setEditing(false);
-      window.dispatchEvent(new CustomEvent("opentimeline:place-updated"));
+      queryClient.invalidateQueries({ queryKey: ["places"] });
       router.refresh();
     } catch {
       setEditError("Network error");
@@ -168,7 +162,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
   async function handleDeletePlace() {
     const confirmed = window.confirm(
-      `Delete place \"${placeInfo.name}\"? This action cannot be undone.`
+      `Delete place "${placeInfo.name}"? This action cannot be undone.`
     );
     if (!confirmed) return;
 
@@ -185,7 +179,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
         return;
       }
 
-      window.dispatchEvent(new CustomEvent("opentimeline:place-updated"));
+      queryClient.invalidateQueries({ queryKey: ["places"] });
       router.refresh();
       onClose();
     } catch {
@@ -201,7 +195,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     )
     .sort((a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime());
 
-  // Pre-compute idle-time gaps between consecutive visits (order-agnostic)
   const gapsMs = displayed.slice(0, -1).map((v, i) => {
     const nextVisit = displayed[i + 1];
     if (!nextVisit) return NaN;
@@ -211,12 +204,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     const nextStart = parseTimeMs(nextVisit.arrivalAt);
     const nextEnd = parseTimeMs(nextVisit.departureAt);
 
-    if (
-      currentStart === null ||
-      currentEnd === null ||
-      nextStart === null ||
-      nextEnd === null
-    ) {
+    if (currentStart === null || currentEnd === null || nextStart === null || nextEnd === null) {
       return NaN;
     }
 
@@ -233,9 +221,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-      <div
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl"
-      >
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-5">
           <div>
@@ -336,13 +322,12 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
         {/* Timeline */}
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-          {loading ? (
+          {isLoading ? (
             <p className="py-8 text-center text-xs text-gray-400">Loading…</p>
           ) : displayed.length === 0 ? (
             <p className="py-8 text-center text-xs text-gray-400">No visits to show.</p>
           ) : (
             <div className="relative">
-              {/* Continuous vertical line */}
               <div className="absolute bottom-0 top-0 w-px bg-gray-200" style={{ left: 15 }} />
 
               {displayed.map((v, i) => {
@@ -352,7 +337,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                 const isSuggested = v.status === "suggested";
                 const isLast = i === displayed.length - 1;
 
-                // Gap spacer between this and the next visit
                 const nextV = displayed[i + 1];
                 const yearChanges =
                   !isLast &&
@@ -366,16 +350,13 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
                 return (
                   <Fragment key={v.id}>
-                    {/* Visit row */}
                     <div className="relative flex items-start gap-3">
-                      {/* Dot */}
                       <div
                         className={`relative z-10 mt-2.75 h-2.75 w-2.75 shrink-0 rounded-full border-2 border-white shadow ${
                           isSuggested ? "bg-amber-400" : "bg-[#1a7bb5]"
                         }`}
                         style={{ marginLeft: 10 }}
                       />
-                      {/* Card */}
                       <div className="flex-1 rounded-lg border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -454,7 +435,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                       </div>
                     </div>
 
-                    {/* Proportional gap — year badge floats in the centre when year rolls over */}
                     {!isLast && (
                       <div
                         className="relative flex items-center justify-center"

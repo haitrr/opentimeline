@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
@@ -37,50 +38,46 @@ export type UnknownVisitData = {
 };
 
 export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
-  const [places, setPlaces] = useState<PlaceData[]>([]);
-  const [unknownVisits, setUnknownVisits] = useState<UnknownVisitData[]>([]);
-  const [photos, setPhotos] = useState<ImmichPhoto[]>([]);
+  const queryClient = useQueryClient();
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [modalCoords, setModalCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlaceData | null>(null);
   const [pendingUnknownVisit, setPendingUnknownVisit] = useState<UnknownVisitData | null>(null);
 
-  const fetchPlaces = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (rangeStart && rangeEnd) {
-      params.set("start", rangeStart);
-      params.set("end", rangeEnd);
-    }
-    const url = params.toString() ? `/api/places?${params}` : "/api/places";
-    const res = await fetch(url);
-    if (res.ok) setPlaces(await res.json());
-  }, [rangeStart, rangeEnd]);
+  const { data: places = [] } = useQuery<PlaceData[]>({
+    queryKey: ["places", rangeStart, rangeEnd],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (rangeStart && rangeEnd) {
+        params.set("start", rangeStart);
+        params.set("end", rangeEnd);
+      }
+      const url = params.toString() ? `/api/places?${params}` : "/api/places";
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
-  const fetchUnknownVisits = useCallback(async () => {
-    const res = await fetch("/api/unknown-visits?status=suggested");
-    if (res.ok) setUnknownVisits(await res.json());
-  }, []);
+  const { data: unknownVisits = [] } = useQuery<UnknownVisitData[]>({
+    queryKey: ["unknown-visits", "suggested"],
+    queryFn: async () => {
+      const res = await fetch("/api/unknown-visits?status=suggested");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
-  const fetchPhotos = useCallback(async () => {
-    if (!rangeStart || !rangeEnd) return;
-    const params = new URLSearchParams({ start: rangeStart, end: rangeEnd });
-    const res = await fetch(`/api/immich?${params}`);
-    if (res.ok) setPhotos(await res.json());
-  }, [rangeStart, rangeEnd]);
-
-  useEffect(() => {
-    fetchPlaces();
-    fetchUnknownVisits();
-    fetchPhotos();
-    window.addEventListener("opentimeline:place-updated", fetchPlaces);
-    window.addEventListener("opentimeline:visits-updated", fetchPlaces);
-    window.addEventListener("opentimeline:unknown-visits-detected", fetchUnknownVisits);
-    return () => {
-      window.removeEventListener("opentimeline:place-updated", fetchPlaces);
-      window.removeEventListener("opentimeline:visits-updated", fetchPlaces);
-      window.removeEventListener("opentimeline:unknown-visits-detected", fetchUnknownVisits);
-    };
-  }, [fetchPlaces, fetchUnknownVisits, fetchPhotos]);
+  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
+    queryKey: ["immich", rangeStart, rangeEnd],
+    queryFn: async () => {
+      const params = new URLSearchParams({ start: rangeStart!, end: rangeEnd! });
+      const res = await fetch(`/api/immich?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!(rangeStart && rangeEnd),
+  });
 
   function handleMapClick(lat: number, lon: number) {
     setSelectedPlace(null);
@@ -101,10 +98,10 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
         body: JSON.stringify({ status: "confirmed" }),
       });
       setPendingUnknownVisit(null);
-      fetchUnknownVisits();
     }
-    fetchPlaces();
-    window.dispatchEvent(new CustomEvent("opentimeline:place-created"));
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
+    queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
   function handleUnknownVisitCreatePlace(uv: UnknownVisitData) {
