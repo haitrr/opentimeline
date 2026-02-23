@@ -16,6 +16,7 @@ import {
 import { format } from "date-fns";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.heat";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { UnknownVisitData } from "@/components/map/MapWrapper";
@@ -45,6 +46,89 @@ function FlyToHandler() {
   }, [map]);
   return null;
 }
+
+function HeatLayer({
+  points,
+  visible,
+}: {
+  points: SerializedPoint[];
+  visible: boolean;
+}) {
+  const map = useMap();
+  const layerRef = useRef<L.HeatLayer | null>(null);
+  const [zoom, setZoom] = useState(() => map.getZoom());
+
+  useEffect(() => {
+    const handleZoomEnd = () => setZoom(map.getZoom());
+    map.on("zoomend", handleZoomEnd);
+    return () => {
+      map.off("zoomend", handleZoomEnd);
+    };
+  }, [map]);
+
+  const heatPoints = useMemo(() => {
+    if (points.length === 0) return [] as L.HeatLatLngTuple[];
+    const maxPoints = 4000;
+    const stride = Math.max(1, Math.ceil(points.length / maxPoints));
+    const sampled = points.filter((_, index) => index % stride === 0);
+    return sampled.map((point) => {
+      const accuracyWeight = point.acc ? Math.max(0.2, Math.min(1, 30 / point.acc)) : 0.7;
+      const speed = point.vel ?? 0;
+      const motionWeight =
+        speed >= 25 ? 0.01 :
+        speed >= 10 ? 0.03 :
+        speed >= 4 ? 0.08 :
+        speed >= 1.5 ? 0.6 :
+        1.9;
+      const weight = Math.max(0.005, accuracyWeight * motionWeight);
+      return [point.lat, point.lon, weight] as L.HeatLatLngTuple;
+    });
+  }, [points]);
+
+  useEffect(() => {
+    if (!visible || heatPoints.length === 0) {
+      if (layerRef.current) {
+        map.removeLayer(layerRef.current);
+        layerRef.current = null;
+      }
+      return;
+    }
+
+    const lowZoom = zoom <= 8;
+    const midZoom = zoom > 8 && zoom <= 11;
+    const dynamicMax = lowZoom ? 0.55 : midZoom ? 1.2 : 2.2;
+    const dynamicMinOpacity = lowZoom ? 0.16 : midZoom ? 0.12 : 0.1;
+    const dynamicRadius = lowZoom ? 5 : midZoom ? 7 : 12;
+    const dynamicBlur = lowZoom ? 4 : midZoom ? 5 : 10;
+
+    const nextLayer = L.heatLayer(heatPoints, {
+      radius: dynamicRadius,
+      blur: dynamicBlur,
+      minOpacity: dynamicMinOpacity,
+      max: dynamicMax,
+      maxZoom: 12,
+      gradient: {
+        0.2: "#93c5fd",
+        0.5: "#c4b5fd",
+        0.8: "#f472b6",
+        1.0: "#ef4444",
+      },
+    });
+    nextLayer.addTo(map);
+    layerRef.current = nextLayer;
+
+    return () => {
+      if (layerRef.current) {
+        map.removeLayer(layerRef.current);
+        layerRef.current = null;
+      }
+    };
+  }, [map, visible, heatPoints, zoom]);
+
+  return null;
+}
+
+const MAP_LAYER_SETTINGS_KEY = "opentimeline:map-layer-settings";
 
 function MapClickHandler({
   onMapClick,
@@ -88,6 +172,50 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
   const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showLine, setShowLine] = useState(true);
+  const [showVisitedPlaces, setShowVisitedPlaces] = useState(true);
+  const [hidePoints, setHidePoints] = useState(false);
+  const [hidePlaces, setHidePlaces] = useState(false);
+  const [layersMenuOpen, setLayersMenuOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(MAP_LAYER_SETTINGS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        showHeatmap?: boolean;
+        showLine?: boolean;
+        showVisitedPlaces?: boolean;
+        hidePoints?: boolean;
+        hidePlaces?: boolean;
+      };
+      if (typeof parsed.showHeatmap === "boolean") setShowHeatmap(parsed.showHeatmap);
+      if (typeof parsed.showLine === "boolean") setShowLine(parsed.showLine);
+      if (typeof parsed.showVisitedPlaces === "boolean") {
+        setShowVisitedPlaces(parsed.showVisitedPlaces);
+      }
+      if (typeof parsed.hidePoints === "boolean") {
+        setHidePoints(parsed.hidePoints);
+      }
+      if (typeof parsed.hidePlaces === "boolean") {
+        setHidePlaces(parsed.hidePlaces);
+      }
+    } catch {
+      // ignore invalid local storage values
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        MAP_LAYER_SETTINGS_KEY,
+        JSON.stringify({ showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces })
+      );
+    } catch {
+      // ignore local storage write errors
+    }
+  }, [showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -154,14 +282,15 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
   const defaultZoom = 2;
 
   return (
-    <MapContainer
-      center={bounds ? undefined : defaultCenter}
-      zoom={bounds ? undefined : defaultZoom}
-      bounds={bounds}
-      boundsOptions={{ padding: [40, 40] }}
-      zoomControl={false}
-      className="h-full w-full"
-    >
+    <div className="relative h-full w-full">
+      <MapContainer
+        center={bounds ? undefined : defaultCenter}
+        zoom={bounds ? undefined : defaultZoom}
+        bounds={bounds}
+        boundsOptions={{ padding: [40, 40] }}
+        zoomControl={false}
+        className="h-full w-full"
+      >
       <TileLayer
         key={isDarkTheme ? "dark" : "light"}
         url={tileConfig.url}
@@ -171,18 +300,19 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
       />
 
       <FlyToHandler />
+      <HeatLayer points={points} visible={showHeatmap} />
       {onMapClick && <MapClickHandler onMapClick={onMapClick} placeClickedRef={placeClickedRef} />}
 
-      {positions.length > 1 && (
+      {showLine && positions.length > 1 && (
         <Polyline
           positions={positions}
           color="#3b82f6"
-          weight={3}
-          opacity={0.8}
+          weight={showHeatmap ? 1.5 : 2}
+          opacity={showHeatmap ? 0.32 : 0.45}
         />
       )}
 
-      {points.map((p, i) => {
+      {!hidePoints && points.map((p, i) => {
         // Show start/end points bigger; only render every Nth point for performance
         const isFirst = i === 0;
         const isLast = i === points.length - 1;
@@ -218,9 +348,11 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
         );
       })}
 
-      {places.map((place) => {
-        const hasConfirmedInRange = (place.confirmedVisitsInRange ?? 0) > 0;
-        const hasSuggestedInRange = (place.suggestedVisitsInRange ?? 0) > 0;
+      {!hidePlaces && places.map((place) => {
+        const rawHasConfirmedInRange = (place.confirmedVisitsInRange ?? 0) > 0;
+        const rawHasSuggestedInRange = (place.suggestedVisitsInRange ?? 0) > 0;
+        const hasConfirmedInRange = showVisitedPlaces && rawHasConfirmedInRange;
+        const hasSuggestedInRange = showVisitedPlaces && rawHasSuggestedInRange;
         const hasVisitsInRange = hasConfirmedInRange || hasSuggestedInRange;
         const isHovered = hoveredPlaceId === place.id;
 
@@ -294,7 +426,7 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
         );
       })}
 
-      {unknownVisits.map((uv) => (
+      {!hidePlaces && showVisitedPlaces && unknownVisits.map((uv) => (
         <Circle
           key={uv.id}
           center={[uv.lat, uv.lon]}
@@ -357,6 +489,80 @@ export default function LeafletMap({ points, places = [], unknownVisits = [], ph
           </Popup>
         </CircleMarker>
       ))}
-    </MapContainer>
+      </MapContainer>
+
+      <div className="pointer-events-none absolute bottom-4 left-4 z-900">
+        {layersMenuOpen && (
+          <div className="pointer-events-auto absolute bottom-full left-0 mb-2 w-56 rounded-md border border-gray-200 bg-white p-2 shadow-lg">
+            <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Map layers</p>
+            <label className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+              <span>Heatmap</span>
+              <input
+                type="checkbox"
+                checked={showHeatmap}
+                onChange={(event) => setShowHeatmap(event.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+              <span>Path line</span>
+              <input
+                type="checkbox"
+                checked={showLine}
+                onChange={(event) => setShowLine(event.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+              <span>Visited places</span>
+              <input
+                type="checkbox"
+                checked={showVisitedPlaces}
+                onChange={(event) => setShowVisitedPlaces(event.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+              <span>Hide points</span>
+              <input
+                type="checkbox"
+                checked={hidePoints}
+                onChange={(event) => setHidePoints(event.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+              <span>Hide places</span>
+              <input
+                type="checkbox"
+                checked={hidePlaces}
+                onChange={(event) => setHidePlaces(event.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setLayersMenuOpen((open) => !open)}
+          className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 shadow-md hover:bg-gray-50 hover:text-gray-800"
+          aria-expanded={layersMenuOpen}
+          aria-label="Open map layer settings"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="h-3.5 w-3.5"
+          >
+            <path
+              fillRule="evenodd"
+              d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.223 1.164a6.98 6.98 0 0 1 1.48.85l1.08-.54a1 1 0 0 1 1.232.236l1.668 1.668a1 1 0 0 1 .236 1.232l-.54 1.08c.332.46.616.958.85 1.48l1.164.223a1 1 0 0 1 .804.98v2.36a1 1 0 0 1-.804.98l-1.164.223a6.98 6.98 0 0 1-.85 1.48l.54 1.08a1 1 0 0 1-.236 1.232l-1.668 1.668a1 1 0 0 1-1.232.236l-1.08-.54a6.98 6.98 0 0 1-1.48.85l-.223 1.164a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.223-1.164a6.98 6.98 0 0 1-1.48-.85l-1.08.54a1 1 0 0 1-1.232-.236L2.157 16.61a1 1 0 0 1-.236-1.232l.54-1.08a6.98 6.98 0 0 1-.85-1.48l-1.164-.223A1 1 0 0 1 .643 11.615v-2.36a1 1 0 0 1 .804-.98l1.164-.223a6.98 6.98 0 0 1 .85-1.48l-.54-1.08a1 1 0 0 1 .236-1.232L4.825 2.592a1 1 0 0 1 1.232-.236l1.08.54c.46-.332.958-.616 1.48-.85l.223-1.164ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
   );
 }
