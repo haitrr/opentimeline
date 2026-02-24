@@ -40,8 +40,7 @@ services:
       BACKUP_KEEP_MONTHS: ${POSTGRES_BACKUP_KEEP_MONTHS:-6}
       HEALTHCHECK_PORT: 8080
     volumes:
-      - postgres_backups:/nfs/opentimeline/backups
+      - /nfs/opentimeline/backups:/backups
 
 volumes:
   postgres_data:
-  postgres_backups:
