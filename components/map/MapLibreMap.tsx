@@ -596,13 +596,20 @@ export default function MapLibreMap({
         </Source>
 
         {/* Path line – always rendered so layer order stays stable (labels stay on top) */}
-        <Source id="path" type="geojson" data={pathGeoJSON}>
+        <Source id="path" type="geojson" data={pathGeoJSON} lineMetrics>
           <Layer
             id="path-line"
             type="line"
-            layout={{ visibility: vis(showLine && points.length > 1) }}
+            layout={{ visibility: vis(showLine && points.length > 1), "line-cap": "round", "line-join": "round" }}
             paint={{
-              "line-color": "#3b82f6",
+              "line-gradient": [
+                "interpolate",
+                ["linear"],
+                ["line-progress"],
+                0,   "#22c55e",
+                0.5, "#3b82f6",
+                1,   "#ef4444",
+              ],
               "line-width": showHeatmap ? 2 : 3,
               "line-opacity": showHeatmap ? 0.5 : 0.75,
             }}
@@ -620,8 +627,8 @@ export default function MapLibreMap({
               "icon-allow-overlap": false,
             }}
             paint={{
-              "icon-color": "#3b82f6",
-              "icon-opacity": showHeatmap ? 0.5 : 0.75,
+              "icon-color": "#ffffff",
+              "icon-opacity": showHeatmap ? 0.4 : 0.65,
             }}
           />
         </Source>
