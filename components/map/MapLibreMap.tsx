@@ -235,6 +235,25 @@ export default function MapLibreMap({
     autoFitAppliedForRangeKeyRef.current = rangeKey;
   }, [shouldAutoFit, isMapLoaded, rangeKey, points]);
 
+  // Keep label layers on top of all other custom layers.
+  // react-map-gl re-inserts layers when sources remount (e.g. day navigation),
+  // which can push them below circle/line layers. moveLayer() forces them back to top.
+  useEffect(() => {
+    if (!isMapLoaded) return;
+    const map = mapRef.current;
+    if (!map) return;
+    // Defer until after React has flushed the Source/Layer renders this cycle.
+    const id = window.setTimeout(() => {
+      try {
+        if (map.getLayer("uv-labels")) map.moveLayer("uv-labels");
+        if (map.getLayer("place-labels")) map.moveLayer("place-labels");
+      } catch {
+        // layer may not exist yet; next effect run will catch it
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [isMapLoaded, rangeKey, places, unknownVisits]);
+
   // Compute initial view state once on mount
   const [initialViewState] = useState(() => computeInitialViewState(points));
 
@@ -705,7 +724,7 @@ export default function MapLibreMap({
           />
         </Source>
 
-        {/* Place dots + labels */}
+        {/* Place dots (circles only – labels rendered last, see below) */}
         <Source id="place-dots" type="geojson" data={placeDotsGeoJSON}>
           <Layer
             id="place-dot-circle"
@@ -719,32 +738,14 @@ export default function MapLibreMap({
               "circle-opacity": 0.9,
             }}
           />
-          <Layer
-            id="place-labels"
-            type="symbol"
-            layout={{
-              visibility: vis(!hidePlaces),
-              "text-field": ["get", "name"],
-              "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-              "text-size": 12,
-              "text-anchor": "bottom",
-              "text-offset": [0, -0.8],
-              "text-optional": true,
-            }}
-            filter={["any", ["get", "hasVisitsInRange"], ["get", "hovered"]]}
-            paint={{
-              "text-color": isDarkTheme ? "#e5e7eb" : "#1f2937",
-              "text-halo-color": isDarkTheme ? "#111827" : "#ffffff",
-              "text-halo-width": 1.5,
-            }}
-          />
         </Source>
 
-        {/* Unknown visit labels */}
+        {/* Labels rendered last so they sit on top of all circle/line/fill layers */}
         <Source id="uv-labels-source" type="geojson" data={unknownVisitsGeoJSON}>
           <Layer
             id="uv-labels"
             type="symbol"
+            minzoom={10}
             layout={{
               visibility: vis(!hidePlaces && showVisitedPlaces),
               "text-field": "Unknown",
@@ -752,12 +753,36 @@ export default function MapLibreMap({
               "text-size": 12,
               "text-anchor": "top",
               "text-offset": [0, 0.5],
-              "text-optional": true,
+              "text-allow-overlap": false,
+              // "text-ignore-placement": true,
             }}
             paint={{
               "text-color": isDarkTheme ? "#fcd34d" : "#b45309",
               "text-halo-color": isDarkTheme ? "#1f2937" : "#ffffff",
               "text-halo-width": 1.5,
+            }}
+          />
+        </Source>
+        <Source id="place-labels-source" type="geojson" data={placeDotsGeoJSON}>
+          <Layer
+            id="place-labels"
+            type="symbol"
+            minzoom={9}
+            layout={{
+              visibility: vis(!hidePlaces),
+              "text-field": ["get", "name"],
+              "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+              "text-size": 12,
+              "text-anchor": "bottom",
+              "text-offset": [0, -0.8],
+              "text-allow-overlap": false,
+              // "text-ignore-placement": true,
+            }}
+            filter={["any", ["get", "hasVisitsInRange"], ["get", "hovered"]]}
+            paint={{
+              "text-color": isDarkTheme ? "#e5e7eb" : "#1f2937",
+              "text-halo-color": isDarkTheme ? "#111827" : "#ffffff",
+              "text-halo-width": 2,
             }}
           />
         </Source>
