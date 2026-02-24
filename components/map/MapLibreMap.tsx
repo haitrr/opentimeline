@@ -236,23 +236,30 @@ export default function MapLibreMap({
   }, [shouldAutoFit, isMapLoaded, rangeKey, points]);
 
   // Keep label layers on top of all other custom layers.
-  // react-map-gl re-inserts layers when sources remount (e.g. day navigation),
-  // which can push them below circle/line layers. moveLayer() forces them back to top.
+  // We register a persistent `idle` listener so that after EVERY batch of
+  // source-data loads / renders (including day navigation) the label layers
+  // are moved to the very top of the layer stack.
   useEffect(() => {
     if (!isMapLoaded) return;
     const map = mapRef.current;
     if (!map) return;
-    // Defer until after React has flushed the Source/Layer renders this cycle.
-    const id = window.setTimeout(() => {
+
+    const bringLabelsToTop = () => {
       try {
         if (map.getLayer("uv-labels")) map.moveLayer("uv-labels");
         if (map.getLayer("place-labels")) map.moveLayer("place-labels");
       } catch {
-        // layer may not exist yet; next effect run will catch it
+        // layer may not exist yet
       }
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [isMapLoaded, rangeKey, places, unknownVisits]);
+    };
+
+    // Run immediately for the current frame, then after every idle.
+    bringLabelsToTop();
+    map.on("idle", bringLabelsToTop);
+    return () => {
+      map.off("idle", bringLabelsToTop);
+    };
+  }, [isMapLoaded]);
 
   // Compute initial view state once on mount
   const [initialViewState] = useState(() => computeInitialViewState(points));
@@ -588,38 +595,36 @@ export default function MapLibreMap({
           />
         </Source>
 
-        {/* Path line */}
-        {points.length > 1 && (
-          <Source id="path" type="geojson" data={pathGeoJSON}>
-            <Layer
-              id="path-line"
-              type="line"
-              layout={{ visibility: vis(showLine) }}
-              paint={{
-                "line-color": "#3b82f6",
-                "line-width": showHeatmap ? 2 : 3,
-                "line-opacity": showHeatmap ? 0.5 : 0.75,
-              }}
-            />
-            <Layer
-              id="path-arrows"
-              type="symbol"
-              layout={{
-                visibility: vis(showLine),
-                "symbol-placement": "line",
-                "symbol-spacing": 80,
-                "icon-image": "arrow-direction",
-                "icon-size": 1,
-                "icon-rotation-alignment": "map",
-                "icon-allow-overlap": false,
-              }}
-              paint={{
-                "icon-color": "#3b82f6",
-                "icon-opacity": showHeatmap ? 0.5 : 0.75,
-              }}
-            />
-          </Source>
-        )}
+        {/* Path line – always rendered so layer order stays stable (labels stay on top) */}
+        <Source id="path" type="geojson" data={pathGeoJSON}>
+          <Layer
+            id="path-line"
+            type="line"
+            layout={{ visibility: vis(showLine && points.length > 1) }}
+            paint={{
+              "line-color": "#3b82f6",
+              "line-width": showHeatmap ? 2 : 3,
+              "line-opacity": showHeatmap ? 0.5 : 0.75,
+            }}
+          />
+          <Layer
+            id="path-arrows"
+            type="symbol"
+            layout={{
+              visibility: vis(showLine && points.length > 1),
+              "symbol-placement": "line",
+              "symbol-spacing": 80,
+              "icon-image": "arrow-direction",
+              "icon-size": 1,
+              "icon-rotation-alignment": "map",
+              "icon-allow-overlap": false,
+            }}
+            paint={{
+              "icon-color": "#3b82f6",
+              "icon-opacity": showHeatmap ? 0.5 : 0.75,
+            }}
+          />
+        </Source>
 
         {/* Unknown visits (below place circles) */}
         <Source id="unknown-visits" type="geojson" data={unknownVisitsGeoJSON}>
@@ -754,7 +759,6 @@ export default function MapLibreMap({
               "text-anchor": "top",
               "text-offset": [0, 0.5],
               "text-allow-overlap": false,
-              // "text-ignore-placement": true,
             }}
             paint={{
               "text-color": isDarkTheme ? "#fcd34d" : "#b45309",
@@ -776,7 +780,6 @@ export default function MapLibreMap({
               "text-anchor": "bottom",
               "text-offset": [0, -0.8],
               "text-allow-overlap": false,
-              // "text-ignore-placement": true,
             }}
             filter={["any", ["get", "hasVisitsInRange"], ["get", "hovered"]]}
             paint={{
