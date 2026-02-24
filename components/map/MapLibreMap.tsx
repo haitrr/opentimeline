@@ -68,6 +68,9 @@ const DEFAULT_MAP_LAYER_SETTINGS = {
   hidePlaces: false,
 };
 
+const FIT_BOUNDS_PADDING = 40;
+const FIT_BOUNDS_MAX_ZOOM = 16.5;
+
 function computeInitialViewState(points: SerializedPoint[]) {
   if (points.length === 0) return { longitude: 0, latitude: 20, zoom: 2 };
   const lats = points.map((p) => p.lat);
@@ -212,7 +215,7 @@ export default function MapLibreMap({
     const lons = points.map((p) => p.lon);
     map.fitBounds(
       [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-      { padding: 40, duration: 800 }
+      { padding: FIT_BOUNDS_PADDING, duration: 800, maxZoom: FIT_BOUNDS_MAX_ZOOM }
     );
     autoFitAppliedForRangeKeyRef.current = rangeKey;
   }, [shouldAutoFit, isMapLoaded, rangeKey, points]);
@@ -864,7 +867,7 @@ export default function MapLibreMap({
               const lons = points.map((p) => p.lon);
               map.fitBounds(
                 [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-                { padding: 40, duration: 800 }
+                { padding: FIT_BOUNDS_PADDING, duration: 800, maxZoom: FIT_BOUNDS_MAX_ZOOM }
               );
             }}
             className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 shadow-md hover:bg-gray-50 hover:text-gray-800"
