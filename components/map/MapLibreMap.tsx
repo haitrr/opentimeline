@@ -125,6 +125,21 @@ export default function MapLibreMap({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const autoFitAppliedForRangeKeyRef = useRef<string | null>(null);
 
+  const unknownVisitPopupPhotos = useMemo(() => {
+    if (popup?.kind !== "unknownVisit") return [] as ImmichPhoto[];
+    const start = new Date(popup.uv.arrivalAt).getTime();
+    const end = new Date(popup.uv.departureAt).getTime();
+
+    return photos
+      .filter((photo) => {
+        const takenAt = new Date(photo.takenAt).getTime();
+        return takenAt >= start && takenAt <= end;
+      })
+      .sort(
+        (a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime()
+      );
+  }, [popup, photos]);
+
   // Load layer settings from localStorage
   useEffect(() => {
     try {
@@ -802,13 +817,42 @@ export default function MapLibreMap({
             closeButton
             anchor="bottom"
           >
-            <div className="text-xs">
+            <div className="text-xs" style={{ minWidth: 180, maxWidth: 260 }}>
               <p className="font-semibold text-yellow-700">Unknown</p>
               <p className="mt-0.5 text-gray-600">
                 {format(new Date(popup.uv.arrivalAt), "MMM d, HH:mm")} –{" "}
                 {format(new Date(popup.uv.departureAt), "HH:mm")}
               </p>
               <p className="mb-2 text-gray-400">{popup.uv.pointCount} points</p>
+
+              {unknownVisitPopupPhotos.length > 0 && (
+                <div className="mb-2">
+                  <p className="mb-1 text-[11px] font-medium text-gray-500">
+                    Photos in this period ({unknownVisitPopupPhotos.length})
+                  </p>
+                  <div className="flex gap-1 overflow-x-auto pb-1">
+                    {unknownVisitPopupPhotos.map((photo) => (
+                      <button
+                        key={photo.id}
+                        onClick={() => {
+                          onPhotoClick?.(photo);
+                          setPopup(null);
+                        }}
+                        className="shrink-0"
+                        style={{ border: "none", background: "none", padding: 0, cursor: "pointer" }}
+                        title={format(new Date(photo.takenAt), "HH:mm")}
+                        type="button"
+                      >
+                        <div
+                          className="h-14 w-14 rounded bg-cover bg-center"
+                          style={{ backgroundImage: `url(/api/immich/thumbnail?id=${photo.id})` }}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {onUnknownVisitCreatePlace && (
                 <button
                   onClick={() => {
