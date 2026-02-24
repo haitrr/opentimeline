@@ -43,11 +43,12 @@ export default function DateNav({
 
   const navigate = (d: Date, r?: RangeType, end?: string) => {
     const r2 = r ?? range;
+    const dateStr = format(d, "yyyy-MM-dd");
     const params =
       r2 !== "day"
-        ? `?range=${r2}${end ? `&end=${end}` : ""}`
-        : "";
-    router.push(`/timeline/${format(d, "yyyy-MM-dd")}${params}`);
+        ? `?range=${r2}${end ? `&end=${end}` : ""}&fit=1`
+        : `?fit=1`;
+    router.push(`/timeline/${dateStr}${params}`);
   };
 
   const goPrev = () => {
@@ -197,8 +198,7 @@ export default function DateNav({
               value={currentDate}
               max={endDate ?? today}
               onChange={(e) => {
-                if (e.target.value)
-                  navigate(parseISO(e.target.value), "custom", endDate);
+                if (e.target.value) navigate(parseISO(e.target.value), "custom", endDate);
               }}
               className="min-w-0 cursor-pointer rounded border border-gray-200 bg-transparent px-1 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
             />

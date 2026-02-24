@@ -11,6 +11,8 @@ import type { ImmichPhoto } from "@/lib/immich";
 
 type Props = {
   points: SerializedPoint[];
+  rangeKey?: string;
+  shouldAutoFit?: boolean;
   places?: PlaceData[];
   unknownVisits?: UnknownVisitData[];
   photos?: ImmichPhoto[];
@@ -93,6 +95,8 @@ function FlyToHandler({ mapRef }: { mapRef: React.RefObject<MapRef | null> }) {
 
 export default function MapLibreMap({
   points,
+  rangeKey,
+  shouldAutoFit = false,
   places = [],
   unknownVisits = [],
   photos = [],
@@ -115,6 +119,8 @@ export default function MapLibreMap({
   const [layersMenuOpen, setLayersMenuOpen] = useState(false);
   const [popup, setPopup] = useState<PopupState>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const autoFitAppliedForRangeKeyRef = useRef<string | null>(null);
 
   // Load layer settings from localStorage
   useEffect(() => {
@@ -189,6 +195,27 @@ export default function MapLibreMap({
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
+
+  // Apply fit only when explicitly requested by manual DateNav changes
+  useEffect(() => {
+    if (!shouldAutoFit) {
+      autoFitAppliedForRangeKeyRef.current = null;
+      return;
+    }
+    if (!isMapLoaded || !rangeKey || points.length === 0) return;
+    if (autoFitAppliedForRangeKeyRef.current === rangeKey) return;
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    const lats = points.map((p) => p.lat);
+    const lons = points.map((p) => p.lon);
+    map.fitBounds(
+      [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      { padding: 40, duration: 800 }
+    );
+    autoFitAppliedForRangeKeyRef.current = rangeKey;
+  }, [shouldAutoFit, isMapLoaded, rangeKey, points]);
 
   // Compute initial view state once on mount
   const [initialViewState] = useState(() => computeInitialViewState(points));
@@ -458,6 +485,7 @@ export default function MapLibreMap({
 
   // Add arrow SDF image on map load
   const handleMapLoad = useCallback(() => {
+    setIsMapLoaded(true);
     const map = mapRef.current;
     if (!map || map.hasImage("arrow-direction")) return;
     const size = 12;
@@ -823,6 +851,32 @@ export default function MapLibreMap({
           </Popup>
         )}
       </Map>
+
+      {/* Fit all points button */}
+      {points.length > 0 && (
+        <div className="pointer-events-none absolute bottom-4 left-16 z-900">
+          <button
+            type="button"
+            onClick={() => {
+              const map = mapRef.current;
+              if (!map || points.length === 0) return;
+              const lats = points.map((p) => p.lat);
+              const lons = points.map((p) => p.lon);
+              map.fitBounds(
+                [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+                { padding: 40, duration: 800 }
+              );
+            }}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 shadow-md hover:bg-gray-50 hover:text-gray-800"
+            aria-label="Fit all points"
+            title="Fit all points"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+              <path d="M13.28 7.78l3.22-3.22v2.69a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.69l-3.22 3.22a.75.75 0 001.06 1.06zM2 17.25v-4.5a.75.75 0 011.5 0v2.69l3.22-3.22a.75.75 0 011.06 1.06L4.56 16.5h2.69a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75zM12.22 13.28l3.22 3.22h-2.69a.75.75 0 000 1.5h4.5a.75.75 0 00.75-.75v-4.5a.75.75 0 00-1.5 0v2.69l-3.22-3.22a.75.75 0 10-1.06 1.06zM3.5 4.56l3.22 3.22a.75.75 0 001.06-1.06L4.56 3.5h2.69a.75.75 0 000-1.5h-4.5a.75.75 0 00-.75.75v4.5a.75.75 0 001.5 0V4.56z" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Layer settings menu */}
       <div className="pointer-events-none absolute bottom-4 left-4 z-900">

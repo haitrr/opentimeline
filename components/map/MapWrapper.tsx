@@ -26,6 +26,7 @@ type Props = {
   rangeStart?: string;
   rangeEnd?: string;
   isAll?: boolean;
+  shouldAutoFit?: boolean;
 };
 
 export type UnknownVisitData = {
@@ -37,7 +38,7 @@ export type UnknownVisitData = {
   pointCount: number;
 };
 
-export default function MapWrapper({ rangeStart, rangeEnd, isAll }: Props) {
+export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit = false }: Props) {
   const queryClient = useQueryClient();
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [modalCoords, setModalCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -169,6 +170,8 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll }: Props) {
     <div className="h-full w-full">
       <MapLibreMap
         points={points}
+        rangeKey={isAll ? "all" : `${rangeStart ?? ""}__${rangeEnd ?? ""}`}
+        shouldAutoFit={shouldAutoFit}
         places={places}
         unknownVisits={
           rangeStart && rangeEnd

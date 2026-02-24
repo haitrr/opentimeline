@@ -116,7 +116,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
   function handleViewDay(arrivalAt: string) {
     const day = format(new Date(arrivalAt), "yyyy-MM-dd");
-    router.push(`/timeline/${day}`);
+    router.push(`/timeline/${day}?fit=1`);
     onClose();
   }
 

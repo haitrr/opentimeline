@@ -27,6 +27,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
       : "day"
   ) as RangeType;
   const endDate = searchParams.get("end") ?? undefined;
+  const shouldAutoFit = searchParams.get("fit") === "1";
 
   const { rangeStart, rangeEnd, isAll } = useMemo(() => {
     if (!date) return { rangeStart: undefined, rangeEnd: undefined, isAll: false };
@@ -163,7 +164,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="relative min-h-0 flex-1">
-        <MapWrapper rangeStart={rangeStart} rangeEnd={rangeEnd} isAll={isAll} />
+        <MapWrapper rangeStart={rangeStart} rangeEnd={rangeEnd} isAll={isAll} shouldAutoFit={shouldAutoFit} />
         <BackgroundDetector />
         {toast && (
           <div className="absolute top-4 left-1/2 z-900 -translate-x-1/2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-lg">
