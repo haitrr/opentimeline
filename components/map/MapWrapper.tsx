@@ -10,7 +10,7 @@ import PlaceCreationModal from "@/components/PlaceCreationModal";
 import PlaceDetailModal from "@/components/PlaceDetailModal";
 import PhotoModal from "@/components/PhotoModal";
 
-const LeafletMap = dynamic(() => import("@/components/map/LeafletMap"), {
+const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
   ssr: false,
   loading: () => (
     <div className="flex h-full w-full items-center justify-center bg-gray-100">
@@ -151,7 +151,7 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
 
   return (
     <div className="h-full w-full">
-      <LeafletMap
+      <MapLibreMap
         points={points}
         places={places}
         unknownVisits={
@@ -168,11 +168,12 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
         onPlaceClick={handlePlaceClick}
         onPlaceMoveRequest={handlePlaceMoveRequest}
         onUnknownVisitCreatePlace={handleUnknownVisitCreatePlace}
-        onPhotoClick={(photo) => {
+        onPhotoClick={(photo: ImmichPhoto) => {
           const idx = photos.findIndex((p) => p.id === photo.id);
           setPhotoModal({ list: photos, index: idx >= 0 ? idx : 0 });
         }}
       />
+
       {modalCoords && (
         <PlaceCreationModal
           lat={modalCoords.lat}
