@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
+import PhotoModal from "@/components/PhotoModal";
+import type { ImmichPhoto } from "@/lib/immich";
 
 type Visit = {
   id: number;
@@ -19,6 +21,7 @@ export default function VisitSuggestionsPanel() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<Visit | null>(null);
+  const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
 
   const { data: visits = [] } = useQuery<Visit[]>({
     queryKey: ["visits", "suggested"],
@@ -28,6 +31,37 @@ export default function VisitSuggestionsPanel() {
       return res.json();
     },
   });
+
+  const photoRange = useMemo(() => {
+    if (visits.length === 0) return null;
+    const starts = visits.map((v) => new Date(v.arrivalAt).getTime());
+    const ends = visits.map((v) => new Date(v.departureAt).getTime());
+    return {
+      start: new Date(Math.min(...starts)).toISOString(),
+      end: new Date(Math.max(...ends)).toISOString(),
+    };
+  }, [visits]);
+
+  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
+    queryKey: ["immich", "visit-suggestions", photoRange?.start, photoRange?.end],
+    queryFn: async () => {
+      if (!photoRange) return [];
+      const params = new URLSearchParams({ start: photoRange.start, end: photoRange.end });
+      const res = await fetch(`/api/immich?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!photoRange,
+  });
+
+  function getVisitPhotos(visit: Visit): ImmichPhoto[] {
+    const start = new Date(visit.arrivalAt).getTime();
+    const end = new Date(visit.departureAt).getTime();
+    return photos.filter((p) => {
+      const t = new Date(p.takenAt).getTime();
+      return t >= start && t <= end;
+    });
+  }
 
   async function handleAction(id: number, status: "confirmed" | "rejected") {
     const res = await fetch(`/api/visits/${id}`, {
@@ -72,12 +106,15 @@ export default function VisitSuggestionsPanel() {
         <span className="text-gray-400">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="px-4 pb-3">
+        <div className="max-h-80 overflow-y-auto px-4 pb-3">
           {visits.length === 0 ? (
             <p className="text-xs text-gray-400">No pending suggestions.</p>
           ) : (
             <ul className="space-y-2">
               {visits.map((v) => (
+                (() => {
+                  const matchingPhotos = getVisitPhotos(v);
+                  return (
                 <li
                   key={v.id}
                   className="cursor-pointer rounded border border-gray-100 bg-gray-50 p-2 hover:bg-gray-100"
@@ -91,6 +128,26 @@ export default function VisitSuggestionsPanel() {
                     {format(new Date(v.arrivalAt), "MMM d, HH:mm")} –{" "}
                     {format(new Date(v.departureAt), "HH:mm")}
                   </p>
+                  {matchingPhotos.length > 0 && (
+                    <div className="mt-1.5 flex flex-nowrap gap-1 overflow-x-auto pb-0.5 pr-0.5">
+                      {matchingPhotos.map((p, i) => (
+                        <button
+                          key={p.id}
+                          className="shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPhotoModal({ list: matchingPhotos, index: i });
+                          }}
+                          type="button"
+                        >
+                          <div
+                            className="h-12 w-16 shrink-0 rounded bg-cover bg-center transition-opacity hover:opacity-80"
+                            style={{ backgroundImage: `url(/api/immich/thumbnail?id=${p.id})` }}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-1.5 flex gap-1.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); setCreatingPlaceForVisit(v); }}
@@ -112,6 +169,8 @@ export default function VisitSuggestionsPanel() {
                     </button>
                   </div>
                 </li>
+                  );
+                })()
               ))}
             </ul>
           )}
@@ -124,6 +183,14 @@ export default function VisitSuggestionsPanel() {
           lon={creatingPlaceForVisit.place.lon}
           onClose={() => setCreatingPlaceForVisit(null)}
           onCreated={(place) => handlePlaceCreatedForVisit(creatingPlaceForVisit.id, place.id)}
+        />
+      )}
+
+      {photoModal && (
+        <PhotoModal
+          photos={photoModal.list}
+          initialIndex={photoModal.index}
+          onClose={() => setPhotoModal(null)}
         />
       )}
     </div>

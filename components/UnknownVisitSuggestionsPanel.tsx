@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
-import type { PlaceData } from "@/lib/detectVisits";
+import PhotoModal from "@/components/PhotoModal";
+import type { ImmichPhoto } from "@/lib/immich";
 
 type UnknownVisit = {
   id: number;
@@ -29,6 +30,7 @@ export default function UnknownVisitSuggestionsPanel() {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<UnknownVisit | null>(null);
   const [editing, setEditing] = useState<{ id: number; arrivalAt: string; departureAt: string } | null>(null);
+  const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
 
   const { data: suggestions = [] } = useQuery<UnknownVisit[]>({
     queryKey: ["unknown-visits", "suggested"],
@@ -38,6 +40,37 @@ export default function UnknownVisitSuggestionsPanel() {
       return res.json();
     },
   });
+
+  const photoRange = useMemo(() => {
+    if (suggestions.length === 0) return null;
+    const starts = suggestions.map((s) => new Date(s.arrivalAt).getTime());
+    const ends = suggestions.map((s) => new Date(s.departureAt).getTime());
+    return {
+      start: new Date(Math.min(...starts)).toISOString(),
+      end: new Date(Math.max(...ends)).toISOString(),
+    };
+  }, [suggestions]);
+
+  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
+    queryKey: ["immich", "unknown-suggestions", photoRange?.start, photoRange?.end],
+    queryFn: async () => {
+      if (!photoRange) return [];
+      const params = new URLSearchParams({ start: photoRange.start, end: photoRange.end });
+      const res = await fetch(`/api/immich?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!photoRange,
+  });
+
+  function getUnknownVisitPhotos(visit: UnknownVisit): ImmichPhoto[] {
+    const start = new Date(visit.arrivalAt).getTime();
+    const end = new Date(visit.departureAt).getTime();
+    return photos.filter((p) => {
+      const t = new Date(p.takenAt).getTime();
+      return t >= start && t <= end;
+    });
+  }
 
   async function handleReject(id: number) {
     const res = await fetch(`/api/unknown-visits/${id}`, {
@@ -69,7 +102,7 @@ export default function UnknownVisitSuggestionsPanel() {
     }
   }
 
-  async function handlePlaceCreated(visit: UnknownVisit, _place: PlaceData) {
+  async function handlePlaceCreated(visit: UnknownVisit) {
     await fetch(`/api/unknown-visits/${visit.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -99,12 +132,15 @@ export default function UnknownVisitSuggestionsPanel() {
           <span className="text-gray-400">{open ? "▲" : "▼"}</span>
         </button>
         {open && (
-          <div className="px-4 pb-3">
+          <div className="max-h-80 overflow-y-auto px-4 pb-3">
             {suggestions.length === 0 ? (
               <p className="text-xs text-gray-400">No unknown place visits detected.</p>
             ) : (
               <ul className="space-y-2">
                 {suggestions.map((s) => (
+                  (() => {
+                    const matchingPhotos = getUnknownVisitPhotos(s);
+                    return (
                   <li
                   key={s.id}
                   className="cursor-pointer rounded border border-amber-100 bg-amber-50 p-2 hover:bg-amber-100"
@@ -158,6 +194,26 @@ export default function UnknownVisitSuggestionsPanel() {
                           {format(new Date(s.departureAt), "HH:mm")}
                         </p>
                         <p className="text-xs text-gray-400">{s.pointCount} points</p>
+                        {matchingPhotos.length > 0 && (
+                          <div className="mt-1.5 flex flex-nowrap gap-1 overflow-x-auto pb-0.5 pr-0.5">
+                            {matchingPhotos.map((p, i) => (
+                              <button
+                                key={p.id}
+                                className="shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPhotoModal({ list: matchingPhotos, index: i });
+                                }}
+                                type="button"
+                              >
+                                <div
+                                  className="h-12 w-16 shrink-0 rounded bg-cover bg-center transition-opacity hover:opacity-80"
+                                  style={{ backgroundImage: `url(/api/immich/thumbnail?id=${p.id})` }}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         <div className="mt-1.5 flex gap-1.5">
                           <button
                             onClick={(e) => { e.stopPropagation(); setConfirming(s); }}
@@ -187,6 +243,8 @@ export default function UnknownVisitSuggestionsPanel() {
                       </>
                     )}
                   </li>
+                    );
+                  })()
                 ))}
               </ul>
             )}
@@ -199,7 +257,15 @@ export default function UnknownVisitSuggestionsPanel() {
           lat={confirming.lat}
           lon={confirming.lon}
           onClose={() => setConfirming(null)}
-          onCreated={(place) => handlePlaceCreated(confirming, place)}
+          onCreated={() => handlePlaceCreated(confirming)}
+        />
+      )}
+
+      {photoModal && (
+        <PhotoModal
+          photos={photoModal.list}
+          initialIndex={photoModal.index}
+          onClose={() => setPhotoModal(null)}
         />
       )}
     </>
