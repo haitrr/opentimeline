@@ -98,7 +98,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-gray-50 md:h-screen md:w-screen md:flex-row">
       <aside
-        className={`absolute inset-x-0 top-0 z-900 h-full max-h-[75vh] md:max-h-[100vh] flex-col overflow-hidden border-b border-gray-200 bg-white shadow-lg transition-transform md:relative md:flex md:h-full md:w-80 md:shrink-0 md:border-b-0 md:border-r md:shadow-none ${mobilePanelsOpen ? "flex" : "hidden"}`}
+        className={`absolute inset-x-0 top-0 z-900 h-full max-h-[75vh] md:max-h-[100vh] flex-col overflow-hidden border-b border-gray-200 bg-white shadow-lg transition-transform md:relative md:flex md:h-full md:w-[480px] md:max-w-[40vw] md:shrink-0 md:border-b-0 md:border-r md:shadow-none ${mobilePanelsOpen ? "flex" : "hidden"}`}
       >
         <header className="px-4 pt-3 pb-0">
           <div className="flex items-center justify-between gap-2">
