@@ -187,9 +187,10 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
         onPlaceClick={handlePlaceClick}
         onPlaceMoveRequest={handlePlaceMoveRequest}
         onUnknownVisitCreatePlace={handleUnknownVisitCreatePlace}
-        onPhotoClick={(photo: ImmichPhoto) => {
-          const idx = photos.findIndex((p) => p.id === photo.id);
-          setPhotoModal({ list: photos, index: idx >= 0 ? idx : 0 });
+        onPhotoClick={(photo: ImmichPhoto, list?: ImmichPhoto[]) => {
+          const photoList = list && list.length > 0 ? list : photos;
+          const idx = photoList.findIndex((p) => p.id === photo.id);
+          setPhotoModal({ list: photoList, index: idx >= 0 ? idx : 0 });
         }}
       />
 

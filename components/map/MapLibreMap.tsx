@@ -20,7 +20,7 @@ type Props = {
   onPlaceClick?: (place: PlaceData) => void;
   onPlaceMoveRequest?: (place: PlaceData, lat: number, lon: number) => void;
   onUnknownVisitCreatePlace?: (uv: UnknownVisitData) => void;
-  onPhotoClick?: (photo: ImmichPhoto) => void;
+  onPhotoClick?: (photo: ImmichPhoto, list?: ImmichPhoto[]) => void;
 };
 
 type PopupState =
@@ -835,7 +835,7 @@ export default function MapLibreMap({
                       <button
                         key={photo.id}
                         onClick={() => {
-                          onPhotoClick?.(photo);
+                          onPhotoClick?.(photo, unknownVisitPopupPhotos);
                           setPopup(null);
                         }}
                         className="shrink-0"
@@ -880,7 +880,7 @@ export default function MapLibreMap({
             <div className="text-xs" style={{ minWidth: 120 }}>
               <button
                 onClick={() => {
-                  onPhotoClick?.(popup.photo);
+                  onPhotoClick?.(popup.photo, photos);
                   setPopup(null);
                 }}
                 style={{ display: "block", padding: 0, border: "none", background: "none", cursor: "pointer" }}
