@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
+import DraggableScrollbar from "@/components/DraggableScrollbar";
 import { format, differenceInMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -66,6 +67,7 @@ function gapToPx(
 export default function PlaceDetailModal({ place, onClose }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [placeInfo, setPlaceInfo] = useState<PlaceData>(place);
   const [filter, setFilter] = useState<Filter>("all");
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
@@ -195,6 +197,11 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     )
     .sort((a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime());
 
+  const itemTimestamps = useMemo(
+    () => displayed.map((v) => v.arrivalAt),
+    [displayed]
+  );
+
   const gapsMs = displayed.slice(0, -1).map((v, i) => {
     const nextVisit = displayed[i + 1];
     if (!nextVisit) return NaN;
@@ -321,7 +328,8 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
         </div>
 
         {/* Timeline */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="relative flex-1 min-h-0 overflow-hidden">
+          <div ref={scrollRef} className="h-full overflow-y-auto px-4 py-4 pr-6 sm:px-5 sm:pr-6">
           {isLoading ? (
             <p className="py-8 text-center text-xs text-gray-400">Loading…</p>
           ) : displayed.length === 0 ? (
@@ -338,14 +346,23 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                 const isLast = i === displayed.length - 1;
 
                 const nextV = displayed[i + 1];
+                const nextArrival = nextV ? new Date(nextV.arrivalAt) : null;
                 const yearChanges =
                   !isLast &&
-                  arrival.getFullYear() !== new Date(nextV.arrivalAt).getFullYear();
+                  nextArrival !== null &&
+                  arrival.getFullYear() !== nextArrival.getFullYear();
+                const monthChanges =
+                  !isLast &&
+                  nextArrival !== null &&
+                  (arrival.getFullYear() !== nextArrival.getFullYear() ||
+                    arrival.getMonth() !== nextArrival.getMonth());
+                const hasDateSeparator = yearChanges || monthChanges;
                 const spacerPx = isLast
                   ? 0
-                  : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, yearChanges);
-                const nextYear = yearChanges
-                  ? new Date(nextV.arrivalAt).getFullYear()
+                  : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, hasDateSeparator);
+                const nextYear = yearChanges && nextArrival ? nextArrival.getFullYear() : null;
+                const nextMonthLabel = monthChanges && nextArrival
+                  ? format(nextArrival, "MMM")
                   : null;
 
                 return (
@@ -440,10 +457,19 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                         className="relative flex items-center justify-center"
                         style={{ height: spacerPx }}
                       >
-                        {nextYear !== null && (
-                          <span className="relative z-10 rounded-full bg-[#1a7bb5] px-3 py-0.5 text-xs font-semibold text-white shadow-sm">
-                            {nextYear}
-                          </span>
+                        {hasDateSeparator && (
+                          <div className="relative z-10 flex flex-col items-center gap-1">
+                            {nextYear !== null && (
+                              <span className="rounded-full bg-[#1a7bb5] px-3 py-0.5 text-xs font-semibold text-white shadow-sm">
+                                {nextYear}
+                              </span>
+                            )}
+                            {nextMonthLabel !== null && (
+                              <span className="rounded-full bg-white px-3 py-0.5 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-200">
+                                {nextMonthLabel}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
@@ -452,6 +478,11 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
               })}
             </div>
           )}
+          </div>
+          <DraggableScrollbar
+            scrollRef={scrollRef}
+            itemTimestamps={itemTimestamps}
+          />
         </div>
       </div>
       {photoModal && (

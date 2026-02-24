@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import PhotoModal from "@/components/PhotoModal";
 import type { ImmichPhoto } from "@/lib/immich";
+import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 
 type KnownVisit = {
   kind: "known";
@@ -424,6 +425,63 @@ export default function TimelineSidebar({
     }
   }
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrubberSegments = useMemo<ScrollSegment[]>(() => {
+    if (items.length < 2) return [];
+
+    const newestDate = new Date(items[0].arrivalAt);
+    const oldestDate = new Date(items[items.length - 1].arrivalAt);
+
+    const toMonthKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+    const spanDays =
+      (newestDate.getTime() - oldestDate.getTime()) / (1000 * 60 * 60 * 24);
+    const multiYear  = newestDate.getFullYear() !== oldestDate.getFullYear();
+    const multiMonth = toMonthKey(newestDate) !== toMonthKey(oldestDate);
+    const byDay      = spanDays <= 60;
+
+    // Collect unique keys in order of first appearance
+    const seen = new Map<string, string>(); // rawKey → label
+    items.forEach((item) => {
+      const d = new Date(item.arrivalAt);
+      const rawKey = byDay ? format(d, "yyyy-MM-dd") : toMonthKey(d);
+      if (!seen.has(rawKey)) {
+        const label = byDay
+          ? format(d, "EEE, MMM d")
+          : format(new Date(`${rawKey}-01T00:00:00`), "MMM yyyy");
+        seen.set(rawKey, label);
+      }
+    });
+
+    if (seen.size < 2) return [];
+
+    // segmentKey must match the `data-scrubber-segment` attribute on the separator <li>
+    // Day separators → "d:yyyy-MM-dd", month separators → "m:yyyy-MM"
+    let lastYearLabel: string | undefined;
+    return [...seen.entries()].map(([rawKey, label]) => {
+      const segmentKey = byDay ? `d:${rawKey}` : `m:${rawKey}`;
+
+      let shortLabel: string | undefined;
+      if (byDay) {
+        if (multiMonth) {
+          shortLabel = format(new Date(`${rawKey}T00:00:00`), "MMM d");
+        } else {
+          const day = rawKey.slice(8);
+          shortLabel = day.startsWith("0") ? day.slice(1) : day;
+        }
+      } else if (multiYear) {
+        const yr = rawKey.slice(0, 4);
+        if (yr !== lastYearLabel) { shortLabel = yr; lastYearLabel = yr; }
+      } else {
+        shortLabel = format(new Date(`${rawKey}-01T00:00:00`), "MMM");
+      }
+
+      return { label, shortLabel, segmentKey };
+    });
+  }, [items]);
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
@@ -442,23 +500,83 @@ export default function TimelineSidebar({
 
   return (
     <>
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div className="relative flex flex-1 min-h-0">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-3">
         <div className="relative">
           <div className="absolute bottom-2 left-1.5 top-2 w-px bg-gray-200" />
           <ul className="space-y-4">
-            {items.map((item) => {
-              const isSuggested = item.status === "suggested";
-              const isUnknown = item.kind === "unknown";
-              const dotColor = isUnknown
-                ? "border-amber-400"
-                : isSuggested
+            {(() => {
+              let lastDay = "";
+              let lastMonth = "";
+              let lastYear = "";
+              const nodes: React.ReactNode[] = [];
+
+              const hasMultiYear  = new Set(items.map(i => format(new Date(i.arrivalAt), "yyyy"))).size > 1;
+              const hasMultiMonth = new Set(items.map(i => format(new Date(i.arrivalAt), "yyyy-MM"))).size > 1;
+              const hasMultiDay   = new Set(items.map(i => format(new Date(i.arrivalAt), "yyyy-MM-dd"))).size > 1;
+
+              items.forEach((item) => {
+                const d = new Date(item.arrivalAt);
+                const day   = format(d, "yyyy-MM-dd");
+                const month = format(d, "yyyy-MM");
+                const year  = format(d, "yyyy");
+
+                const yearChanged  = hasMultiYear  && year  !== lastYear;
+                const monthChanged = hasMultiMonth && month !== lastMonth;
+                const dayChanged   = hasMultiDay   && day   !== lastDay;
+
+                if (yearChanged) {
+                  nodes.push(
+                    <li key={`y-${year}`} data-scrubber-segment={`y:${year}`} className="relative flex items-center gap-2 pt-1 pb-0.5">
+                      <div className="h-px flex-1 bg-gray-200" />
+                      <span className="shrink-0 rounded-full bg-gray-700 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white dark:bg-gray-600">
+                        {year}
+                      </span>
+                      <div className="h-px flex-1 bg-gray-200" />
+                    </li>
+                  );
+                  lastYear  = year;
+                  lastMonth = "";
+                  lastDay   = "";
+                }
+
+                if (monthChanged) {
+                  nodes.push(
+                    <li key={`m-${month}`} data-scrubber-segment={`m:${month}`} className="relative flex items-center gap-2 pb-0.5">
+                      <div className="h-px flex-1 bg-gray-100" />
+                      <span className="shrink-0 rounded-full border border-gray-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                        {format(d, "MMMM")}
+                      </span>
+                      <div className="h-px flex-1 bg-gray-100" />
+                    </li>
+                  );
+                  lastMonth = month;
+                  lastDay   = "";
+                }
+
+                if (dayChanged) {
+                  nodes.push(
+                    <li key={`d-${day}`} data-scrubber-segment={`d:${day}`} className="relative pb-0.5">
+                      <span className="ml-5 inline-block rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                        {format(d, "EEE, d MMM")}
+                      </span>
+                    </li>
+                  );
+                  lastDay = day;
+                }
+
+                const isSuggested = item.status === "suggested";
+                const isUnknown = item.kind === "unknown";
+                const dotColor = isUnknown
                   ? "border-amber-400"
-                  : "border-blue-500";
+                  : isSuggested
+                    ? "border-amber-400"
+                    : "border-blue-500";
 
-              const lat = item.kind === "known" ? item.place.lat : item.lat;
-              const lon = item.kind === "known" ? item.place.lon : item.lon;
+                const lat = item.kind === "known" ? item.place.lat : item.lat;
+                const lon = item.kind === "known" ? item.place.lon : item.lon;
 
-              return (
+                nodes.push(
                 <li
                   key={`${item.kind}-${item.id}`}
                   className="relative flex items-start gap-3 cursor-pointer"
@@ -578,10 +696,20 @@ export default function TimelineSidebar({
                     )}
                   </div>
                 </li>
-              );
-            })}
+                );
+              });
+              return nodes;
+            })()}
           </ul>
         </div>
+      </div>
+      {scrubberSegments.length > 0 && (
+        <DraggableScrollbar
+          segments={scrubberSegments}
+          scrollContainerRef={scrollContainerRef}
+          className="w-10 border-l border-gray-100 dark:border-gray-800"
+        />
+      )}
       </div>
 
       {creatingPlace && (

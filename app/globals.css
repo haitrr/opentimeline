@@ -154,3 +154,12 @@ html.dark img.leaflet-tile {
 .leaflet-tooltip-right.opentimeline-tooltip:before {
   border-right-color: var(--line) !important;
 }
+
+/* Hide native scrollbar while keeping scrollability */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
