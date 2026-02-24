@@ -1,13 +1,13 @@
 "use client";
 
 import { Fragment, useMemo, useRef, useState } from "react";
-import DraggableScrollbar from "@/components/DraggableScrollbar";
 import { format, differenceInMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
 import PhotoModal from "@/components/PhotoModal";
+import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 
 type Visit = {
   id: number;
@@ -202,6 +202,35 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     [displayed]
   );
 
+  const scrubberSegments = useMemo<ScrollSegment[]>(() => {
+    if (displayed.length < 2) return [];
+    const toMonthKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const newestDate = new Date(displayed[0].arrivalAt);
+    const oldestDate = new Date(displayed[displayed.length - 1].arrivalAt);
+    const multiYear = newestDate.getFullYear() !== oldestDate.getFullYear();
+    const seen = new Map<string, string>();
+    displayed.forEach((v) => {
+      const d = new Date(v.arrivalAt);
+      const monthKey = toMonthKey(d);
+      if (!seen.has(monthKey)) {
+        seen.set(monthKey, format(new Date(`${monthKey}-01T00:00:00`), "MMMM yyyy"));
+      }
+    });
+    if (seen.size < 2) return [];
+    let lastYearLabel: string | undefined;
+    return [...seen.entries()].map(([monthKey, label]) => {
+      let shortLabel: string | undefined;
+      const yr = monthKey.slice(0, 4);
+      if (multiYear) {
+        if (yr !== lastYearLabel) { shortLabel = yr; lastYearLabel = yr; }
+      } else {
+        shortLabel = format(new Date(`${monthKey}-01T00:00:00`), "MMM");
+      }
+      return { label, shortLabel, segmentKey: `m:${monthKey}` };
+    });
+  }, [displayed]);
+
   const gapsMs = displayed.slice(0, -1).map((v, i) => {
     const nextVisit = displayed[i + 1];
     if (!nextVisit) return NaN;
@@ -228,7 +257,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-5">
           <div>
@@ -328,8 +357,8 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
         </div>
 
         {/* Timeline */}
-        <div className="relative flex-1 min-h-0 overflow-hidden">
-          <div ref={scrollRef} className="h-full overflow-y-auto px-4 py-4 pr-6 sm:px-5 sm:pr-6">
+        <div className="relative flex min-h-0 flex-1">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 sm:px-5">
           {isLoading ? (
             <p className="py-8 text-center text-xs text-gray-400">Loading…</p>
           ) : displayed.length === 0 ? (
@@ -337,6 +366,13 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
           ) : (
             <div className="relative">
               <div className="absolute bottom-0 top-0 w-px bg-gray-200" style={{ left: 15 }} />
+              {scrubberSegments.length > 0 && (
+                <div
+                  data-scrubber-segment={scrubberSegments[0].segmentKey}
+                  className="absolute top-0 left-0 h-0 w-0 overflow-hidden"
+                  aria-hidden
+                />
+              )}
 
               {displayed.map((v, i) => {
                 const arrival = new Date(v.arrivalAt);
@@ -456,6 +492,11 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                       <div
                         className="relative flex items-center justify-center"
                         style={{ height: spacerPx }}
+                        data-scrubber-segment={
+                          monthChanges && nextArrival
+                            ? `m:${format(nextArrival, "yyyy-MM")}`
+                            : undefined
+                        }
                       >
                         {hasDateSeparator && (
                           <div className="relative z-10 flex flex-col items-center gap-1">
@@ -479,10 +520,13 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
             </div>
           )}
           </div>
-          <DraggableScrollbar
-            scrollRef={scrollRef}
-            itemTimestamps={itemTimestamps}
-          />
+          {scrubberSegments.length > 0 && (
+            <DraggableScrollbar
+              segments={scrubberSegments}
+              scrollContainerRef={scrollRef}
+              className="w-10 border-l border-gray-100 dark:border-gray-800"
+            />
+          )}
         </div>
       </div>
       {photoModal && (
