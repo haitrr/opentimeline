@@ -104,6 +104,18 @@ html.dark .hover\:text-gray-800:hover {
   color: var(--text-primary);
 }
 
+html.dark .bg-amber-50 {
+  background-color: #1c1500;
+}
+
+html.dark .border-amber-100 {
+  border-color: #3d3000;
+}
+
+html.dark .hover\:bg-amber-100:hover {
+  background-color: #2a2000;
+}
+
 /* Ensure Leaflet map fills its container */
 .leaflet-container {
   height: 100%;

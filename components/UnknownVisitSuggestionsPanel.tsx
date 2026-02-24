@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
@@ -23,6 +24,7 @@ function toDatetimeLocal(iso: string) {
 }
 
 export default function UnknownVisitSuggestionsPanel() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<UnknownVisit | null>(null);
@@ -103,7 +105,14 @@ export default function UnknownVisitSuggestionsPanel() {
             ) : (
               <ul className="space-y-2">
                 {suggestions.map((s) => (
-                  <li key={s.id} className="rounded border border-amber-100 bg-amber-50 p-2">
+                  <li
+                  key={s.id}
+                  className="cursor-pointer rounded border border-amber-100 bg-amber-50 p-2 hover:bg-amber-100"
+                  onClick={() => {
+                    router.push(`/timeline/${format(new Date(s.arrivalAt), "yyyy-MM-dd")}`);
+                    window.dispatchEvent(new CustomEvent("opentimeline:fly-to", { detail: { lat: s.lat, lon: s.lon } }));
+                  }}
+                >
                     <p className="text-xs font-medium text-gray-700">
                       {s.lat.toFixed(5)}, {s.lon.toFixed(5)}
                     </p>
@@ -129,13 +138,13 @@ export default function UnknownVisitSuggestionsPanel() {
                         </div>
                         <div className="flex gap-1.5 pt-0.5">
                           <button
-                            onClick={() => handleEditSave(s.id)}
+                            onClick={(e) => { e.stopPropagation(); handleEditSave(s.id); }}
                             className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
                           >
                             Save
                           </button>
                           <button
-                            onClick={() => setEditing(null)}
+                            onClick={(e) => { e.stopPropagation(); setEditing(null); }}
                             className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
                           >
                             Cancel
@@ -151,25 +160,25 @@ export default function UnknownVisitSuggestionsPanel() {
                         <p className="text-xs text-gray-400">{s.pointCount} points</p>
                         <div className="mt-1.5 flex gap-1.5">
                           <button
-                            onClick={() => setConfirming(s)}
+                            onClick={(e) => { e.stopPropagation(); setConfirming(s); }}
                             className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
                           >
                             Create Place
                           </button>
                           <button
-                            onClick={() => setEditing({ id: s.id, arrivalAt: toDatetimeLocal(s.arrivalAt), departureAt: toDatetimeLocal(s.departureAt) })}
+                            onClick={(e) => { e.stopPropagation(); setEditing({ id: s.id, arrivalAt: toDatetimeLocal(s.arrivalAt), departureAt: toDatetimeLocal(s.departureAt) }); }}
                             className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
                           >
                             Edit
                           </button>
                           <button
-                            onClick={() => handleReject(s.id)}
+                            onClick={(e) => { e.stopPropagation(); handleReject(s.id); }}
                             className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
                           >
                             Dismiss
                           </button>
                           <button
-                            onClick={() => handleDelete(s.id)}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
                             className="rounded border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50"
                           >
                             Delete

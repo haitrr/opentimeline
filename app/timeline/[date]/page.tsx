@@ -1,42 +1,14 @@
 import { notFound } from "next/navigation";
-import {
-  startOfDay,
-  endOfDay,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfYear,
-  endOfYear,
-  parseISO,
-} from "date-fns";
 import { getPointsForRange, getAllPoints } from "@/lib/locations";
 import { computePeriodStats } from "@/lib/groupByHour";
-import TimelineLayout from "@/components/TimelineLayout";
+import { getRangeBounds } from "@/lib/getRangeBounds";
+import DateNav from "@/components/DateNav";
+import DailyStats from "@/components/DailyStats";
+import TimelineSidebar from "@/components/TimelineSidebar";
 
 export type RangeType = "day" | "week" | "month" | "year" | "custom" | "all";
 
 const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
-
-function getRangeBounds(date: Date, rangeType: RangeType, endDateStr?: string) {
-  switch (rangeType) {
-    case "week":
-      return {
-        start: startOfWeek(date, { weekStartsOn: 1 }),
-        end: endOfWeek(date, { weekStartsOn: 1 }),
-      };
-    case "month":
-      return { start: startOfMonth(date), end: endOfMonth(date) };
-    case "year":
-      return { start: startOfYear(date), end: endOfYear(date) };
-    case "custom": {
-      const endDate = endDateStr ? parseISO(endDateStr) : date;
-      return { start: startOfDay(date), end: endOfDay(endDate) };
-    }
-    default:
-      return { start: startOfDay(date), end: endOfDay(date) };
-  }
-}
 
 type Props = {
   params: Promise<{ date: string }>;
@@ -70,14 +42,12 @@ export default async function TimelineDatePage({ params, searchParams }: Props) 
   const stats = computePeriodStats(points, rangeType === "day" ? "hour" : "day");
 
   return (
-    <TimelineLayout
-      date={date}
-      range={rangeType}
-      endDate={end}
-      rangeStart={rangeStart}
-      rangeEnd={rangeEnd}
-      points={points}
-      stats={stats}
-    />
+    <>
+      <div className="border-b border-gray-200 px-4">
+        <DateNav currentDate={date} range={rangeType} endDate={end} />
+      </div>
+      <DailyStats stats={stats} range={rangeType} />
+      <TimelineSidebar rangeStart={rangeStart} rangeEnd={rangeEnd} />
+    </>
   );
 }

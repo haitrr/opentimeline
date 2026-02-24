@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
@@ -14,6 +15,7 @@ type Visit = {
 };
 
 export default function VisitSuggestionsPanel() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<Visit | null>(null);
@@ -76,7 +78,14 @@ export default function VisitSuggestionsPanel() {
           ) : (
             <ul className="space-y-2">
               {visits.map((v) => (
-                <li key={v.id} className="rounded border border-gray-100 bg-gray-50 p-2">
+                <li
+                  key={v.id}
+                  className="cursor-pointer rounded border border-gray-100 bg-gray-50 p-2 hover:bg-gray-100"
+                  onClick={() => {
+                    router.push(`/timeline/${format(new Date(v.arrivalAt), "yyyy-MM-dd")}`);
+                    window.dispatchEvent(new CustomEvent("opentimeline:fly-to", { detail: { lat: v.place.lat, lon: v.place.lon } }));
+                  }}
+                >
                   <p className="text-sm font-medium text-gray-800">{v.place.name}</p>
                   <p className="text-xs text-gray-500">
                     {format(new Date(v.arrivalAt), "MMM d, HH:mm")} –{" "}
@@ -84,19 +93,19 @@ export default function VisitSuggestionsPanel() {
                   </p>
                   <div className="mt-1.5 flex gap-1.5">
                     <button
-                      onClick={() => setCreatingPlaceForVisit(v)}
+                      onClick={(e) => { e.stopPropagation(); setCreatingPlaceForVisit(v); }}
                       className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
                     >
                       Create Place
                     </button>
                     <button
-                      onClick={() => handleAction(v.id, "confirmed")}
+                      onClick={(e) => { e.stopPropagation(); handleAction(v.id, "confirmed"); }}
                       className="flex-1 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
                     >
                       Confirm
                     </button>
                     <button
-                      onClick={() => handleAction(v.id, "rejected")}
+                      onClick={(e) => { e.stopPropagation(); handleAction(v.id, "rejected"); }}
                       className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
                     >
                       Reject

@@ -16,7 +16,9 @@
       "WebFetch(domain:docs.immich.app)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(pnpm remove:*)"
+      "Bash(pnpm remove:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)"
     ]
   }
 }

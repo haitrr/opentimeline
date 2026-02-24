@@ -23,9 +23,9 @@ const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
 });
 
 type Props = {
-  points: SerializedPoint[];
   rangeStart?: string;
   rangeEnd?: string;
+  isAll?: boolean;
 };
 
 export type UnknownVisitData = {
@@ -37,7 +37,7 @@ export type UnknownVisitData = {
   pointCount: number;
 };
 
-export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
+export default function MapWrapper({ rangeStart, rangeEnd, isAll }: Props) {
   const queryClient = useQueryClient();
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [modalCoords, setModalCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -46,6 +46,22 @@ export default function MapWrapper({ points, rangeStart, rangeEnd }: Props) {
   const [pendingPlaceMove, setPendingPlaceMove] = useState<{ place: PlaceData; lat: number; lon: number } | null>(null);
   const [updatingPlaceMove, setUpdatingPlaceMove] = useState(false);
   const [placeMoveError, setPlaceMoveError] = useState<string | null>(null);
+
+  const { data: points = [] } = useQuery<SerializedPoint[]>({
+    queryKey: ["locations", isAll ? "all" : rangeStart, isAll ? "all" : rangeEnd],
+    queryFn: async () => {
+      if (isAll) {
+        const res = await fetch("/api/locations?all=true");
+        if (!res.ok) return [];
+        return res.json();
+      }
+      if (!rangeStart || !rangeEnd) return [];
+      const params = new URLSearchParams({ start: rangeStart, end: rangeEnd });
+      const res = await fetch(`/api/locations?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   const { data: places = [] } = useQuery<PlaceData[]>({
     queryKey: ["places", rangeStart, rangeEnd],

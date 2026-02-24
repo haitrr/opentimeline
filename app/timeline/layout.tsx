@@ -1,41 +1,42 @@
 "use client";
 
-import DateNav from "@/components/DateNav";
-import TimelineSidebar from "@/components/TimelineSidebar";
-import DailyStats from "@/components/DailyStats";
+import { useState, useRef, useMemo, Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import MapWrapper from "@/components/map/MapWrapper";
-import ImportGpxButton from "@/components/ImportGpxButton";
 import PlacesPanel from "@/components/PlacesPanel";
 import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
 import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
 import BackgroundDetector from "@/components/BackgroundDetector";
 import ThemeToggle from "@/components/ThemeToggle";
-import type { DailyStats as DailyStatsType } from "@/lib/groupByHour";
-import type { SerializedPoint } from "@/lib/groupByHour";
+import ImportGpxButton from "@/components/ImportGpxButton";
+import { getRangeBounds } from "@/lib/getRangeBounds";
 import type { RangeType } from "@/app/timeline/[date]/page";
-import { useState, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 
-type Props = {
-  date: string;
-  range: RangeType;
-  endDate?: string;
-  rangeStart?: string;
-  rangeEnd?: string;
-  points: SerializedPoint[];
-  stats: DailyStatsType;
-};
+const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
 
-export default function TimelineLayout({
-  date,
-  range,
-  endDate,
-  rangeStart,
-  rangeEnd,
-  points,
-  stats,
-}: Props) {
+function TimelineShell({ children }: { children: React.ReactNode }) {
+  const params = useParams();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+
+  const date = (params.date as string) ?? "";
+  const range = (
+    VALID_RANGES.includes(searchParams.get("range") as RangeType)
+      ? searchParams.get("range")
+      : "day"
+  ) as RangeType;
+  const endDate = searchParams.get("end") ?? undefined;
+
+  const { rangeStart, rangeEnd, isAll } = useMemo(() => {
+    if (!date) return { rangeStart: undefined, rangeEnd: undefined, isAll: false };
+    if (range === "all") return { rangeStart: undefined, rangeEnd: undefined, isAll: true };
+    const parsedDate = new Date(`${date}T00:00:00`);
+    if (isNaN(parsedDate.getTime())) return { rangeStart: undefined, rangeEnd: undefined, isAll: false };
+    const { start, end } = getRangeBounds(parsedDate, range, endDate);
+    return { rangeStart: start.toISOString(), rangeEnd: end.toISOString(), isAll: false };
+  }, [date, range, endDate]);
+
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detecting, setDetecting] = useState(false);
@@ -98,13 +99,11 @@ export default function TimelineLayout({
       <aside
         className={`absolute inset-x-0 top-0 z-900 h-full max-h-[75vh] md:max-h-[100vh] flex-col overflow-hidden border-b border-gray-200 bg-white shadow-lg transition-transform md:relative md:flex md:h-full md:w-80 md:shrink-0 md:border-b-0 md:border-r md:shadow-none ${mobilePanelsOpen ? "flex" : "hidden"}`}
       >
-        <header className="border-b border-gray-200 px-4 py-3">
+        <header className="px-4 pt-3 pb-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-blue-500" />
-              <h1 className="text-base font-semibold text-gray-900">
-                OpenTimeline
-              </h1>
+              <h1 className="text-base font-semibold text-gray-900">OpenTimeline</h1>
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
@@ -118,10 +117,8 @@ export default function TimelineLayout({
               </button>
             </div>
           </div>
-          <DateNav currentDate={date} range={range} endDate={endDate} />
         </header>
-        <DailyStats stats={stats} range={range} />
-        <TimelineSidebar rangeStart={rangeStart} rangeEnd={rangeEnd} />
+        {children}
         <PlacesPanel />
         <VisitSuggestionsPanel />
         <UnknownVisitSuggestionsPanel />
@@ -166,7 +163,7 @@ export default function TimelineLayout({
       </aside>
 
       <main className="relative min-h-0 flex-1">
-        <MapWrapper points={points} rangeStart={rangeStart} rangeEnd={rangeEnd} />
+        <MapWrapper rangeStart={rangeStart} rangeEnd={rangeEnd} isAll={isAll} />
         <BackgroundDetector />
         {toast && (
           <div className="absolute top-4 left-1/2 z-900 -translate-x-1/2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-lg">
@@ -182,5 +179,13 @@ export default function TimelineLayout({
         </button>
       </main>
     </div>
+  );
+}
+
+export default function TimelineLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense>
+      <TimelineShell>{children}</TimelineShell>
+    </Suspense>
   );
 }
