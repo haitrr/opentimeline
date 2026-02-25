@@ -59,6 +59,7 @@ type MapLayerSettings = {
   showPlaces?: boolean;
   hidePoints?: boolean;
   hidePlaces?: boolean;
+  hidePhotos?: boolean;
 };
 
 const DEFAULT_MAP_LAYER_SETTINGS = {
@@ -67,6 +68,7 @@ const DEFAULT_MAP_LAYER_SETTINGS = {
   showVisitedPlaces: true,
   hidePoints: false,
   hidePlaces: false,
+  hidePhotos: false,
 };
 
 const FIT_BOUNDS_PADDING = 40;
@@ -120,6 +122,7 @@ export default function MapLibreMap({
   const [showVisitedPlaces, setShowVisitedPlaces] = useState(DEFAULT_MAP_LAYER_SETTINGS.showVisitedPlaces);
   const [hidePoints, setHidePoints] = useState(DEFAULT_MAP_LAYER_SETTINGS.hidePoints);
   const [hidePlaces, setHidePlaces] = useState(DEFAULT_MAP_LAYER_SETTINGS.hidePlaces);
+  const [hidePhotos, setHidePhotos] = useState(DEFAULT_MAP_LAYER_SETTINGS.hidePhotos);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [layersMenuOpen, setLayersMenuOpen] = useState(false);
   const [popup, setPopup] = useState<PopupState>(null);
@@ -162,6 +165,7 @@ export default function MapLibreMap({
       } else if (typeof parsed.hidePlaces === "boolean") {
         setHidePlaces(parsed.hidePlaces);
       }
+      if (typeof parsed.hidePhotos === "boolean") setHidePhotos(parsed.hidePhotos);
     } catch {
       // ignore invalid local storage values
     } finally {
@@ -181,12 +185,13 @@ export default function MapLibreMap({
           showVisitedPlaces,
           showPoints: !hidePoints,
           showPlaces: !hidePlaces,
+          hidePhotos,
         })
       );
     } catch {
       // ignore local storage write errors
     }
-  }, [settingsLoaded, showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces]);
+  }, [settingsLoaded, showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces, hidePhotos]);
 
   // Theme detection
   useEffect(() => {
@@ -651,13 +656,13 @@ export default function MapLibreMap({
           <Layer
             id="uv-fill"
             type="fill"
-            layout={{ visibility: vis(!hidePlaces && showVisitedPlaces) }}
+            layout={{ visibility: vis(showVisitedPlaces) }}
             paint={{ "fill-color": "#eab308", "fill-opacity": 0.2 }}
           />
           <Layer
             id="uv-outline"
             type="line"
-            layout={{ visibility: vis(!hidePlaces && showVisitedPlaces) }}
+            layout={{ visibility: vis(showVisitedPlaces) }}
             paint={{ "line-color": "#eab308", "line-width": 2, "line-dasharray": [5, 5] }}
           />
         </Source>
@@ -668,7 +673,7 @@ export default function MapLibreMap({
           <Layer
             id="place-circle-fill"
             type="fill"
-            layout={{ visibility: vis(!hidePlaces) }}
+            layout={{ visibility: vis(showVisitedPlaces) }}
             filter={["any", ["get", "hasVisitsInRange"], ["get", "hovered"]]}
             paint={{
               "fill-color": ["case", ["get", "hasConfirmedInRange"], "#22c55e", "#a855f7"],
@@ -679,7 +684,7 @@ export default function MapLibreMap({
           <Layer
             id="place-circle-solid-outline"
             type="line"
-            layout={{ visibility: vis(!hidePlaces) }}
+            layout={{ visibility: vis(showVisitedPlaces) }}
             filter={["any", ["get", "hasConfirmedInRange"], ["get", "hovered"]]}
             paint={{
               "line-color": ["case", ["get", "hasConfirmedInRange"], "#16a34a", "#7e22ce"],
@@ -690,7 +695,7 @@ export default function MapLibreMap({
           <Layer
             id="place-circle-dashed-outline"
             type="line"
-            layout={{ visibility: vis(!hidePlaces) }}
+            layout={{ visibility: vis(showVisitedPlaces) }}
             filter={["all",
               ["get", "hasSuggestedInRange"],
               ["!", ["get", "hasConfirmedInRange"]],
@@ -739,10 +744,11 @@ export default function MapLibreMap({
           <Layer
             id="photo-circles"
             type="circle"
+            layout={{ visibility: vis(!hidePhotos) }}
             paint={{
-              "circle-radius": 6,
-              "circle-color": "#a855f7",
-              "circle-stroke-color": "#7e22ce",
+              "circle-radius": 3,
+              "circle-color": "#f97316",
+              "circle-stroke-color": "#ea580c",
               "circle-stroke-width": 1.5,
               "circle-opacity": 0.9,
             }}
@@ -752,14 +758,28 @@ export default function MapLibreMap({
         {/* Place dots (circles only – labels rendered last, see below) */}
         <Source id="place-dots" type="geojson" data={placeDotsGeoJSON}>
           <Layer
-            id="place-dot-circle"
+            id="place-dot-circle-unvisited"
             type="circle"
             layout={{ visibility: vis(!hidePlaces) }}
+            filter={["!", ["get", "hasVisitsInRange"]]}
             paint={{
-              "circle-radius": ["case", ["get", "hasVisitsInRange"], 5, 3],
+              "circle-radius": 3,
+              "circle-color": "#a855f7",
+              "circle-stroke-color": "#7e22ce",
+              "circle-stroke-width": 1.5,
+              "circle-opacity": 0.9,
+            }}
+          />
+          <Layer
+            id="place-dot-circle-visited"
+            type="circle"
+            layout={{ visibility: vis(showVisitedPlaces) }}
+            filter={["get", "hasVisitsInRange"]}
+            paint={{
+              "circle-radius": 5,
               "circle-color": ["case", ["get", "hasConfirmedInRange"], "#22c55e", "#a855f7"],
               "circle-stroke-color": ["case", ["get", "hasConfirmedInRange"], "#15803d", "#7e22ce"],
-              "circle-stroke-width": ["case", ["get", "hasVisitsInRange"], 2, 1.5],
+              "circle-stroke-width": 2,
               "circle-opacity": 0.9,
             }}
           />
@@ -772,7 +792,7 @@ export default function MapLibreMap({
             type="symbol"
             minzoom={10}
             layout={{
-              visibility: vis(!hidePlaces && showVisitedPlaces),
+              visibility: vis(showVisitedPlaces),
               "text-field": "Unknown",
               "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
               "text-size": 12,
@@ -793,7 +813,7 @@ export default function MapLibreMap({
             type="symbol"
             minzoom={9}
             layout={{
-              visibility: vis(!hidePlaces),
+              visibility: vis(showVisitedPlaces),
               "text-field": ["get", "name"],
               "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
               "text-size": 12,
@@ -1038,7 +1058,7 @@ export default function MapLibreMap({
               />
             </label>
             <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Highlight visited places</span>
+              <span>Visited places</span>
               <input
                 type="checkbox"
                 checked={showVisitedPlaces}
@@ -1064,6 +1084,15 @@ export default function MapLibreMap({
                 className="h-4 w-4"
               />
             </label>
+            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
+              <span>Photos</span>
+              <input
+                type="checkbox"
+                checked={!hidePhotos}
+                onChange={(e) => setHidePhotos(!e.target.checked)}
+                className="h-4 w-4"
+              />
+            </label>
             <button
               type="button"
               onClick={() => {
@@ -1072,6 +1101,7 @@ export default function MapLibreMap({
                 setShowVisitedPlaces(DEFAULT_MAP_LAYER_SETTINGS.showVisitedPlaces);
                 setHidePoints(DEFAULT_MAP_LAYER_SETTINGS.hidePoints);
                 setHidePlaces(DEFAULT_MAP_LAYER_SETTINGS.hidePlaces);
+                setHidePhotos(DEFAULT_MAP_LAYER_SETTINGS.hidePhotos);
                 try {
                   window.localStorage.removeItem(MAP_LAYER_SETTINGS_KEY);
                 } catch {
