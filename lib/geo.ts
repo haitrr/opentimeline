@@ -31,14 +31,21 @@ export function hasEvidenceOfLeavingInGap(
   centerLon: number,
   radiusKm: number
 ): boolean {
-  return allPoints.some((p) => {
-    const t = new Date(p.recordedAt).getTime();
-    return (
-      t > prevMs &&
-      t < currMs &&
-      haversineKm(p.lat, p.lon, centerLat, centerLon) > radiusKm
-    );
-  });
+  // Binary search for first point after prevMs (allPoints must be sorted by recordedAt)
+  let lo = 0;
+  let hi = allPoints.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (new Date(allPoints[mid].recordedAt).getTime() <= prevMs) lo = mid + 1;
+    else hi = mid;
+  }
+  for (let i = lo; i < allPoints.length; i++) {
+    const t = new Date(allPoints[i].recordedAt).getTime();
+    if (t >= currMs) break;
+    if (haversineKm(allPoints[i].lat, allPoints[i].lon, centerLat, centerLon) > radiusKm)
+      return true;
+  }
+  return false;
 }
 
 export function totalDistanceKm(

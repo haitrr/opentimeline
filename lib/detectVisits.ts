@@ -46,6 +46,88 @@ type VisitRange = {
   departureAt: Date;
 };
 
+type PointRow = { id: number; lat: number; lon: number; recordedAt: Date };
+
+function computeCandidateVisitsForPlace(
+  place: { lat: number; lon: number; radius: number },
+  allPoints: PointRow[],
+  timeWindowMinutes: number
+): CandidateVisit[] {
+  const timeWindowMs = timeWindowMinutes * 60 * 1000;
+  const radiusKm = place.radius / 1000;
+
+  const nearbyPoints: NearbyPoint[] = allPoints
+    .map((point) => ({
+      ...point,
+      distanceKm: haversineKm(point.lat, point.lon, place.lat, place.lon),
+    }))
+    .filter((point) => point.distanceKm <= radiusKm);
+
+  if (nearbyPoints.length === 0) return [];
+
+  const groups: typeof nearbyPoints[] = [];
+  let currentGroup: typeof nearbyPoints = [nearbyPoints[0]];
+
+  for (let i = 1; i < nearbyPoints.length; i++) {
+    const prev = nearbyPoints[i - 1];
+    const curr = nearbyPoints[i];
+    const gap = curr.recordedAt.getTime() - prev.recordedAt.getTime();
+
+    if (gap <= timeWindowMs) {
+      currentGroup.push(curr);
+    } else {
+      // If the gap is larger than the time window, only split groups if there's
+      // a point outside the radius between these two nearby points. Without such
+      // evidence the person never left, so keep them in the same group.
+      if (hasEvidenceOfLeavingInGap(allPoints, prev.recordedAt.getTime(), curr.recordedAt.getTime(), place.lat, place.lon, radiusKm)) {
+        groups.push(currentGroup);
+        currentGroup = [curr];
+      } else {
+        currentGroup.push(curr);
+      }
+    }
+  }
+  groups.push(currentGroup);
+
+  const candidates: CandidateVisit[] = [];
+  for (const group of groups) {
+    const arrivalAt = group[0].recordedAt;
+    const departureAt = group[group.length - 1].recordedAt;
+
+    if (departureAt.getTime() - arrivalAt.getTime() < timeWindowMs) continue;
+
+    // Only count a visit if the person has clearly left: there must be a point
+    // outside the place radius recorded at least 15 minutes after the last
+    // point in this group. This avoids counting ongoing visits with wrong duration.
+    // Binary search for first point after departureAt + timeWindowMs.
+    const minTimeMs = departureAt.getTime() + timeWindowMs;
+    let lo = 0;
+    let hi = allPoints.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (allPoints[mid].recordedAt.getTime() <= minTimeMs) lo = mid + 1;
+      else hi = mid;
+    }
+    let hasLeftPlace = false;
+    for (let j = lo; j < allPoints.length; j++) {
+      if (haversineKm(allPoints[j].lat, allPoints[j].lon, place.lat, place.lon) > radiusKm) {
+        hasLeftPlace = true;
+        break;
+      }
+    }
+    if (!hasLeftPlace) continue;
+
+    const distanceKm = group.reduce(
+      (minDistance: number, point: NearbyPoint) =>
+        Math.min(minDistance, point.distanceKm),
+      Number.POSITIVE_INFINITY
+    );
+    candidates.push({ arrivalAt, departureAt, distanceKm });
+  }
+
+  return candidates;
+}
+
 async function detectCandidateVisitsForPlace(
   placeId: number,
   timeWindowMinutes = 15,
@@ -64,97 +146,17 @@ async function detectCandidateVisitsForPlace(
         ? {
             AND: [
               ...(rangeStart
-                ? [
-                    {
-                      recordedAt: {
-                        gte: new Date(rangeStart.getTime() - dayBufferMs),
-                      },
-                    },
-                  ]
+                ? [{ recordedAt: { gte: new Date(rangeStart.getTime() - dayBufferMs) } }]
                 : []),
               ...(rangeEnd
-                ? [
-                    {
-                      recordedAt: {
-                        lte: new Date(rangeEnd.getTime() + dayBufferMs),
-                      },
-                    },
-                  ]
+                ? [{ recordedAt: { lte: new Date(rangeEnd.getTime() + dayBufferMs) } }]
                 : []),
             ],
           }
         : undefined,
   });
 
-  const timeWindowMs = timeWindowMinutes * 60 * 1000;
-  const radiusKm = place.radius / 1000;
-
-  const nearbyPoints: NearbyPoint[] = allPoints
-    .map((point: (typeof allPoints)[number]) => {
-      const distanceKm = haversineKm(point.lat, point.lon, place.lat, place.lon);
-      return {
-        ...point,
-        distanceKm,
-      };
-    })
-    .filter((point: NearbyPoint) => point.distanceKm <= radiusKm);
-
-  if (nearbyPoints.length === 0) return [];
-
-  const groups: typeof nearbyPoints[] = [];
-  let currentGroup: typeof nearbyPoints = [nearbyPoints[0]];
-
-  for (let i = 1; i < nearbyPoints.length; i++) {
-    const prev = nearbyPoints[i - 1];
-    const curr = nearbyPoints[i];
-    const gap =
-      new Date(curr.recordedAt).getTime() -
-      new Date(prev.recordedAt).getTime();
-
-    if (gap <= timeWindowMs) {
-      currentGroup.push(curr);
-    } else {
-      // If the gap is larger than the time window, only split groups if there's
-      // a point outside the radius between these two nearby points. Without such
-      // evidence the person never left, so keep them in the same group.
-      const prevTime = new Date(prev.recordedAt).getTime();
-      const currTime = new Date(curr.recordedAt).getTime();
-      if (hasEvidenceOfLeavingInGap(allPoints, prevTime, currTime, place.lat, place.lon, radiusKm)) {
-        groups.push(currentGroup);
-        currentGroup = [curr];
-      } else {
-        currentGroup.push(curr);
-      }
-    }
-  }
-  groups.push(currentGroup);
-
-  const candidates: CandidateVisit[] = [];
-  for (const group of groups) {
-    const arrivalAt = new Date(group[0].recordedAt);
-    const departureAt = new Date(group[group.length - 1].recordedAt);
-
-    if (departureAt.getTime() - arrivalAt.getTime() < timeWindowMs) continue;
-
-    // Only count a visit if the person has clearly left: there must be a point
-    // outside the place radius recorded at least 15 minutes after the last
-    // point in this group. This avoids counting ongoing visits with wrong duration.
-    const hasLeftPlace = allPoints.some((point: (typeof allPoints)[number]) => {
-      const pointMs = new Date(point.recordedAt).getTime();
-      if (pointMs <= departureAt.getTime() + timeWindowMs) return false;
-      return haversineKm(point.lat, point.lon, place.lat, place.lon) > radiusKm;
-    });
-    if (!hasLeftPlace) continue;
-
-    const distanceKm = group.reduce(
-      (minDistance: number, point: NearbyPoint) =>
-        Math.min(minDistance, point.distanceKm),
-      Number.POSITIVE_INFINITY
-    );
-    candidates.push({ arrivalAt, departureAt, distanceKm });
-  }
-
-  return candidates;
+  return computeCandidateVisitsForPlace(place, allPoints, timeWindowMinutes);
 }
 
 function overlaps(a: VisitRange, b: VisitRange): boolean {
@@ -327,14 +329,29 @@ export async function detectVisitsForAllPlaces(
 ): Promise<number> {
   const places = await prisma.place.findMany();
 
+  // Fetch all points once and share across all places to avoid N separate DB queries.
+  const dayBufferMs = 5 * 24 * 60 * 60 * 1000;
+  const sharedPoints = await prisma.locationPoint.findMany({
+    orderBy: { recordedAt: "asc" },
+    select: { id: true, lat: true, lon: true, recordedAt: true },
+    where:
+      rangeStart || rangeEnd
+        ? {
+            AND: [
+              ...(rangeStart
+                ? [{ recordedAt: { gte: new Date(rangeStart.getTime() - dayBufferMs) } }]
+                : []),
+              ...(rangeEnd
+                ? [{ recordedAt: { lte: new Date(rangeEnd.getTime() + dayBufferMs) } }]
+                : []),
+            ],
+          }
+        : undefined,
+  });
+
   const allCandidates: CandidateVisitWithPlace[] = [];
   for (const place of places) {
-    const candidates = await detectCandidateVisitsForPlace(
-      place.id,
-      timeWindowMinutes,
-      rangeStart,
-      rangeEnd
-    );
+    const candidates = computeCandidateVisitsForPlace(place, sharedPoints, timeWindowMinutes);
 
     for (const candidate of candidates) {
       allCandidates.push({
@@ -406,6 +423,15 @@ export async function detectVisitsForAllPlaces(
 
   const allExistingVisits = await prisma.visit.findMany({
     select: { arrivalAt: true, departureAt: true },
+    where:
+      rangeStart || rangeEnd
+        ? {
+            AND: [
+              ...(rangeStart ? [{ departureAt: { gte: rangeStart } }] : []),
+              ...(rangeEnd ? [{ arrivalAt: { lte: rangeEnd } }] : []),
+            ],
+          }
+        : undefined,
   });
 
   let added = 0;
