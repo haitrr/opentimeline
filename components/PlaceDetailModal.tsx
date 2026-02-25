@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
 import PhotoModal from "@/components/PhotoModal";
+import PlaceCreationModal from "@/components/PlaceCreationModal";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 
 type Visit = {
@@ -14,6 +15,12 @@ type Visit = {
   arrivalAt: string;
   departureAt: string;
   status: string;
+};
+
+type NearbyPlaceOption = {
+  id: number;
+  name: string;
+  distanceM: number;
 };
 
 type VisitCardProps = {
@@ -25,6 +32,9 @@ type VisitCardProps = {
   scrubberSegmentKey?: string;
   isLast: boolean;
   onConfirm: (id: number) => void;
+  onReject: (id: number) => void;
+  onEdit: (visit: Visit) => void;
+  onCreatePlace: (visit: Visit) => void;
   onViewDay: (arrivalAt: string) => void;
   onPhotoClick: (list: ImmichPhoto[], index: number) => void;
 };
@@ -38,6 +48,9 @@ function VisitCard({
   scrubberSegmentKey,
   isLast,
   onConfirm,
+  onReject,
+  onEdit,
+  onCreatePlace,
   onViewDay,
   onPhotoClick,
 }: VisitCardProps) {
@@ -82,38 +95,54 @@ function VisitCard({
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1.5">
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium leading-none ${
-                  isSuggested
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                {isSuggested ? "Suggested" : "Confirmed"}
-              </span>
-              {isSuggested && (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => onConfirm(v.id)}
-                    className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={() => onViewDay(v.arrivalAt)}
-                    className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                  >
-                    View Day
-                  </button>
-                </div>
-              )}
-              {!isSuggested && (
+              <div className="flex items-center gap-1">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium leading-none ${
+                    isSuggested
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-green-100 text-green-700"
+                  }`}
+                >
+                  {isSuggested ? "Suggested" : "Confirmed"}
+                </span>
                 <button
                   onClick={() => onViewDay(v.arrivalAt)}
                   className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
                 >
                   View Day
                 </button>
+                <button
+                  onClick={() => onEdit(v)}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  title="Edit visit"
+                  aria-label="Edit visit"
+                >
+                  ✎
+                </button>
+              </div>
+              {isSuggested && (
+                <div className="flex items-end gap-1">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => onConfirm(v.id)}
+                      className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => onReject(v.id)}
+                      className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => onCreatePlace(v)}
+                    className="rounded bg-amber-500 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-amber-600"
+                  >
+                    Create Place
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -186,6 +215,14 @@ function formatDuration(minutes: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+function toDateTimeLocalValue(value: string): string {
+  const date = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
 function gapToPx(
   gapMs: number,
   minMs: number,
@@ -225,6 +262,21 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  // Create place state
+  const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<Visit | null>(null);
+  const [creatingPlaceForVisitCentroid, setCreatingPlaceForVisitCentroid] = useState<{ lat: number; lon: number } | null>(null);
+
+  // Edit visit state
+  const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
+  const [editArrivalAt, setEditArrivalAt] = useState("");
+  const [editDepartureAt, setEditDepartureAt] = useState("");
+  const [editPlaceId, setEditPlaceId] = useState<number | null>(null);
+  const [editStatus, setEditStatus] = useState("suggested");
+  const [editVisitError, setEditVisitError] = useState<string | null>(null);
+  const [savingVisitEdit, setSavingVisitEdit] = useState(false);
+  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlaceOption[]>([]);
+  const [loadingNearbyPlaces, setLoadingNearbyPlaces] = useState(false);
+
   const { data: visits = [], isLoading } = useQuery<Visit[]>({
     queryKey: ["visits", "place", placeInfo.id],
     queryFn: async () => {
@@ -243,6 +295,160 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     if (res.ok) {
       queryClient.invalidateQueries({ queryKey: ["visits"] });
       queryClient.invalidateQueries({ queryKey: ["places"] });
+    }
+  }
+
+  async function handleReject(visitId: number) {
+    const res = await fetch(`/api/visits/${visitId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "rejected" }),
+    });
+    if (res.ok) {
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["places"] });
+    }
+  }
+
+  async function openCreatePlaceForVisit(visit: Visit) {
+    const params = new URLSearchParams({ start: visit.arrivalAt, end: visit.departureAt });
+    let lat = placeInfo.lat;
+    let lon = placeInfo.lon;
+    try {
+      const res = await fetch(`/api/locations?${params}`);
+      if (res.ok) {
+        const points: Array<{ lat: number; lon: number }> = await res.json();
+        if (points.length > 0) {
+          lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+          lon = points.reduce((s, p) => s + p.lon, 0) / points.length;
+        }
+      }
+    } catch { /* fallback to place coords */ }
+    setCreatingPlaceForVisitCentroid({ lat, lon });
+    setCreatingPlaceForVisit(visit);
+  }
+
+  async function handlePlaceCreated(placeId: number) {
+    if (!creatingPlaceForVisit) return;
+    await fetch(`/api/visits/${creatingPlaceForVisit.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placeId }),
+    });
+    setCreatingPlaceForVisit(null);
+    setCreatingPlaceForVisitCentroid(null);
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
+  }
+
+  async function loadNearbyPlaces(visitId: number) {
+    setLoadingNearbyPlaces(true);
+    try {
+      const res = await fetch(`/api/visits/${visitId}/nearby-places`);
+      if (!res.ok) {
+        setNearbyPlaces([]);
+        return;
+      }
+      const data = await res.json();
+      setNearbyPlaces(Array.isArray(data.places) ? data.places : []);
+    } catch {
+      setNearbyPlaces([]);
+    } finally {
+      setLoadingNearbyPlaces(false);
+    }
+  }
+
+  function openEditVisit(visit: Visit) {
+    setEditingVisit(visit);
+    setEditArrivalAt(toDateTimeLocalValue(visit.arrivalAt));
+    setEditDepartureAt(toDateTimeLocalValue(visit.departureAt));
+    setEditPlaceId(placeInfo.id);
+    setEditStatus(visit.status);
+    setEditVisitError(null);
+    setNearbyPlaces([]);
+    void loadNearbyPlaces(visit.id);
+  }
+
+  function closeEditVisit() {
+    setEditingVisit(null);
+    setEditArrivalAt("");
+    setEditDepartureAt("");
+    setEditPlaceId(null);
+    setNearbyPlaces([]);
+    setLoadingNearbyPlaces(false);
+    setEditStatus("suggested");
+    setEditVisitError(null);
+    setSavingVisitEdit(false);
+  }
+
+  async function saveVisitChanges() {
+    if (!editingVisit) return;
+
+    const arrivalDate = new Date(editArrivalAt);
+    const departureDate = new Date(editDepartureAt);
+
+    if (Number.isNaN(arrivalDate.getTime()) || Number.isNaN(departureDate.getTime())) {
+      setEditVisitError("Arrival and departure time are required");
+      return;
+    }
+    if (departureDate.getTime() <= arrivalDate.getTime()) {
+      setEditVisitError("Departure time must be after arrival time");
+      return;
+    }
+    if (editPlaceId == null) {
+      setEditVisitError("Please select a place");
+      return;
+    }
+
+    setSavingVisitEdit(true);
+    setEditVisitError(null);
+    try {
+      const res = await fetch(`/api/visits/${editingVisit.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          placeId: editPlaceId,
+          arrivalAt: arrivalDate.toISOString(),
+          departureAt: departureDate.toISOString(),
+          status: editStatus,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setEditVisitError(data.error ?? "Failed to update visit");
+        return;
+      }
+      closeEditVisit();
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["places"] });
+    } catch {
+      setEditVisitError("Network error");
+    } finally {
+      setSavingVisitEdit(false);
+    }
+  }
+
+  async function deleteVisit() {
+    if (!editingVisit) return;
+    const shouldDelete = window.confirm("Delete this visit? This action cannot be undone.");
+    if (!shouldDelete) return;
+
+    setSavingVisitEdit(true);
+    setEditVisitError(null);
+    try {
+      const res = await fetch(`/api/visits/${editingVisit.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        setEditVisitError(data.error ?? "Failed to delete visit");
+        return;
+      }
+      closeEditVisit();
+      queryClient.invalidateQueries({ queryKey: ["visits"] });
+      queryClient.invalidateQueries({ queryKey: ["places"] });
+    } catch {
+      setEditVisitError("Network error");
+    } finally {
+      setSavingVisitEdit(false);
     }
   }
 
@@ -327,11 +533,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     )
     .sort((a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime());
 
-  const itemTimestamps = useMemo(
-    () => displayed.map((v) => v.arrivalAt),
-    [displayed]
-  );
-
   const scrubberSegments = useMemo<ScrollSegment[]>(() => {
     if (displayed.length < 2) return [];
     const toMonthKey = (d: Date) =>
@@ -384,6 +585,12 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const finiteGaps = gapsMs.filter((gap): gap is number => Number.isFinite(gap) && gap >= 0);
   const minMs = finiteGaps.length ? Math.min(...finiteGaps) : 0;
   const maxMs = finiteGaps.length ? Math.max(...finiteGaps) : 0;
+
+  // Place options for the edit modal: always include current place, plus any other nearby places
+  const placeOptions = useMemo(() => {
+    const others = nearbyPlaces.filter((p) => p.id !== placeInfo.id);
+    return [{ id: placeInfo.id, name: placeInfo.name, distanceM: 0 }, ...others];
+  }, [nearbyPlaces, placeInfo.id, placeInfo.name]);
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
@@ -531,6 +738,9 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                     scrubberSegmentKey={scrubberSegmentKey}
                     isLast={isLast}
                     onConfirm={handleConfirm}
+                    onReject={handleReject}
+                    onEdit={openEditVisit}
+                    onCreatePlace={openCreatePlaceForVisit}
                     onViewDay={handleViewDay}
                     onPhotoClick={(list, index) => setPhotoModal({ list, index })}
                   />
@@ -548,12 +758,126 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
           )}
         </div>
       </div>
+
       {photoModal && (
         <PhotoModal
           photos={photoModal.list}
           initialIndex={photoModal.index}
           onClose={() => setPhotoModal(null)}
         />
+      )}
+
+      {creatingPlaceForVisit && creatingPlaceForVisitCentroid && (
+        <PlaceCreationModal
+          lat={creatingPlaceForVisitCentroid.lat}
+          lon={creatingPlaceForVisitCentroid.lon}
+          onClose={() => { setCreatingPlaceForVisit(null); setCreatingPlaceForVisitCentroid(null); }}
+          onCreated={(p) => handlePlaceCreated(p.id)}
+        />
+      )}
+
+      {editingVisit && (
+        <div className="fixed inset-0 z-1001 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
+          <div className="max-h-[90vh] w-full overflow-hidden rounded-lg bg-white shadow-xl sm:max-w-md">
+            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+              <h2 className="text-base font-semibold text-gray-900">Edit Visit</h2>
+              <button
+                onClick={closeEditVisit}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                disabled={savingVisitEdit}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 overflow-y-auto px-5 py-4">
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Arrival</label>
+                <input
+                  type="datetime-local"
+                  value={editArrivalAt}
+                  onChange={(e) => setEditArrivalAt(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingVisitEdit}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Departure</label>
+                <input
+                  type="datetime-local"
+                  value={editDepartureAt}
+                  onChange={(e) => setEditDepartureAt(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingVisitEdit}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Place</label>
+                <select
+                  value={editPlaceId != null ? String(editPlaceId) : ""}
+                  onChange={(e) => setEditPlaceId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingVisitEdit || loadingNearbyPlaces}
+                >
+                  {placeOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.id === placeInfo.id
+                        ? `${p.name} (current)`
+                        : `${p.name} (${p.distanceM}m)`}
+                    </option>
+                  ))}
+                </select>
+                {loadingNearbyPlaces && (
+                  <p className="mt-1 text-xs text-gray-400">Loading nearby places…</p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                  disabled={savingVisitEdit}
+                >
+                  <option value="suggested">Suggested</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+
+              {editVisitError && <p className="text-xs text-red-600">{editVisitError}</p>}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-5 py-3">
+              <button
+                onClick={deleteVisit}
+                className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                disabled={savingVisitEdit}
+              >
+                Delete
+              </button>
+              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+                <button
+                  onClick={closeEditVisit}
+                  className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                  disabled={savingVisitEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveVisitChanges}
+                  className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  disabled={savingVisitEdit || !editArrivalAt || !editDepartureAt || editPlaceId == null}
+                >
+                  {savingVisitEdit ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
