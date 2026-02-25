@@ -36,17 +36,25 @@ function detectPeriods(
     if (gapMs / 60000 <= MAX_GAP_MINUTES) {
       group.push(nearby[i]);
     } else {
-      groups.push({
-        arrivalAt: new Date(group[0].recordedAt),
-        departureAt: new Date(group[group.length - 1].recordedAt),
-        pointCount: group.length,
-      });
+      const arrival = new Date(group[0].recordedAt);
+      const departure = new Date(group[group.length - 1].recordedAt);
+      if (arrival.getTime() === departure.getTime()) {
+        arrival.setMinutes(arrival.getMinutes() - 1);
+        departure.setMinutes(departure.getMinutes() + 1);
+      }
+      groups.push({ arrivalAt: arrival, departureAt: departure, pointCount: group.length });
       group = [nearby[i]];
     }
   }
+  const lastArrival = new Date(group[0].recordedAt);
+  const lastDeparture = new Date(group[group.length - 1].recordedAt);
+  if (lastArrival.getTime() === lastDeparture.getTime()) {
+    lastArrival.setMinutes(lastArrival.getMinutes() - 1);
+    lastDeparture.setMinutes(lastDeparture.getMinutes() + 1);
+  }
   groups.push({
-    arrivalAt: new Date(group[0].recordedAt),
-    departureAt: new Date(group[group.length - 1].recordedAt),
+    arrivalAt: lastArrival,
+    departureAt: lastDeparture,
     pointCount: group.length,
   });
 

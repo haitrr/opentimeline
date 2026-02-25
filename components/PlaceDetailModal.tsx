@@ -416,7 +416,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                             <p className="text-xs font-semibold text-gray-800">
                               {format(arrival, "MMM d, yyyy")}
                               <span className="ml-1.5 font-normal text-gray-400">
-                                {formatDistanceToNow(arrival, { addSuffix: true })}
+                                  {formatDistanceToNow(arrival, { addSuffix: true })}
                               </span>
                             </p>
                             <p className="mt-0.5 text-xs text-gray-500">
