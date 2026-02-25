@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { haversineKm } from "@/lib/geo";
+import { haversineKm, hasEvidenceOfLeavingInGap } from "@/lib/geo";
 
 const CLUSTER_RADIUS_M = 50;
 const MIN_DWELL_MINUTES = 15;
@@ -95,11 +95,8 @@ export async function detectUnknownVisits(
       current.centerLon
     );
 
-    if (gap <= timeGapMs && distKm <= clusterRadiusKm) {
-      updateCenter(current, point);
-      current.points.push(point);
-      current.departureAt = point.recordedAt;
-    } else {
+    if (distKm > clusterRadiusKm) {
+      // Point is outside cluster radius — always start a new cluster
       clusters.push(current);
       current = {
         points: [point],
@@ -108,6 +105,31 @@ export async function detectUnknownVisits(
         arrivalAt: point.recordedAt,
         departureAt: point.recordedAt,
       };
+    } else if (gap <= timeGapMs) {
+      // Within radius and within time window — extend cluster normally
+      updateCenter(current, point);
+      current.points.push(point);
+      current.departureAt = point.recordedAt;
+    } else {
+      // Within radius but gap exceeds time window. Only split if there's a
+      // point outside the cluster radius between the two timestamps —
+      // otherwise the person never left and the cluster should continue.
+      const prevTime = current.departureAt.getTime();
+      const currTime = point.recordedAt.getTime();
+      if (hasEvidenceOfLeavingInGap(allPoints, prevTime, currTime, current.centerLat, current.centerLon, clusterRadiusKm)) {
+        clusters.push(current);
+        current = {
+          points: [point],
+          centerLat: point.lat,
+          centerLon: point.lon,
+          arrivalAt: point.recordedAt,
+          departureAt: point.recordedAt,
+        };
+      } else {
+        updateCenter(current, point);
+        current.points.push(point);
+        current.departureAt = point.recordedAt;
+      }
     }
   }
   if (current) clusters.push(current);
@@ -123,7 +145,7 @@ export async function detectUnknownVisits(
     if (rangeStart && c.arrivalAt < rangeStart) return false;
     if (rangeEnd && c.departureAt > rangeEnd) return false;
     return !places.some(
-      (p) =>
+      (p: (typeof places)[number]) =>
         haversineKm(c.centerLat, c.centerLon, p.lat, p.lon) <=
         p.radius / 1000
     );

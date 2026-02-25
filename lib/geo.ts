@@ -18,6 +18,29 @@ export function haversineKm(
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(a));
 }
 
+/**
+ * Returns true if any point in `allPoints` falls between `prevMs` and `currMs`
+ * (exclusive) and is outside `radiusKm` from the given center. Used to decide
+ * whether a time gap between two nearby points represents the person leaving.
+ */
+export function hasEvidenceOfLeavingInGap(
+  allPoints: { lat: number; lon: number; recordedAt: Date | string }[],
+  prevMs: number,
+  currMs: number,
+  centerLat: number,
+  centerLon: number,
+  radiusKm: number
+): boolean {
+  return allPoints.some((p) => {
+    const t = new Date(p.recordedAt).getTime();
+    return (
+      t > prevMs &&
+      t < currMs &&
+      haversineKm(p.lat, p.lon, centerLat, centerLon) > radiusKm
+    );
+  });
+}
+
 export function totalDistanceKm(
   points: { lat: number; lon: number }[]
 ): number {

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { haversineKm } from "@/lib/geo";
+import { haversineKm, hasEvidenceOfLeavingInGap } from "@/lib/geo";
 
 export type PlaceData = {
   id: number;
@@ -114,8 +114,17 @@ async function detectCandidateVisitsForPlace(
     if (gap <= timeWindowMs) {
       currentGroup.push(curr);
     } else {
-      groups.push(currentGroup);
-      currentGroup = [curr];
+      // If the gap is larger than the time window, only split groups if there's
+      // a point outside the radius between these two nearby points. Without such
+      // evidence the person never left, so keep them in the same group.
+      const prevTime = new Date(prev.recordedAt).getTime();
+      const currTime = new Date(curr.recordedAt).getTime();
+      if (hasEvidenceOfLeavingInGap(allPoints, prevTime, currTime, place.lat, place.lon, radiusKm)) {
+        groups.push(currentGroup);
+        currentGroup = [curr];
+      } else {
+        currentGroup.push(curr);
+      }
     }
   }
   groups.push(currentGroup);

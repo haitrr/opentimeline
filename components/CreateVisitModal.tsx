@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { format, differenceInMinutes } from "date-fns";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
-import { haversineKm } from "@/lib/geo";
+import { haversineKm, hasEvidenceOfLeavingInGap } from "@/lib/geo";
 
 const DEFAULT_SCAN_RADIUS_M = 50;
 const MAX_GAP_MINUTES = 15;
@@ -36,14 +36,22 @@ function detectPeriods(
     if (gapMs / 60000 <= MAX_GAP_MINUTES) {
       group.push(nearby[i]);
     } else {
-      const arrival = new Date(group[0].recordedAt);
-      const departure = new Date(group[group.length - 1].recordedAt);
-      if (arrival.getTime() === departure.getTime()) {
-        arrival.setMinutes(arrival.getMinutes() - 1);
-        departure.setMinutes(departure.getMinutes() + 1);
+      // Only split if there's a point outside the radius in the gap — otherwise
+      // the person never left and this should remain a single period.
+      const prevTime = new Date(nearby[i - 1].recordedAt).getTime();
+      const currTime = new Date(nearby[i].recordedAt).getTime();
+      if (hasEvidenceOfLeavingInGap(points, prevTime, currTime, lat, lon, radiusM / 1000)) {
+        const arrival = new Date(group[0].recordedAt);
+        const departure = new Date(group[group.length - 1].recordedAt);
+        if (arrival.getTime() === departure.getTime()) {
+          arrival.setMinutes(arrival.getMinutes() - 1);
+          departure.setMinutes(departure.getMinutes() + 1);
+        }
+        groups.push({ arrivalAt: arrival, departureAt: departure, pointCount: group.length });
+        group = [nearby[i]];
+      } else {
+        group.push(nearby[i]);
       }
-      groups.push({ arrivalAt: arrival, departureAt: departure, pointCount: group.length });
-      group = [nearby[i]];
     }
   }
   const lastArrival = new Date(group[0].recordedAt);
