@@ -263,8 +263,9 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
         <CreateVisitModal
           lat={createVisitCoords.lat}
           lon={createVisitCoords.lon}
-          points={points}
           places={places}
+          rangeStart={isAll ? undefined : rangeStart}
+          rangeEnd={isAll ? undefined : rangeEnd}
           onClose={() => setCreateVisitCoords(null)}
           onCreated={handleVisitCreated}
         />

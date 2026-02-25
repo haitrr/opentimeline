@@ -1,74 +1,17 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { format, differenceInMinutes } from "date-fns";
-import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
-import { haversineKm, hasEvidenceOfLeavingInGap } from "@/lib/geo";
+import { haversineKm } from "@/lib/geo";
 
 const DEFAULT_SCAN_RADIUS_M = 50;
-const MAX_GAP_MINUTES = 15;
 
 type DetectedPeriod = {
   arrivalAt: Date;
   departureAt: Date;
   pointCount: number;
 };
-
-function detectPeriods(
-  points: SerializedPoint[],
-  lat: number,
-  lon: number,
-  radiusM: number
-): DetectedPeriod[] {
-  const nearby = points
-    .filter((p) => haversineKm(p.lat, p.lon, lat, lon) * 1000 <= radiusM)
-    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime());
-
-  if (nearby.length === 0) return [];
-
-  const groups: DetectedPeriod[] = [];
-  let group = [nearby[0]];
-
-  for (let i = 1; i < nearby.length; i++) {
-    const gapMs =
-      new Date(nearby[i].recordedAt).getTime() - new Date(nearby[i - 1].recordedAt).getTime();
-    if (gapMs / 60000 <= MAX_GAP_MINUTES) {
-      group.push(nearby[i]);
-    } else {
-      // Only split if there's a point outside the radius in the gap — otherwise
-      // the person never left and this should remain a single period.
-      const prevTime = new Date(nearby[i - 1].recordedAt).getTime();
-      const currTime = new Date(nearby[i].recordedAt).getTime();
-      if (hasEvidenceOfLeavingInGap(points, prevTime, currTime, lat, lon, radiusM / 1000)) {
-        const arrival = new Date(group[0].recordedAt);
-        const departure = new Date(group[group.length - 1].recordedAt);
-        if (arrival.getTime() === departure.getTime()) {
-          arrival.setMinutes(arrival.getMinutes() - 1);
-          departure.setMinutes(departure.getMinutes() + 1);
-        }
-        groups.push({ arrivalAt: arrival, departureAt: departure, pointCount: group.length });
-        group = [nearby[i]];
-      } else {
-        group.push(nearby[i]);
-      }
-    }
-  }
-  const lastArrival = new Date(group[0].recordedAt);
-  const lastDeparture = new Date(group[group.length - 1].recordedAt);
-  if (lastArrival.getTime() === lastDeparture.getTime()) {
-    lastArrival.setMinutes(lastArrival.getMinutes() - 1);
-    lastDeparture.setMinutes(lastDeparture.getMinutes() + 1);
-  }
-  groups.push({
-    arrivalAt: lastArrival,
-    departureAt: lastDeparture,
-    pointCount: group.length,
-  });
-
-  // Most recent first
-  return groups.sort((a, b) => b.arrivalAt.getTime() - a.arrivalAt.getTime());
-}
 
 function formatDuration(minutes: number): string {
   if (minutes < 1) return "< 1m";
@@ -81,58 +24,79 @@ function formatDuration(minutes: number): string {
 type Props = {
   lat: number;
   lon: number;
-  points: SerializedPoint[];
   places: PlaceData[];
+  rangeStart?: string;
+  rangeEnd?: string;
   onClose: () => void;
   onCreated: () => void;
 };
 
-export default function CreateVisitModal({ lat, lon, points, places, onClose, onCreated }: Props) {
-  // scanRadius must be declared before detectedPeriods (useMemo dep)
+export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEnd, onClose, onCreated }: Props) {
   const [scanRadius, setScanRadius] = useState(DEFAULT_SCAN_RADIUS_M);
+  const [detectedPeriods, setDetectedPeriods] = useState<DetectedPeriod[]>([]);
+  const [periodsLoading, setPeriodsLoading] = useState(true);
 
-  // Compute for rendering (also used as initializer source via closures below)
-  const detectedPeriods = useMemo(
-    () => detectPeriods(points, lat, lon, scanRadius),
-    [points, lat, lon, scanRadius]
-  );
-  const sortedPlaces = useMemo(
-    () =>
-      [...places]
-        .map((p) => ({ ...p, distM: haversineKm(lat, lon, p.lat, p.lon) * 1000 }))
-        .filter((p) => p.distM <= 100)
-        .sort((a, b) => a.distM - b.distM),
-    [lat, lon, places]
-  );
+  // Debounce scanRadius changes so we don't fire an API call on every slider tick
+  const [debouncedRadius, setDebouncedRadius] = useState(scanRadius);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedRadius(scanRadius), 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [scanRadius]);
 
-  // State – lazy initialisers reference the memoised values computed above
+  // Fetch detected periods from the server (includes ±5-day buffer around the range)
+  useEffect(() => {
+    setPeriodsLoading(true);
+    const params = new URLSearchParams({
+      lat: String(lat),
+      lon: String(lon),
+      radiusM: String(debouncedRadius),
+      ...(rangeStart ? { rangeStart } : {}),
+      ...(rangeEnd ? { rangeEnd } : {}),
+    });
+    fetch(`/api/visits/detect-periods?${params}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: { arrivalAt: string; departureAt: string; pointCount: number }[]) => {
+        setDetectedPeriods(
+          data.map((d) => ({
+            arrivalAt: new Date(d.arrivalAt),
+            departureAt: new Date(d.departureAt),
+            pointCount: d.pointCount,
+          }))
+        );
+      })
+      .catch(() => setDetectedPeriods([]))
+      .finally(() => setPeriodsLoading(false));
+  }, [lat, lon, debouncedRadius, rangeStart, rangeEnd]);
+
+  const sortedPlaces = [...places]
+    .map((p) => ({ ...p, distM: haversineKm(lat, lon, p.lat, p.lon) * 1000 }))
+    .filter((p) => p.distM <= 100)
+    .sort((a, b) => a.distM - b.distM);
+
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(
     () => sortedPlaces[0]?.id ?? null
   );
   const [isNewPlace, setIsNewPlace] = useState(() => sortedPlaces.length === 0);
   const [newPlaceName, setNewPlaceName] = useState("");
   const [newPlaceRadius, setNewPlaceRadius] = useState(50);
-  const [periodIndex, setPeriodIndex] = useState<number>(
-    () => (detectedPeriods.length > 0 ? 0 : -1)
-  );
+  const [periodIndex, setPeriodIndex] = useState<number>(-1);
   const [customStart, setCustomStart] = useState<string>(() =>
-    format(
-      detectedPeriods[0]?.arrivalAt ?? new Date(Date.now() - 3_600_000),
-      "yyyy-MM-dd'T'HH:mm"
-    )
+    format(new Date(Date.now() - 3_600_000), "yyyy-MM-dd'T'HH:mm")
   );
   const [customEnd, setCustomEnd] = useState<string>(() =>
-    format(detectedPeriods[0]?.departureAt ?? new Date(), "yyyy-MM-dd'T'HH:mm")
+    format(new Date(), "yyyy-MM-dd'T'HH:mm")
   );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset period selection when detected periods change (e.g. radius adjusted)
+  // Auto-select first period once loaded; reset if radius changes knock it out of range
   useEffect(() => {
     setPeriodIndex((prev) => {
-      if (prev === -1) return -1; // keep "Custom" if user chose it
-      if (prev < detectedPeriods.length) return prev; // still valid
+      if (prev === -1) return detectedPeriods.length > 0 ? 0 : -1;
+      if (prev < detectedPeriods.length) return prev;
       return detectedPeriods.length > 0 ? 0 : -1;
     });
   }, [detectedPeriods]);
@@ -292,30 +256,34 @@ export default function CreateVisitModal({ lat, lon, points, places, onClose, on
                 </div>
               </div>
               <div className="rounded border border-gray-200">
-                {detectedPeriods.map((period, i) => {
-                  const mins = differenceInMinutes(period.departureAt, period.arrivalAt);
-                  return (
-                    <label
-                      key={i}
-                      className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-gray-50"
-                    >
-                      <input
-                        type="radio"
-                        name="period"
-                        checked={periodIndex === i}
-                        onChange={() => setPeriodIndex(i)}
-                        className="shrink-0"
-                      />
-                      <span className="flex-1 text-sm text-gray-800">
-                        {format(period.arrivalAt, "MMM d, HH:mm")} –{" "}
-                        {format(period.departureAt, "HH:mm")}
-                      </span>
-                      <span className="shrink-0 text-xs text-gray-400">
-                        {formatDuration(mins)} · {period.pointCount} pts
-                      </span>
-                    </label>
-                  );
-                })}
+                {periodsLoading ? (
+                  <p className="px-2.5 py-3 text-xs text-gray-400">Detecting periods…</p>
+                ) : (
+                  detectedPeriods.map((period, i) => {
+                    const mins = differenceInMinutes(period.departureAt, period.arrivalAt);
+                    return (
+                      <label
+                        key={i}
+                        className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-gray-50"
+                      >
+                        <input
+                          type="radio"
+                          name="period"
+                          checked={periodIndex === i}
+                          onChange={() => setPeriodIndex(i)}
+                          className="shrink-0"
+                        />
+                        <span className="flex-1 text-sm text-gray-800">
+                          {format(period.arrivalAt, "MMM d, HH:mm")} –{" "}
+                          {format(period.departureAt, "HH:mm")}
+                        </span>
+                        <span className="shrink-0 text-xs text-gray-400">
+                          {formatDuration(mins)} · {period.pointCount} pts
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
 
                 {/* Custom option */}
                 <label className="flex cursor-pointer items-start gap-2 px-2.5 py-1.5 hover:bg-gray-50">
