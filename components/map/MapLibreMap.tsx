@@ -438,7 +438,8 @@ export default function MapLibreMap({
       setContextMenu(null);
 
       const candidateLayers = [
-        "place-dot-circle",
+        "place-dot-circle-unvisited",
+        "place-dot-circle-visited",
         "place-circle-fill",
         "uv-fill",
         "photo-circles",
@@ -455,7 +456,7 @@ export default function MapLibreMap({
         const f = features[0];
         const layerId = f.layer.id;
 
-        if (layerId === "place-dot-circle" || layerId === "place-circle-fill") {
+        if (layerId === "place-dot-circle-unvisited" || layerId === "place-dot-circle-visited" || layerId === "place-circle-fill") {
           const placeId = f.properties?.placeId as number | undefined;
           const place = places.find((p) => p.id === placeId);
           if (place) onPlaceClick?.(place);
@@ -513,7 +514,8 @@ export default function MapLibreMap({
     const map = mapRef.current;
     if (!map) return;
     const candidateLayers = [
-      "place-dot-circle",
+      "place-dot-circle-unvisited",
+      "place-dot-circle-visited",
       "place-circle-fill",
       "uv-fill",
       "photo-circles",
@@ -527,7 +529,7 @@ export default function MapLibreMap({
     map.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
 
     const placeFeature = features.find(
-      (f) => f.layer.id === "place-dot-circle" || f.layer.id === "place-circle-fill"
+      (f) => f.layer.id === "place-dot-circle-unvisited" || f.layer.id === "place-dot-circle-visited" || f.layer.id === "place-circle-fill"
     );
     const newHoveredId = (placeFeature?.properties?.placeId as number | undefined) ?? null;
     setHoveredPlaceId((prev) => (prev === newHoveredId ? prev : newHoveredId));

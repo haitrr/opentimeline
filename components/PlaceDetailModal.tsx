@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useRef, useState } from "react";
-import { format, differenceInMinutes, formatDistanceToNow } from "date-fns";
+import { format, differenceInMinutes, differenceInYears, differenceInMonths, differenceInDays, formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
@@ -206,6 +206,18 @@ const YEAR_BADGE_MIN_PX = 32;
 function parseTimeMs(value: string): number | null {
   const ms = new Date(value).getTime();
   return Number.isFinite(ms) ? ms : null;
+}
+
+function formatVisitSpan(from: Date, to: Date): string {
+  const totalYears = differenceInYears(to, from);
+  if (totalYears >= 1) {
+    const remainMonths = differenceInMonths(to, from) - totalYears * 12;
+    return remainMonths > 0 ? `${totalYears} yr ${remainMonths} mo` : `${totalYears} yr`;
+  }
+  const totalMonths = differenceInMonths(to, from);
+  if (totalMonths >= 1) return `${totalMonths} mo`;
+  const totalDays = differenceInDays(to, from);
+  return `${Math.max(1, totalDays)} day${totalDays !== 1 ? "s" : ""}`;
 }
 
 function formatDuration(minutes: number): string {
@@ -533,6 +545,17 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     )
     .sort((a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime());
 
+  const visitStats = useMemo(() => {
+    if (displayed.length === 0) return null;
+    if (displayed.length === 1) {
+      return `1 visit · ${format(new Date(displayed[0].arrivalAt), "MMM d, yyyy")}`;
+    }
+    const newest = new Date(displayed[0].arrivalAt);
+    const oldest = new Date(displayed[displayed.length - 1].arrivalAt);
+    const span = formatVisitSpan(oldest, newest);
+    return `${displayed.length} visits · ${span} (${format(oldest, "MMM yyyy")} – ${format(newest, "MMM yyyy")})`;
+  }, [displayed]);
+
   const scrubberSegments = useMemo<ScrollSegment[]>(() => {
     if (displayed.length < 2) return [];
     const toMonthKey = (d: Date) =>
@@ -691,6 +714,9 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
               {f === "all" ? "All" : f === "confirmed" ? "Confirmed" : "Suggested"}
             </button>
           ))}
+          {visitStats && (
+            <span className="ml-auto text-xs text-gray-400">{visitStats}</span>
+          )}
         </div>
 
         {/* Timeline */}
