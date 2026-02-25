@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
@@ -36,6 +36,32 @@ type NearbyPlaceOption = {
   distanceM: number;
 };
 
+function LazyVisitPhotos(props: {
+  photos: ImmichPhoto[];
+  arrivalAt: string;
+  departureAt: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || inView) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setInView(true); },
+      { rootMargin: "300px 0px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [inView]);
+
+  return (
+    <div ref={ref}>
+      {inView && <VisitPhotos {...props} />}
+    </div>
+  );
+}
+
 function VisitPhotos({
   photos,
   arrivalAt,
@@ -68,6 +94,7 @@ function VisitPhotos({
             <img
               src={`/api/immich/thumbnail?id=${p.id}`}
               alt=""
+              loading="lazy"
               className="h-12 w-16 shrink-0 rounded object-cover hover:opacity-80 transition-opacity"
             />
           </button>
@@ -632,7 +659,7 @@ export default function TimelineSidebar({
                       </span>
                     </p>
 
-                    <VisitPhotos
+                    <LazyVisitPhotos
                       photos={photos}
                       arrivalAt={item.arrivalAt}
                       departureAt={item.departureAt}
