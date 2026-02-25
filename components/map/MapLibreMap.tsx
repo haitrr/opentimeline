@@ -17,6 +17,7 @@ type Props = {
   unknownVisits?: UnknownVisitData[];
   photos?: ImmichPhoto[];
   onMapClick?: (lat: number, lon: number) => void;
+  onCreateVisit?: (lat: number, lon: number) => void;
   onPlaceClick?: (place: PlaceData) => void;
   onPlaceMoveRequest?: (place: PlaceData, lat: number, lon: number) => void;
   onUnknownVisitCreatePlace?: (uv: UnknownVisitData) => void;
@@ -104,6 +105,7 @@ export default function MapLibreMap({
   unknownVisits = [],
   photos = [],
   onMapClick,
+  onCreateVisit,
   onPlaceClick,
   onPlaceMoveRequest,
   onUnknownVisitCreatePlace,
@@ -122,6 +124,7 @@ export default function MapLibreMap({
   const [layersMenuOpen, setLayersMenuOpen] = useState(false);
   const [popup, setPopup] = useState<PopupState>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lat: number; lon: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const autoFitAppliedForRangeKeyRef = useRef<string | null>(null);
 
@@ -427,6 +430,8 @@ export default function MapLibreMap({
       const map = mapRef.current;
       if (!map) return;
 
+      setContextMenu(null);
+
       const candidateLayers = [
         "place-dot-circle",
         "place-circle-fill",
@@ -482,14 +487,21 @@ export default function MapLibreMap({
           setPopup({ kind: "point", point: props, lat: event.lngLat.lat, lon: event.lngLat.lng });
           return;
         }
-
-        return;
       }
-
-      onMapClick?.(event.lngLat.lat, event.lngLat.lng);
     },
-    [places, unknownVisits, photos, onMapClick, onPlaceClick]
+    [places, unknownVisits, photos, onPlaceClick]
   );
+
+  // Right-click context menu handler
+  const handleContextMenu = useCallback((event: MapLayerMouseEvent) => {
+    event.preventDefault();
+    setContextMenu({
+      x: event.point.x,
+      y: event.point.y,
+      lat: event.lngLat.lat,
+      lon: event.lngLat.lng,
+    });
+  }, []);
 
   // Mouse move handler for hover state and cursor
   const handleMouseMove = useCallback((event: MapLayerMouseEvent) => {
@@ -564,6 +576,7 @@ export default function MapLibreMap({
         initialViewState={initialViewState}
         onLoad={handleMapLoad}
         onClick={handleClick}
+        onContextMenu={handleContextMenu}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         style={{ width: "100%", height: "100%" }}
@@ -933,6 +946,45 @@ export default function MapLibreMap({
           </Popup>
         )}
       </Map>
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-999"
+            onClick={() => setContextMenu(null)}
+          />
+          <div
+            className="absolute z-1000 min-w-35 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            {onCreateVisit && (
+              <button
+                type="button"
+                onClick={() => {
+                  onCreateVisit(contextMenu.lat, contextMenu.lon);
+                  setContextMenu(null);
+                }}
+                className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Create visit here
+              </button>
+            )}
+            {onMapClick && (
+              <button
+                type="button"
+                onClick={() => {
+                  onMapClick(contextMenu.lat, contextMenu.lon);
+                  setContextMenu(null);
+                }}
+                className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Create place here
+              </button>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Fit all points button */}
       {points.length > 0 && (

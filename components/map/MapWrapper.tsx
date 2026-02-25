@@ -9,6 +9,7 @@ import type { ImmichPhoto } from "@/lib/immich";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import PlaceDetailModal from "@/components/PlaceDetailModal";
 import PhotoModal from "@/components/PhotoModal";
+import CreateVisitModal from "@/components/CreateVisitModal";
 
 const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
   ssr: false,
@@ -45,6 +46,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
   const [selectedPlace, setSelectedPlace] = useState<PlaceData | null>(null);
   const [pendingUnknownVisit, setPendingUnknownVisit] = useState<UnknownVisitData | null>(null);
   const [pendingPlaceMove, setPendingPlaceMove] = useState<{ place: PlaceData; lat: number; lon: number } | null>(null);
+  const [createVisitCoords, setCreateVisitCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [updatingPlaceMove, setUpdatingPlaceMove] = useState(false);
   const [placeMoveError, setPlaceMoveError] = useState<string | null>(null);
 
@@ -160,6 +162,17 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
     queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
+  function handleCreateVisit(lat: number, lon: number) {
+    setCreateVisitCoords({ lat, lon });
+  }
+
+  function handleVisitCreated() {
+    setCreateVisitCoords(null);
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
+    queryClient.invalidateQueries({ queryKey: ["unknown-visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
+  }
+
   function handleUnknownVisitCreatePlace(uv: UnknownVisitData) {
     setPendingUnknownVisit(uv);
     setSelectedPlace(null);
@@ -184,6 +197,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
         }
         photos={photos}
         onMapClick={handleMapClick}
+        onCreateVisit={handleCreateVisit}
         onPlaceClick={handlePlaceClick}
         onPlaceMoveRequest={handlePlaceMoveRequest}
         onUnknownVisitCreatePlace={handleUnknownVisitCreatePlace}
@@ -244,6 +258,16 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
             </div>
           </div>
         </div>
+      )}
+      {createVisitCoords && (
+        <CreateVisitModal
+          lat={createVisitCoords.lat}
+          lon={createVisitCoords.lon}
+          points={points}
+          places={places}
+          onClose={() => setCreateVisitCoords(null)}
+          onCreated={handleVisitCreated}
+        />
       )}
       {photoModal && (
         <PhotoModal
