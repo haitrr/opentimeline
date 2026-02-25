@@ -16,6 +16,153 @@ type Visit = {
   status: string;
 };
 
+type VisitCardProps = {
+  visit: Visit;
+  gapPx: number;
+  hasDateSeparator: boolean;
+  nextYear: number | null;
+  nextMonthLabel: string | null;
+  scrubberSegmentKey?: string;
+  isLast: boolean;
+  onConfirm: (id: number) => void;
+  onViewDay: (arrivalAt: string) => void;
+  onPhotoClick: (list: ImmichPhoto[], index: number) => void;
+};
+
+function VisitCard({
+  visit: v,
+  gapPx: spacerPx,
+  hasDateSeparator,
+  nextYear,
+  nextMonthLabel,
+  scrubberSegmentKey,
+  isLast,
+  onConfirm,
+  onViewDay,
+  onPhotoClick,
+}: VisitCardProps) {
+  const arrival = new Date(v.arrivalAt);
+  const departure = new Date(v.departureAt);
+  const durationMin = differenceInMinutes(departure, arrival);
+  const isSuggested = v.status === "suggested";
+
+  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
+    queryKey: ["immich", v.arrivalAt, v.departureAt],
+    queryFn: async () => {
+      const res = await fetch(`/api/immich?start=${v.arrivalAt}&end=${v.departureAt}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: Infinity,
+  });
+
+  return (
+    <Fragment key={v.id}>
+      <div className="relative flex items-start gap-3">
+        <div
+          className={`relative z-10 mt-2.75 h-2.75 w-2.75 shrink-0 rounded-full border-2 border-white shadow ${
+            isSuggested ? "bg-amber-400" : "bg-[#1a7bb5]"
+          }`}
+          style={{ marginLeft: 10 }}
+        />
+        <div className="flex-1 rounded-lg border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-800">
+                {format(arrival, "MMM d, yyyy")}
+                <span className="ml-1.5 font-normal text-gray-400">
+                    {formatDistanceToNow(arrival, { addSuffix: true })}
+                </span>
+              </p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                {format(arrival, "HH:mm")} &rarr; {format(departure, "HH:mm")}
+                <span className="ml-1.5 text-gray-400">
+                  {formatDuration(durationMin)}
+                </span>
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-medium leading-none ${
+                  isSuggested
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-green-100 text-green-700"
+                }`}
+              >
+                {isSuggested ? "Suggested" : "Confirmed"}
+              </span>
+              {isSuggested && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => onConfirm(v.id)}
+                    className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => onViewDay(v.arrivalAt)}
+                    className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  >
+                    View Day
+                  </button>
+                </div>
+              )}
+              {!isSuggested && (
+                <button
+                  onClick={() => onViewDay(v.arrivalAt)}
+                  className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                >
+                  View Day
+                </button>
+              )}
+            </div>
+          </div>
+          {photos.length > 0 && (
+            <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">
+              {photos.map((p, mi) => (
+                <button
+                  key={p.id}
+                  onClick={() => onPhotoClick(photos, mi)}
+                  className="shrink-0"
+                >
+                  <img
+                    src={`/api/immich/thumbnail?id=${p.id}`}
+                    alt=""
+                    className="h-12 w-16 rounded object-cover hover:opacity-80 transition-opacity"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {!isLast && (
+        <div
+          className="relative flex items-center justify-center"
+          style={{ height: spacerPx }}
+          data-scrubber-segment={scrubberSegmentKey}
+        >
+          {hasDateSeparator && (
+            <div className="relative z-10 flex flex-col items-center gap-1">
+              {nextYear !== null && (
+                <span className="rounded-full bg-[#1a7bb5] px-3 py-0.5 text-xs font-semibold text-white shadow-sm">
+                  {nextYear}
+                </span>
+              )}
+              {nextMonthLabel !== null && (
+                <span className="rounded-full bg-white px-3 py-0.5 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-200">
+                  {nextMonthLabel}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </Fragment>
+  );
+}
+
 type Props = {
   place: PlaceData;
   onClose: () => void;
@@ -85,23 +232,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
       if (!res.ok) return [];
       return res.json();
     },
-  });
-
-  const photoStart = visits.length > 0
-    ? visits.reduce((min, v) => v.arrivalAt < min ? v.arrivalAt : min, visits[0].arrivalAt)
-    : null;
-  const photoEnd = visits.length > 0
-    ? visits.reduce((max, v) => v.departureAt > max ? v.departureAt : max, visits[0].departureAt)
-    : null;
-
-  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
-    queryKey: ["immich", photoStart, photoEnd],
-    queryFn: async () => {
-      const res = await fetch(`/api/immich?start=${photoStart}&end=${photoEnd}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: !!(photoStart && photoEnd),
   });
 
   async function handleConfirm(visitId: number) {
@@ -376,148 +506,34 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
               {displayed.map((v, i) => {
                 const arrival = new Date(v.arrivalAt);
-                const departure = new Date(v.departureAt);
-                const durationMin = differenceInMinutes(departure, arrival);
-                const isSuggested = v.status === "suggested";
                 const isLast = i === displayed.length - 1;
-
                 const nextV = displayed[i + 1];
                 const nextArrival = nextV ? new Date(nextV.arrivalAt) : null;
-                const yearChanges =
-                  !isLast &&
-                  nextArrival !== null &&
-                  arrival.getFullYear() !== nextArrival.getFullYear();
-                const monthChanges =
-                  !isLast &&
-                  nextArrival !== null &&
-                  (arrival.getFullYear() !== nextArrival.getFullYear() ||
-                    arrival.getMonth() !== nextArrival.getMonth());
+                const yearChanges = !isLast && nextArrival !== null && arrival.getFullYear() !== nextArrival.getFullYear();
+                const monthChanges = !isLast && nextArrival !== null && (
+                  arrival.getFullYear() !== nextArrival.getFullYear() ||
+                  arrival.getMonth() !== nextArrival.getMonth()
+                );
                 const hasDateSeparator = yearChanges || monthChanges;
-                const spacerPx = isLast
-                  ? 0
-                  : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, hasDateSeparator);
+                const spacerPx = isLast ? 0 : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, hasDateSeparator);
                 const nextYear = yearChanges && nextArrival ? nextArrival.getFullYear() : null;
-                const nextMonthLabel = monthChanges && nextArrival
-                  ? format(nextArrival, "MMM")
-                  : null;
+                const nextMonthLabel = monthChanges && nextArrival ? format(nextArrival, "MMM") : null;
+                const scrubberSegmentKey = monthChanges && nextArrival ? `m:${format(nextArrival, "yyyy-MM")}` : undefined;
 
                 return (
-                  <Fragment key={v.id}>
-                    <div className="relative flex items-start gap-3">
-                      <div
-                        className={`relative z-10 mt-2.75 h-2.75 w-2.75 shrink-0 rounded-full border-2 border-white shadow ${
-                          isSuggested ? "bg-amber-400" : "bg-[#1a7bb5]"
-                        }`}
-                        style={{ marginLeft: 10 }}
-                      />
-                      <div className="flex-1 rounded-lg border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-gray-800">
-                              {format(arrival, "MMM d, yyyy")}
-                              <span className="ml-1.5 font-normal text-gray-400">
-                                  {formatDistanceToNow(arrival, { addSuffix: true })}
-                              </span>
-                            </p>
-                            <p className="mt-0.5 text-xs text-gray-500">
-                              {format(arrival, "HH:mm")} &rarr; {format(departure, "HH:mm")}
-                              <span className="ml-1.5 text-gray-400">
-                                {formatDuration(durationMin)}
-                              </span>
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1.5">
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-medium leading-none ${
-                                isSuggested
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-green-100 text-green-700"
-                              }`}
-                            >
-                              {isSuggested ? "Suggested" : "Confirmed"}
-                            </span>
-                            {isSuggested && (
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => handleConfirm(v.id)}
-                                  className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700"
-                                >
-                                  Confirm
-                                </button>
-                                <button
-                                  onClick={() => handleViewDay(v.arrivalAt)}
-                                  className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                                >
-                                  View Day
-                                </button>
-                              </div>
-                            )}
-                            {!isSuggested && (
-                              <button
-                                onClick={() => handleViewDay(v.arrivalAt)}
-                                className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                              >
-                                View Day
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        {(() => {
-                          const start = arrival.getTime();
-                          const end = departure.getTime();
-                          const matching = photos.filter((p) => {
-                            const t = new Date(p.takenAt).getTime();
-                            return t >= start && t <= end;
-                          });
-                          if (matching.length === 0) return null;
-                          return (
-                            <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">
-                              {matching.map((p, mi) => (
-                                <button
-                                  key={p.id}
-                                  onClick={() => setPhotoModal({ list: matching, index: mi })}
-                                  className="shrink-0"
-                                >
-                                  <img
-                                    src={`/api/immich/thumbnail?id=${p.id}`}
-                                    alt=""
-                                    className="h-12 w-16 rounded object-cover hover:opacity-80 transition-opacity"
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-
-                    {!isLast && (
-                      <div
-                        className="relative flex items-center justify-center"
-                        style={{ height: spacerPx }}
-                        data-scrubber-segment={
-                          monthChanges && nextArrival
-                            ? `m:${format(nextArrival, "yyyy-MM")}`
-                            : undefined
-                        }
-                      >
-                        {hasDateSeparator && (
-                          <div className="relative z-10 flex flex-col items-center gap-1">
-                            {nextYear !== null && (
-                              <span className="rounded-full bg-[#1a7bb5] px-3 py-0.5 text-xs font-semibold text-white shadow-sm">
-                                {nextYear}
-                              </span>
-                            )}
-                            {nextMonthLabel !== null && (
-                              <span className="rounded-full bg-white px-3 py-0.5 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-200">
-                                {nextMonthLabel}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </Fragment>
+                  <VisitCard
+                    key={v.id}
+                    visit={v}
+                    gapPx={spacerPx}
+                    hasDateSeparator={hasDateSeparator}
+                    nextYear={nextYear}
+                    nextMonthLabel={nextMonthLabel}
+                    scrubberSegmentKey={scrubberSegmentKey}
+                    isLast={isLast}
+                    onConfirm={handleConfirm}
+                    onViewDay={handleViewDay}
+                    onPhotoClick={(list, index) => setPhotoModal({ list, index })}
+                  />
                 );
               })}
             </div>
