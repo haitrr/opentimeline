@@ -197,7 +197,7 @@ type Props = {
   onClose: () => void;
 };
 
-type Filter = "all" | "confirmed";
+type Filter = "all" | "confirmed" | "suggested";
 
 const MIN_GAP_PX = 10;
 const MAX_GAP_PX = 80;
@@ -529,7 +529,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
   const displayed = visits
     .filter((v) =>
-      filter === "confirmed" ? v.status === "confirmed" : v.status !== "rejected"
+      filter === "confirmed" ? v.status === "confirmed" : filter === "suggested" ? v.status === "suggested" : v.status !== "rejected"
     )
     .sort((a, b) => new Date(b.arrivalAt).getTime() - new Date(a.arrivalAt).getTime());
 
@@ -594,7 +594,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+      <div className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-4 py-4 sm:px-5">
           <div>
@@ -678,7 +678,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
         {/* Filter */}
         <div className="flex flex-wrap items-center gap-1 border-b border-gray-100 px-4 py-2 sm:px-5">
           <span className="mr-2 text-xs text-gray-500">Show:</span>
-          {(["all", "confirmed"] as const).map((f) => (
+          {(["all", "confirmed", "suggested"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -688,7 +688,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
-              {f === "all" ? "All" : "Confirmed only"}
+              {f === "all" ? "All" : f === "confirmed" ? "Confirmed" : "Suggested"}
             </button>
           ))}
         </div>
