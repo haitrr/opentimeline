@@ -28,6 +28,7 @@ export async function getImmichPhotos(start: Date, end: Date): Promise<ImmichPho
         takenBefore: end.toISOString(),
         page,
         size: 500,
+        withExif: true,
       }),
     });
 

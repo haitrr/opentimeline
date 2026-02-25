@@ -10,6 +10,7 @@ import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPa
 import BackgroundDetector from "@/components/BackgroundDetector";
 import ThemeToggle from "@/components/ThemeToggle";
 import ImportGpxButton from "@/components/ImportGpxButton";
+import ImportImmichButton from "@/components/ImportImmichButton";
 import { getRangeBounds } from "@/lib/getRangeBounds";
 import type { RangeType } from "@/app/timeline/[date]/page";
 
@@ -127,6 +128,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
           {settingsOpen && (
             <div className="absolute bottom-full left-0 mb-2 w-56 rounded-md border border-gray-200 bg-white p-2 shadow-lg">
               <ImportGpxButton />
+              <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
               <button
                 type="button"
                 onClick={detectVisits}

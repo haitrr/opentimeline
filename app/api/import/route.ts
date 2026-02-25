@@ -4,12 +4,16 @@ import type { GpxPoint } from "@/lib/parseGpx";
 
 export async function POST(request: NextRequest) {
   let points: GpxPoint[];
+  let trigger = "gpx-import";
   try {
     const body = await request.json();
     if (!Array.isArray(body.points)) {
       return NextResponse.json({ error: "Expected { points: GpxPoint[] }" }, { status: 400 });
     }
     points = body.points;
+    if (typeof body.trigger === "string" && body.trigger) {
+      trigger = body.trigger;
+    }
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -47,7 +51,7 @@ export async function POST(request: NextRequest) {
       acc: null,
       batt: null,
       tid: null,
-      trigger: "gpx-import",
+      trigger,
       username: null,
       deviceId: null,
     })),
