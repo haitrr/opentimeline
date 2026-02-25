@@ -57,7 +57,6 @@ export async function getImmichPhotos(start: Date, end: Date): Promise<ImmichPho
 
     if (!data.assets?.nextPage) break;
     page++;
-    if (page > 10) break; // safety: max 5000 photos
   }
 
   return photos;
