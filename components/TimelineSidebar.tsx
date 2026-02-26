@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
-import PhotoModal from "@/components/PhotoModal";
 import type { ImmichPhoto } from "@/lib/immich";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
+import LazyVisitPhotos from "@/components/VisitPhotos";
 
 type KnownVisit = {
   kind: "known";
@@ -36,80 +36,6 @@ type NearbyPlaceOption = {
   distanceM: number;
 };
 
-function LazyVisitPhotos(props: {
-  photos: ImmichPhoto[];
-  arrivalAt: string;
-  departureAt: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || inView) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setInView(true); },
-      { rootMargin: "300px 0px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [inView]);
-
-  return (
-    <div ref={ref}>
-      {inView && <VisitPhotos {...props} />}
-    </div>
-  );
-}
-
-function VisitPhotos({
-  photos,
-  arrivalAt,
-  departureAt,
-}: {
-  photos: ImmichPhoto[];
-  arrivalAt: string;
-  departureAt: string;
-}) {
-  const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
-  const start = new Date(arrivalAt).getTime();
-  const end = new Date(departureAt).getTime();
-  const matching = photos.filter((p) => {
-    const t = new Date(p.takenAt).getTime();
-    return t >= start && t <= end;
-  });
-  if (matching.length === 0) return null;
-  return (
-    <>
-      <div className="mt-1.5 flex flex-nowrap gap-1 overflow-x-auto pb-0.5 pr-0.5">
-        {matching.map((p, i) => (
-          <button
-            key={p.id}
-            className="shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              setPhotoModal({ list: matching, index: i });
-            }}
-          >
-            <img
-              src={`/api/immich/thumbnail?id=${p.id}`}
-              alt=""
-              loading="lazy"
-              className="h-12 w-16 shrink-0 rounded object-cover hover:opacity-80 transition-opacity"
-            />
-          </button>
-        ))}
-      </div>
-      {photoModal && (
-        <PhotoModal
-          photos={photoModal.list}
-          initialIndex={photoModal.index}
-          onClose={() => setPhotoModal(null)}
-        />
-      )}
-    </>
-  );
-}
 
 function durationLabel(arrival: string, departure: string): string {
   const mins = Math.round(

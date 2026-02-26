@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
-import PhotoModal from "@/components/PhotoModal";
+import LazyVisitPhotos from "@/components/VisitPhotos";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 
@@ -36,7 +36,6 @@ type VisitCardProps = {
   onEdit: (visit: Visit) => void;
   onCreatePlace: (visit: Visit) => void;
   onViewDay: (arrivalAt: string) => void;
-  onPhotoClick: (list: ImmichPhoto[], index: number) => void;
 };
 
 function VisitCard({
@@ -52,7 +51,6 @@ function VisitCard({
   onEdit,
   onCreatePlace,
   onViewDay,
-  onPhotoClick,
 }: VisitCardProps) {
   const arrival = new Date(v.arrivalAt);
   const departure = new Date(v.departureAt);
@@ -146,23 +144,7 @@ function VisitCard({
               )}
             </div>
           </div>
-          {photos.length > 0 && (
-            <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5">
-              {photos.map((p, mi) => (
-                <button
-                  key={p.id}
-                  onClick={() => onPhotoClick(photos, mi)}
-                  className="shrink-0"
-                >
-                  <img
-                    src={`/api/immich/thumbnail?id=${p.id}`}
-                    alt=""
-                    className="h-12 w-16 rounded object-cover hover:opacity-80 transition-opacity"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
+          <LazyVisitPhotos photos={photos} arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
         </div>
       </div>
 
@@ -266,7 +248,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [placeInfo, setPlaceInfo] = useState<PlaceData>(place);
   const [filter, setFilter] = useState<Filter>("all");
-  const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(place.name);
   const [radiusInput, setRadiusInput] = useState(place.radius);
@@ -768,7 +749,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                     onEdit={openEditVisit}
                     onCreatePlace={openCreatePlaceForVisit}
                     onViewDay={handleViewDay}
-                    onPhotoClick={(list, index) => setPhotoModal({ list, index })}
                   />
                 );
               })}
@@ -784,14 +764,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
           )}
         </div>
       </div>
-
-      {photoModal && (
-        <PhotoModal
-          photos={photoModal.list}
-          initialIndex={photoModal.index}
-          onClose={() => setPhotoModal(null)}
-        />
-      )}
 
       {creatingPlaceForVisit && creatingPlaceForVisitCentroid && (
         <PlaceCreationModal

@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
-import PhotoModal from "@/components/PhotoModal";
 import type { ImmichPhoto } from "@/lib/immich";
+import LazyVisitPhotos from "@/components/VisitPhotos";
 
 type UnknownVisit = {
   id: number;
@@ -30,7 +30,6 @@ export default function UnknownVisitSuggestionsPanel() {
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<UnknownVisit | null>(null);
   const [editing, setEditing] = useState<{ id: number; arrivalAt: string; departureAt: string } | null>(null);
-  const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
 
   const { data: suggestions = [] } = useQuery<UnknownVisit[]>({
     queryKey: ["unknown-visits", "suggested"],
@@ -62,15 +61,6 @@ export default function UnknownVisitSuggestionsPanel() {
     },
     enabled: !!photoRange,
   });
-
-  function getUnknownVisitPhotos(visit: UnknownVisit): ImmichPhoto[] {
-    const start = new Date(visit.arrivalAt).getTime();
-    const end = new Date(visit.departureAt).getTime();
-    return photos.filter((p) => {
-      const t = new Date(p.takenAt).getTime();
-      return t >= start && t <= end;
-    });
-  }
 
   async function handleReject(id: number) {
     const res = await fetch(`/api/unknown-visits/${id}`, {
@@ -138,17 +128,14 @@ export default function UnknownVisitSuggestionsPanel() {
             ) : (
               <ul className="space-y-2">
                 {suggestions.map((s) => (
-                  (() => {
-                    const matchingPhotos = getUnknownVisitPhotos(s);
-                    return (
                   <li
-                  key={s.id}
-                  className="cursor-pointer rounded border border-amber-100 bg-amber-50 p-2 hover:bg-amber-100"
-                  onClick={() => {
-                    router.push(`/timeline/${format(new Date(s.arrivalAt), "yyyy-MM-dd")}`);
-                    window.dispatchEvent(new CustomEvent("opentimeline:fly-to", { detail: { lat: s.lat, lon: s.lon } }));
-                  }}
-                >
+                    key={s.id}
+                    className="cursor-pointer rounded border border-amber-100 bg-amber-50 p-2 hover:bg-amber-100"
+                    onClick={() => {
+                      router.push(`/timeline/${format(new Date(s.arrivalAt), "yyyy-MM-dd")}`);
+                      window.dispatchEvent(new CustomEvent("opentimeline:fly-to", { detail: { lat: s.lat, lon: s.lon } }));
+                    }}
+                  >
                     <p className="text-xs font-medium text-gray-700">
                       {s.lat.toFixed(5)}, {s.lon.toFixed(5)}
                     </p>
@@ -194,26 +181,7 @@ export default function UnknownVisitSuggestionsPanel() {
                           {format(new Date(s.departureAt), "HH:mm")}
                         </p>
                         <p className="text-xs text-gray-400">{s.pointCount} points</p>
-                        {matchingPhotos.length > 0 && (
-                          <div className="mt-1.5 flex flex-nowrap gap-1 overflow-x-auto pb-0.5 pr-0.5">
-                            {matchingPhotos.map((p, i) => (
-                              <button
-                                key={p.id}
-                                className="shrink-0"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPhotoModal({ list: matchingPhotos, index: i });
-                                }}
-                                type="button"
-                              >
-                                <div
-                                  className="h-12 w-16 shrink-0 rounded bg-cover bg-center transition-opacity hover:opacity-80"
-                                  style={{ backgroundImage: `url(/api/immich/thumbnail?id=${p.id})` }}
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                        <LazyVisitPhotos photos={photos} arrivalAt={s.arrivalAt} departureAt={s.departureAt} />
                         <div className="mt-1.5 flex gap-1.5">
                           <button
                             onClick={(e) => { e.stopPropagation(); setConfirming(s); }}
@@ -243,8 +211,6 @@ export default function UnknownVisitSuggestionsPanel() {
                       </>
                     )}
                   </li>
-                    );
-                  })()
                 ))}
               </ul>
             )}
@@ -258,14 +224,6 @@ export default function UnknownVisitSuggestionsPanel() {
           lon={confirming.lon}
           onClose={() => setConfirming(null)}
           onCreated={() => handlePlaceCreated(confirming)}
-        />
-      )}
-
-      {photoModal && (
-        <PhotoModal
-          photos={photoModal.list}
-          initialIndex={photoModal.index}
-          onClose={() => setPhotoModal(null)}
         />
       )}
     </>
