@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { ImmichPhoto } from "@/lib/immich";
 import PhotoModal from "@/components/PhotoModal";
 
 const MAX_VISIBLE = 5;
 
-function VisitPhotos({
+export function VisitPhotos({
   photos,
   arrivalAt,
   departureAt,
@@ -111,6 +112,19 @@ function VisitPhotos({
       )}
     </>
   );
+}
+
+export function FetchVisitPhotos({ arrivalAt, departureAt }: { arrivalAt: string; departureAt: string }) {
+  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
+    queryKey: ["immich", arrivalAt, departureAt],
+    queryFn: async () => {
+      const res = await fetch(`/api/immich?start=${arrivalAt}&end=${departureAt}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: Infinity,
+  });
+  return <VisitPhotos photos={photos} arrivalAt={arrivalAt} departureAt={departureAt} />;
 }
 
 export default function LazyVisitPhotos(props: {

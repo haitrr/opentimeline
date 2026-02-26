@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
-import type { ImmichPhoto } from "@/lib/immich";
-import LazyVisitPhotos from "@/components/VisitPhotos";
+import { FetchVisitPhotos } from "@/components/VisitPhotos";
 
 type Visit = {
   id: number;
@@ -29,28 +28,6 @@ export default function VisitSuggestionsPanel() {
       if (!res.ok) return [];
       return res.json();
     },
-  });
-
-  const photoRange = useMemo(() => {
-    if (visits.length === 0) return null;
-    const starts = visits.map((v) => new Date(v.arrivalAt).getTime());
-    const ends = visits.map((v) => new Date(v.departureAt).getTime());
-    return {
-      start: new Date(Math.min(...starts)).toISOString(),
-      end: new Date(Math.max(...ends)).toISOString(),
-    };
-  }, [visits]);
-
-  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
-    queryKey: ["immich", "visit-suggestions", photoRange?.start, photoRange?.end],
-    queryFn: async () => {
-      if (!photoRange) return [];
-      const params = new URLSearchParams({ start: photoRange.start, end: photoRange.end });
-      const res = await fetch(`/api/immich?${params}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    enabled: !!photoRange,
   });
 
   async function handleAction(id: number, status: "confirmed" | "rejected") {
@@ -115,7 +92,7 @@ export default function VisitSuggestionsPanel() {
                     {format(new Date(v.arrivalAt), "MMM d, HH:mm")} –{" "}
                     {format(new Date(v.departureAt), "HH:mm")}
                   </p>
-                  <LazyVisitPhotos photos={photos} arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
+                  <FetchVisitPhotos arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
                   <div className="mt-1.5 flex gap-1.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); setCreatingPlaceForVisit(v); }}
