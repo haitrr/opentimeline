@@ -5,8 +5,7 @@ import { format, differenceInMinutes, differenceInYears, differenceInMonths, dif
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
-import type { ImmichPhoto } from "@/lib/immich";
-import LazyVisitPhotos from "@/components/VisitPhotos";
+import { FetchVisitPhotos } from "@/components/VisitPhotos";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 
@@ -56,16 +55,6 @@ function VisitCard({
   const departure = new Date(v.departureAt);
   const durationMin = differenceInMinutes(departure, arrival);
   const isSuggested = v.status === "suggested";
-
-  const { data: photos = [] } = useQuery<ImmichPhoto[]>({
-    queryKey: ["immich", v.arrivalAt, v.departureAt],
-    queryFn: async () => {
-      const res = await fetch(`/api/immich?start=${v.arrivalAt}&end=${v.departureAt}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    staleTime: Infinity,
-  });
 
   return (
     <Fragment key={v.id}>
@@ -144,7 +133,7 @@ function VisitCard({
               )}
             </div>
           </div>
-          <LazyVisitPhotos photos={photos} arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
+          <FetchVisitPhotos arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
         </div>
       </div>
 
