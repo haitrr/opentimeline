@@ -23,6 +23,7 @@ export async function PUT(
   const radius = body.radius != null ? Number(body.radius) : place.radius;
   const lat = body.lat != null ? Number(body.lat) : place.lat;
   const lon = body.lon != null ? Number(body.lon) : place.lon;
+  const isActive = body.isActive != null ? Boolean(body.isActive) : place.isActive;
 
   if (!name) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -51,7 +52,7 @@ export async function PUT(
 
   const updated = await prisma.place.update({
     where: { id: placeId },
-    data: { name, radius, lat, lon },
+    data: { name, radius, lat, lon, isActive },
   });
 
   const reconciliation = await reconcileVisitSuggestionsForPlace(placeId);

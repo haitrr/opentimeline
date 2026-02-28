@@ -32,6 +32,7 @@ model Place {
   lat       Float
   lon       Float
   radius    Float    @default(50)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   visits    Visit[]
 }

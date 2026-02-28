@@ -149,6 +149,7 @@ export async function detectUnknownVisits(
   if (allPoints.length === 0) return 0;
 
   const places = await prisma.place.findMany({
+    where: { isActive: true },
     select: { lat: true, lon: true, radius: true },
   });
 

@@ -243,6 +243,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const [radiusInput, setRadiusInput] = useState(place.radius);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
   // Create place state
@@ -469,6 +470,23 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
     }
   }
 
+  async function handleToggleActive() {
+    setTogglingActive(true);
+    try {
+      const res = await fetch(`/api/places/${placeInfo.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !placeInfo.isActive }),
+      });
+      if (!res.ok) return;
+      const { place: updated } = await res.json();
+      setPlaceInfo(updated);
+      queryClient.invalidateQueries({ queryKey: ["places"] });
+    } finally {
+      setTogglingActive(false);
+    }
+  }
+
   async function handleDeletePlace() {
     const confirmed = window.confirm(
       `Delete place "${placeInfo.name}"? This action cannot be undone.`
@@ -602,7 +620,14 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
               </div>
             ) : (
               <>
-                <h2 className="text-base font-semibold text-gray-900">{placeInfo.name}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-semibold text-gray-900">{placeInfo.name}</h2>
+                  {!placeInfo.isActive && (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                      Inactive
+                    </span>
+                  )}
+                </div>
                 <p className="mt-0.5 text-xs text-gray-400">
                   Radius: {placeInfo.radius}m &middot; {placeInfo.lat.toFixed(5)}, {placeInfo.lon.toFixed(5)}
                 </p>
@@ -641,12 +666,25 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                 </button>
               </>
             ) : (
-              <button
-                onClick={() => setEditing(true)}
-                className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
-              >
-                Edit
-              </button>
+              <>
+                <button
+                  onClick={handleToggleActive}
+                  disabled={togglingActive}
+                  className={`rounded border px-2.5 py-1 text-xs font-medium disabled:opacity-50 ${
+                    placeInfo.isActive
+                      ? "border-gray-300 text-gray-600 hover:bg-gray-100"
+                      : "border-green-300 text-green-700 hover:bg-green-50"
+                  }`}
+                >
+                  {placeInfo.isActive ? "Deactivate" : "Activate"}
+                </button>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                >
+                  Edit
+                </button>
+              </>
             )}
             <button
               onClick={onClose}

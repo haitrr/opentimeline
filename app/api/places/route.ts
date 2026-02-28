@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
       lat: p.lat,
       lon: p.lon,
       radius: p.radius,
+      isActive: p.isActive,
       createdAt: p.createdAt,
       totalVisits: p._count.visits,
       confirmedVisits: confirmedVisitsInRange,
