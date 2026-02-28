@@ -129,7 +129,24 @@ function computeCandidateVisitsForPlace(
   const postDepartureMs = postDepartureMinutes * 60 * 1000;
   const radiusKm = place.radius / 1000;
 
+  // Bounding-box pre-filter: cheap arithmetic to skip haversine for points
+  // that are clearly outside the radius. 1° lat ≈ 111.32 km; longitude degrees
+  // shrink with cos(lat).
+  const latDelta = radiusKm / 111.32;
+  const lonDelta = radiusKm / (111.32 * Math.cos((place.lat * Math.PI) / 180));
+  const latMin = place.lat - latDelta;
+  const latMax = place.lat + latDelta;
+  const lonMin = place.lon - lonDelta;
+  const lonMax = place.lon + lonDelta;
+
   const nearbyPoints: NearbyPoint[] = allPoints
+    .filter(
+      (point) =>
+        point.lat >= latMin &&
+        point.lat <= latMax &&
+        point.lon >= lonMin &&
+        point.lon <= lonMax
+    )
     .map((point) => ({
       ...point,
       distanceKm: haversineKm(point.lat, point.lon, place.lat, place.lon),
@@ -183,7 +200,12 @@ function computeCandidateVisitsForPlace(
     }
     let hasLeftPlace = false;
     for (let j = lo; j < allPoints.length; j++) {
-      if (haversineKm(allPoints[j].lat, allPoints[j].lon, place.lat, place.lon) > radiusKm) {
+      const p = allPoints[j];
+      // Outside bounding box → definitely outside radius; skip haversine.
+      if (
+        p.lat < latMin || p.lat > latMax || p.lon < lonMin || p.lon > lonMax ||
+        haversineKm(p.lat, p.lon, place.lat, place.lon) > radiusKm
+      ) {
         hasLeftPlace = true;
         break;
       }
@@ -544,17 +566,19 @@ export async function detectVisitsForAllPlaces(
         : undefined,
   });
 
-  let added = 0;
-  for (const candidate of winningCandidates) {
-    const hasOverlap = allExistingVisits.some((visit: ExistingVisitRange) =>
-      overlaps(candidate, {
-        arrivalAt: visit.arrivalAt,
-        departureAt: visit.departureAt,
-      })
-    );
+  const toAdd = winningCandidates.filter(
+    (candidate) =>
+      !allExistingVisits.some((visit: ExistingVisitRange) =>
+        overlaps(candidate, {
+          arrivalAt: visit.arrivalAt,
+          departureAt: visit.departureAt,
+        })
+      )
+  );
 
-    if (!hasOverlap) {
-      await prisma.visit.create({
+  await Promise.all(
+    toAdd.map((candidate) =>
+      prisma.visit.create({
         data: {
           placeId: candidate.placeId,
           arrivalAt: candidate.arrivalAt,
@@ -562,15 +586,9 @@ export async function detectVisitsForAllPlaces(
           status: "suggested",
           pointCount: candidate.pointCount,
         },
-      });
+      })
+    )
+  );
 
-      allExistingVisits.push({
-        arrivalAt: candidate.arrivalAt,
-        departureAt: candidate.departureAt,
-      });
-      added++;
-    }
-  }
-
-  return added;
+  return toAdd.length;
 }

@@ -48,6 +48,9 @@ model Visit {
 
   @@index([placeId])
   @@index([status])
+  @@index([placeId, status])
+  @@index([arrivalAt])
+  @@index([departureAt])
 }
 
 model UnknownVisitSuggestion {
@@ -61,6 +64,8 @@ model UnknownVisitSuggestion {
   createdAt   DateTime @default(now())
 
   @@index([status])
+  @@index([arrivalAt])
+  @@index([departureAt])
 }
 
 model AppSettings {
