@@ -7,6 +7,7 @@ import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
+import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import PlaceDetailModal from "@/components/PlaceDetailModal";
 import PhotoModal from "@/components/PhotoModal";
 import CreateVisitModal from "@/components/CreateVisitModal";
@@ -173,10 +174,11 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
     queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
-  function handleUnknownVisitCreatePlace(uv: UnknownVisitData) {
+  async function handleUnknownVisitCreatePlace(uv: UnknownVisitData) {
+    const centroid = await fetchVisitCentroid(uv.arrivalAt, uv.departureAt, uv);
     setPendingUnknownVisit(uv);
     setSelectedPlace(null);
-    setModalCoords({ lat: uv.lat, lon: uv.lon });
+    setModalCoords(centroid);
   }
 
   return (

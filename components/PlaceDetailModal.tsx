@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
 import { FetchVisitPhotos } from "@/components/VisitPhotos";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
+import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 
 type Visit = {
@@ -293,20 +294,8 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   }
 
   async function openCreatePlaceForVisit(visit: Visit) {
-    const params = new URLSearchParams({ start: visit.arrivalAt, end: visit.departureAt });
-    let lat = placeInfo.lat;
-    let lon = placeInfo.lon;
-    try {
-      const res = await fetch(`/api/locations?${params}`);
-      if (res.ok) {
-        const points: Array<{ lat: number; lon: number }> = await res.json();
-        if (points.length > 0) {
-          lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
-          lon = points.reduce((s, p) => s + p.lon, 0) / points.length;
-        }
-      }
-    } catch { /* fallback to place coords */ }
-    setCreatingPlaceForVisitCentroid({ lat, lon });
+    const centroid = await fetchVisitCentroid(visit.arrivalAt, visit.departureAt, placeInfo);
+    setCreatingPlaceForVisitCentroid(centroid);
     setCreatingPlaceForVisit(visit);
   }
 

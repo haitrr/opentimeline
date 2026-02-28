@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
+import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import type { ImmichPhoto } from "@/lib/immich";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 import LazyVisitPhotos from "@/components/VisitPhotos";
@@ -250,20 +251,8 @@ export default function TimelineSidebar({
   }
 
   async function openCreatePlaceForVisit(visit: KnownVisit) {
-    const params = new URLSearchParams({ start: visit.arrivalAt, end: visit.departureAt });
-    let lat = visit.place.lat;
-    let lon = visit.place.lon;
-    try {
-      const res = await fetch(`/api/locations?${params}`);
-      if (res.ok) {
-        const points: Array<{ lat: number; lon: number }> = await res.json();
-        if (points.length > 0) {
-          lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
-          lon = points.reduce((s, p) => s + p.lon, 0) / points.length;
-        }
-      }
-    } catch { /* fallback to place coords */ }
-    setCreatingPlaceForVisitCentroid({ lat, lon });
+    const centroid = await fetchVisitCentroid(visit.arrivalAt, visit.departureAt, visit.place);
+    setCreatingPlaceForVisitCentroid(centroid);
     setCreatingPlaceForVisit(visit);
   }
 
