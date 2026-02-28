@@ -7,7 +7,6 @@ import MapWrapper from "@/components/map/MapWrapper";
 import PlacesPanel from "@/components/PlacesPanel";
 import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
 import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
-import BackgroundDetector from "@/components/BackgroundDetector";
 import ThemeToggle from "@/components/ThemeToggle";
 import ImportGpxButton from "@/components/ImportGpxButton";
 import ImportImmichButton from "@/components/ImportImmichButton";
@@ -167,8 +166,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
 
       <main className="relative min-h-0 flex-1">
         <MapWrapper rangeStart={rangeStart} rangeEnd={rangeEnd} isAll={isAll} shouldAutoFit={shouldAutoFit} />
-        <BackgroundDetector />
-        {toast && (
+{toast && (
           <div className="absolute top-4 left-1/2 z-900 -translate-x-1/2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-lg">
             {toast}
           </div>
