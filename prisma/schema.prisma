@@ -43,6 +43,7 @@ model Visit {
   arrivalAt   DateTime
   departureAt DateTime
   status      String   @default("suggested")
+  pointCount  Int      @default(0)
   createdAt   DateTime @default(now())
 
   @@index([placeId])

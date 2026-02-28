@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Visit" ADD COLUMN "pointCount" INTEGER NOT NULL DEFAULT 0;

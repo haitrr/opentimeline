@@ -16,6 +16,7 @@ type CandidateVisit = {
   arrivalAt: Date;
   departureAt: Date;
   distanceKm: number;
+  pointCount: number;
 };
 
 type CandidateVisitWithPlace = CandidateVisit & {
@@ -27,6 +28,7 @@ type NearbyPoint = {
   lat: number;
   lon: number;
   recordedAt: Date;
+  acc: number | null;
   distanceKm: number;
 };
 
@@ -46,7 +48,74 @@ type VisitRange = {
   departureAt: Date;
 };
 
-type PointRow = { id: number; lat: number; lon: number; recordedAt: Date };
+type PointRow = { id: number; lat: number; lon: number; recordedAt: Date; acc: number | null };
+
+/**
+ * Returns the last point in allPoints that is strictly before `beforeMs`
+ * and is outside the given radius, within a lookback window of `maxLookbackMs`.
+ * Used to interpolate a more accurate arrival time.
+ */
+function findLastOutsidePointBefore(
+  allPoints: PointRow[],
+  beforeMs: number,
+  centerLat: number,
+  centerLon: number,
+  radiusKm: number,
+  maxLookbackMs: number
+): PointRow | null {
+  // Binary search for last index with recordedAt <= beforeMs
+  let lo = 0;
+  let hi = allPoints.length - 1;
+  let idx = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (allPoints[mid].recordedAt.getTime() <= beforeMs) {
+      idx = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  for (let i = idx; i >= 0; i--) {
+    const t = allPoints[i].recordedAt.getTime();
+    if (beforeMs - t > maxLookbackMs) break;
+    if (haversineKm(allPoints[i].lat, allPoints[i].lon, centerLat, centerLon) > radiusKm) {
+      return allPoints[i];
+    }
+  }
+  return null;
+}
+
+/**
+ * Returns the first point in allPoints strictly after `afterMs` that is
+ * outside the given radius, within a forward window of `maxLookaheadMs`.
+ * Used to interpolate a more accurate departure time.
+ */
+function findFirstOutsidePointAfter(
+  allPoints: PointRow[],
+  afterMs: number,
+  centerLat: number,
+  centerLon: number,
+  radiusKm: number,
+  maxLookaheadMs: number
+): PointRow | null {
+  // Binary search for first index with recordedAt > afterMs
+  let lo = 0;
+  let hi = allPoints.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (allPoints[mid].recordedAt.getTime() <= afterMs) lo = mid + 1;
+    else hi = mid;
+  }
+  for (let i = lo; i < allPoints.length; i++) {
+    const t = allPoints[i].recordedAt.getTime();
+    if (t - afterMs > maxLookaheadMs) break;
+    if (haversineKm(allPoints[i].lat, allPoints[i].lon, centerLat, centerLon) > radiusKm) {
+      return allPoints[i];
+    }
+  }
+  return null;
+}
 
 function computeCandidateVisitsForPlace(
   place: { lat: number; lon: number; radius: number },
@@ -95,16 +164,16 @@ function computeCandidateVisitsForPlace(
 
   const candidates: CandidateVisit[] = [];
   for (const group of groups) {
-    const arrivalAt = group[0].recordedAt;
-    const departureAt = group[group.length - 1].recordedAt;
+    const firstPoint = group[0];
+    const lastPoint = group[group.length - 1];
 
-    if (departureAt.getTime() - arrivalAt.getTime() < minDwellMs) continue;
+    const rawArrivalMs = firstPoint.recordedAt.getTime();
+    const rawDepartureMs = lastPoint.recordedAt.getTime();
 
-    // Only count a visit if the person has clearly left: there must be a point
-    // outside the place radius recorded at least postDepartureMinutes after the last
-    // point in this group. This avoids counting ongoing visits with wrong duration.
-    // Binary search for first point after departureAt + postDepartureMs.
-    const minTimeMs = departureAt.getTime() + postDepartureMs;
+    if (rawDepartureMs - rawArrivalMs < minDwellMs) continue;
+
+    // Require a point outside the radius within postDepartureMs to confirm departure.
+    const minTimeMs = rawDepartureMs + postDepartureMs;
     let lo = 0;
     let hi = allPoints.length;
     while (lo < hi) {
@@ -121,12 +190,47 @@ function computeCandidateVisitsForPlace(
     }
     if (!hasLeftPlace) continue;
 
-    const distanceKm = group.reduce(
-      (minDistance: number, point: NearbyPoint) =>
-        Math.min(minDistance, point.distanceKm),
-      Number.POSITIVE_INFINITY
+    // (#1) Interpolate arrival/departure to the midpoint between the last outside
+    // point and the first inside point (arrival) and vice versa (departure).
+    // This corrects for GPS ping intervals so visit times aren't always quantised
+    // to the exact moment a ping happened to land inside the radius.
+    const outsideBefore = findLastOutsidePointBefore(
+      allPoints,
+      rawArrivalMs,
+      place.lat,
+      place.lon,
+      radiusKm,
+      sessionGapMs
     );
-    candidates.push({ arrivalAt, departureAt, distanceKm });
+    const arrivalAt = outsideBefore
+      ? new Date((outsideBefore.recordedAt.getTime() + rawArrivalMs) / 2)
+      : firstPoint.recordedAt;
+
+    const outsideAfter = findFirstOutsidePointAfter(
+      allPoints,
+      rawDepartureMs,
+      place.lat,
+      place.lon,
+      radiusKm,
+      postDepartureMs * 2
+    );
+    const departureAt = outsideAfter
+      ? new Date((rawDepartureMs + outsideAfter.recordedAt.getTime()) / 2)
+      : lastPoint.recordedAt;
+
+    // (#2 + #4) Accuracy-weighted average distance as the conflict-resolution
+    // metric. Weighting by 1/acc means more precise GPS fixes dominate.
+    // Falls back to weight=1 when acc is null.
+    let totalWeight = 0;
+    let weightedDistanceSum = 0;
+    for (const p of group) {
+      const w = p.acc !== null && p.acc > 0 ? 1 / p.acc : 1;
+      totalWeight += w;
+      weightedDistanceSum += p.distanceKm * w;
+    }
+    const distanceKm = weightedDistanceSum / totalWeight;
+
+    candidates.push({ arrivalAt, departureAt, distanceKm, pointCount: group.length });
   }
 
   return candidates;
@@ -146,7 +250,7 @@ async function detectCandidateVisitsForPlace(
   const dayBufferMs = 5 * 24 * 60 * 60 * 1000;
   const allPoints = await prisma.locationPoint.findMany({
     orderBy: { recordedAt: "asc" },
-    select: { id: true, lat: true, lon: true, recordedAt: true },
+    select: { id: true, lat: true, lon: true, recordedAt: true, acc: true },
     where:
       rangeStart || rangeEnd
         ? {
@@ -233,26 +337,30 @@ export async function detectVisitsForPlace(
 ): Promise<number> {
   const candidates = await detectCandidateVisitsForPlace(placeId);
 
+  // (#3) Bulk-fetch all existing visits for this place upfront to avoid
+  // one DB round-trip per candidate.
+  const allExisting = await prisma.visit.findMany({
+    where: { placeId },
+    select: { arrivalAt: true, departureAt: true },
+  });
+
   let newVisitsCount = 0;
   for (const candidate of candidates) {
+    const hasOverlap = allExisting.some((v: ExistingVisitRange) =>
+      overlaps(candidate, { arrivalAt: v.arrivalAt, departureAt: v.departureAt })
+    );
 
-    // Check for overlapping visit already recorded
-    const existing = await prisma.visit.findFirst({
-      where: {
-        arrivalAt: { lte: candidate.departureAt },
-        departureAt: { gte: candidate.arrivalAt },
-      },
-    });
-
-    if (!existing) {
+    if (!hasOverlap) {
       await prisma.visit.create({
         data: {
           placeId,
           arrivalAt: candidate.arrivalAt,
           departureAt: candidate.departureAt,
           status: "suggested",
+          pointCount: candidate.pointCount,
         },
       });
+      allExisting.push({ arrivalAt: candidate.arrivalAt, departureAt: candidate.departureAt });
       newVisitsCount++;
     }
   }
@@ -307,6 +415,7 @@ export async function reconcileVisitSuggestionsForPlace(
           arrivalAt: candidate.arrivalAt,
           departureAt: candidate.departureAt,
           status: "suggested",
+          pointCount: candidate.pointCount,
         },
       });
       allExisting.push({
@@ -333,7 +442,7 @@ export async function detectVisitsForAllPlaces(
   const dayBufferMs = 5 * 24 * 60 * 60 * 1000;
   const sharedPoints = await prisma.locationPoint.findMany({
     orderBy: { recordedAt: "asc" },
-    select: { id: true, lat: true, lon: true, recordedAt: true },
+    select: { id: true, lat: true, lon: true, recordedAt: true, acc: true },
     where:
       rangeStart || rangeEnd
         ? {
@@ -359,6 +468,7 @@ export async function detectVisitsForAllPlaces(
         arrivalAt: candidate.arrivalAt,
         departureAt: candidate.departureAt,
         distanceKm: candidate.distanceKm,
+        pointCount: candidate.pointCount,
       });
     }
   }
@@ -450,6 +560,7 @@ export async function detectVisitsForAllPlaces(
           arrivalAt: candidate.arrivalAt,
           departureAt: candidate.departureAt,
           status: "suggested",
+          pointCount: candidate.pointCount,
         },
       });
 
