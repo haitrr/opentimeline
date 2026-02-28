@@ -227,6 +227,22 @@ export async function detectUnknownVisits(
     });
   });
 
+  // Delete all suggested unknown visit suggestions in range — they'll be replaced
+  // by fresh detection results. Confirmed suggestions are never touched.
+  await prisma.unknownVisitSuggestion.deleteMany({
+    where: {
+      status: "suggested",
+      ...(rangeStart || rangeEnd
+        ? {
+            AND: [
+              ...(rangeStart ? [{ departureAt: { gte: rangeStart } }] : []),
+              ...(rangeEnd ? [{ arrivalAt: { lte: rangeEnd } }] : []),
+            ],
+          }
+        : {}),
+    },
+  });
+
   let created = 0;
 
   for (const cluster of unknownClusters) {
@@ -235,15 +251,16 @@ export async function detectUnknownVisits(
     // fixes) and indoor noise (scattered points around the true location).
     const { lat: centerLat, lon: centerLon } = medianLatLon(cluster.points);
 
-    // Deduplicate: skip if an overlapping suggestion already exists
-    const existing = await prisma.unknownVisitSuggestion.findFirst({
+    // Only skip if a confirmed unknown visit suggestion overlaps this cluster.
+    const confirmedOverlap = await prisma.unknownVisitSuggestion.findFirst({
       where: {
+        status: "confirmed",
         arrivalAt: { lte: cluster.departureAt },
         departureAt: { gte: cluster.arrivalAt },
       },
     });
 
-    if (!existing) {
+    if (!confirmedOverlap) {
       await prisma.unknownVisitSuggestion.create({
         data: {
           lat: centerLat,

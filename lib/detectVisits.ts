@@ -511,12 +511,9 @@ export async function detectVisitsForAllPlaces(
 
   const winningCandidates = selectClosestCandidatesPerTimeRange(rangeFiltered);
 
-  const existingSuggested: Array<{
-    id: number;
-    placeId: number;
-    arrivalAt: Date;
-    departureAt: Date;
-  }> = await prisma.visit.findMany({
+  // Delete all suggested visits in range — they'll be replaced by fresh detection
+  // results. Confirmed visits are never touched.
+  await prisma.visit.deleteMany({
     where: {
       status: "suggested",
       ...(rangeStart || rangeEnd
@@ -528,48 +525,27 @@ export async function detectVisitsForAllPlaces(
           }
         : {}),
     },
-    select: { id: true, placeId: true, arrivalAt: true, departureAt: true },
   });
 
-  const toRemove = existingSuggested
-    .filter(
-      (suggestedVisit: {
-        id: number;
-        placeId: number;
-        arrivalAt: Date;
-        departureAt: Date;
-      }) =>
-        !winningCandidates.some(
-          (candidate) =>
-            candidate.placeId === suggestedVisit.placeId &&
-            overlaps(candidate, {
-              arrivalAt: suggestedVisit.arrivalAt,
-              departureAt: suggestedVisit.departureAt,
-            })
-        )
-    )
-    .map((visit: { id: number }) => visit.id);
-
-  if (toRemove.length > 0) {
-    await prisma.visit.deleteMany({ where: { id: { in: toRemove } } });
-  }
-
-  const allExistingVisits = await prisma.visit.findMany({
+  // Only confirmed visits block new suggestions from being created.
+  const confirmedVisits = await prisma.visit.findMany({
     select: { arrivalAt: true, departureAt: true },
-    where:
-      rangeStart || rangeEnd
+    where: {
+      status: "confirmed",
+      ...(rangeStart || rangeEnd
         ? {
             AND: [
               ...(rangeStart ? [{ departureAt: { gte: rangeStart } }] : []),
               ...(rangeEnd ? [{ arrivalAt: { lte: rangeEnd } }] : []),
             ],
           }
-        : undefined,
+        : {}),
+    },
   });
 
   const toAdd = winningCandidates.filter(
     (candidate) =>
-      !allExistingVisits.some((visit: ExistingVisitRange) =>
+      !confirmedVisits.some((visit: ExistingVisitRange) =>
         overlaps(candidate, {
           arrivalAt: visit.arrivalAt,
           departureAt: visit.departureAt,
