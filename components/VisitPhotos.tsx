@@ -3,18 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ImmichPhoto } from "@/lib/immich";
+import { haversineKm } from "@/lib/geo";
 import PhotoModal from "@/components/PhotoModal";
 
 const MAX_VISIBLE = 5;
+const LOCATION_RADIUS_KM = 0.5;
 
 export function VisitPhotos({
   photos,
   arrivalAt,
   departureAt,
+  lat,
+  lon,
 }: {
   photos: ImmichPhoto[];
   arrivalAt: string;
   departureAt: string;
+  lat?: number;
+  lon?: number;
 }) {
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -22,7 +28,11 @@ export function VisitPhotos({
   const end = new Date(departureAt).getTime();
   const matching = photos.filter((p) => {
     const t = new Date(p.takenAt).getTime();
-    return t >= start && t <= end;
+    if (t < start || t > end) return false;
+    if (lat != null && lon != null && p.lat != null && p.lon != null) {
+      return haversineKm(p.lat, p.lon, lat, lon) <= LOCATION_RADIUS_KM;
+    }
+    return true;
   });
   if (matching.length === 0) return null;
 
@@ -116,7 +126,7 @@ export function VisitPhotos({
   );
 }
 
-export function FetchVisitPhotos({ arrivalAt, departureAt }: { arrivalAt: string; departureAt: string }) {
+export function FetchVisitPhotos({ arrivalAt, departureAt, lat, lon }: { arrivalAt: string; departureAt: string; lat?: number; lon?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
 
@@ -144,7 +154,7 @@ export function FetchVisitPhotos({ arrivalAt, departureAt }: { arrivalAt: string
 
   return (
     <div ref={ref}>
-      {inView && <VisitPhotos photos={photos} arrivalAt={arrivalAt} departureAt={departureAt} />}
+      {inView && <VisitPhotos photos={photos} arrivalAt={arrivalAt} departureAt={departureAt} lat={lat} lon={lon} />}
     </div>
   );
 }

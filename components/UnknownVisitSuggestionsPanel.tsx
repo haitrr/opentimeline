@@ -158,7 +158,7 @@ export default function UnknownVisitSuggestionsPanel() {
                           {format(new Date(s.departureAt), "HH:mm")}
                         </p>
                         <p className="text-xs text-gray-400">{s.pointCount} points</p>
-                        <FetchVisitPhotos arrivalAt={s.arrivalAt} departureAt={s.departureAt} />
+                        <FetchVisitPhotos arrivalAt={s.arrivalAt} departureAt={s.departureAt} lat={s.lat} lon={s.lon} />
                         <div className="mt-1.5 flex gap-1.5">
                           <button
                             onClick={(e) => { e.stopPropagation(); setConfirming(s); }}

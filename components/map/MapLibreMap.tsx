@@ -8,6 +8,7 @@ import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { UnknownVisitData } from "@/components/map/MapWrapper";
 import type { ImmichPhoto } from "@/lib/immich";
+import { haversineKm } from "@/lib/geo";
 
 type Props = {
   points: SerializedPoint[];
@@ -135,11 +136,16 @@ export default function MapLibreMap({
     if (popup?.kind !== "unknownVisit") return [] as ImmichPhoto[];
     const start = new Date(popup.uv.arrivalAt).getTime();
     const end = new Date(popup.uv.departureAt).getTime();
+    const { lat, lon } = popup.uv;
 
     return photos
       .filter((photo) => {
         const takenAt = new Date(photo.takenAt).getTime();
-        return takenAt >= start && takenAt <= end;
+        if (takenAt < start || takenAt > end) return false;
+        if (photo.lat != null && photo.lon != null) {
+          return haversineKm(photo.lat, photo.lon, lat, lon) <= 0.5;
+        }
+        return true;
       })
       .sort(
         (a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime()
