@@ -1,9 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { haversineKm, hasEvidenceOfLeavingInGap } from "@/lib/geo";
 
-const CLUSTER_RADIUS_M = 50;
-const MIN_DWELL_MINUTES = 15;
-const TIME_GAP_MINUTES = 15;
 
 type Point = { id: number; lat: number; lon: number; recordedAt: Date };
 
@@ -23,8 +20,13 @@ function updateCenter(cluster: Cluster, point: Point): void {
 
 export async function detectUnknownVisits(
   rangeStart?: Date,
-  rangeEnd?: Date
+  rangeEnd?: Date,
+  sessionGapMinutes = 15,
+  minDwellMinutes = 15,
+  clusterRadiusM = 50
 ): Promise<number> {
+  const sessionGapMs = sessionGapMinutes * 60 * 1000;
+
   const allPoints = await prisma.locationPoint.findMany({
     orderBy: { recordedAt: "asc" },
     select: { id: true, lat: true, lon: true, recordedAt: true },
@@ -36,9 +38,7 @@ export async function detectUnknownVisits(
                 ? [
                     {
                       recordedAt: {
-                        gte: new Date(
-                          rangeStart.getTime() - TIME_GAP_MINUTES * 60 * 1000
-                        ),
+                        gte: new Date(rangeStart.getTime() - sessionGapMs),
                       },
                     },
                   ]
@@ -47,9 +47,7 @@ export async function detectUnknownVisits(
                 ? [
                     {
                       recordedAt: {
-                        lte: new Date(
-                          rangeEnd.getTime() + TIME_GAP_MINUTES * 60 * 1000
-                        ),
+                        lte: new Date(rangeEnd.getTime() + sessionGapMs),
                       },
                     },
                   ]
@@ -65,9 +63,9 @@ export async function detectUnknownVisits(
     select: { lat: true, lon: true, radius: true },
   });
 
-  const clusterRadiusKm = CLUSTER_RADIUS_M / 1000;
-  const timeGapMs = TIME_GAP_MINUTES * 60 * 1000;
-  const minDwellMs = MIN_DWELL_MINUTES * 60 * 1000;
+  const clusterRadiusKm = clusterRadiusM / 1000;
+  const timeGapMs = sessionGapMs;
+  const minDwellMs = minDwellMinutes * 60 * 1000;
 
   // Build dwell clusters: consecutive points within 50m of cluster center
   // with no more than 15 min gap between consecutive points

@@ -61,3 +61,13 @@ model UnknownVisitSuggestion {
 
   @@index([status])
 }
+
+model AppSettings {
+  id                      Int @id @default(1)
+  sessionGapMinutes       Int @default(15)
+  minDwellMinutes         Int @default(15)
+  postDepartureMinutes    Int @default(15)
+  unknownClusterRadiusM   Int @default(50)
+  unknownSessionGapMinutes Int @default(15)
+  unknownMinDwellMinutes  Int @default(15)
+}

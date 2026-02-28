@@ -51,9 +51,13 @@ type PointRow = { id: number; lat: number; lon: number; recordedAt: Date };
 function computeCandidateVisitsForPlace(
   place: { lat: number; lon: number; radius: number },
   allPoints: PointRow[],
-  timeWindowMinutes: number
+  sessionGapMinutes: number,
+  minDwellMinutes: number,
+  postDepartureMinutes: number
 ): CandidateVisit[] {
-  const timeWindowMs = timeWindowMinutes * 60 * 1000;
+  const sessionGapMs = sessionGapMinutes * 60 * 1000;
+  const minDwellMs = minDwellMinutes * 60 * 1000;
+  const postDepartureMs = postDepartureMinutes * 60 * 1000;
   const radiusKm = place.radius / 1000;
 
   const nearbyPoints: NearbyPoint[] = allPoints
@@ -73,7 +77,7 @@ function computeCandidateVisitsForPlace(
     const curr = nearbyPoints[i];
     const gap = curr.recordedAt.getTime() - prev.recordedAt.getTime();
 
-    if (gap <= timeWindowMs) {
+    if (gap <= sessionGapMs) {
       currentGroup.push(curr);
     } else {
       // If the gap is larger than the time window, only split groups if there's
@@ -94,13 +98,13 @@ function computeCandidateVisitsForPlace(
     const arrivalAt = group[0].recordedAt;
     const departureAt = group[group.length - 1].recordedAt;
 
-    if (departureAt.getTime() - arrivalAt.getTime() < timeWindowMs) continue;
+    if (departureAt.getTime() - arrivalAt.getTime() < minDwellMs) continue;
 
     // Only count a visit if the person has clearly left: there must be a point
-    // outside the place radius recorded at least 15 minutes after the last
+    // outside the place radius recorded at least postDepartureMinutes after the last
     // point in this group. This avoids counting ongoing visits with wrong duration.
-    // Binary search for first point after departureAt + timeWindowMs.
-    const minTimeMs = departureAt.getTime() + timeWindowMs;
+    // Binary search for first point after departureAt + postDepartureMs.
+    const minTimeMs = departureAt.getTime() + postDepartureMs;
     let lo = 0;
     let hi = allPoints.length;
     while (lo < hi) {
@@ -130,7 +134,9 @@ function computeCandidateVisitsForPlace(
 
 async function detectCandidateVisitsForPlace(
   placeId: number,
-  timeWindowMinutes = 15,
+  sessionGapMinutes = 15,
+  minDwellMinutes = 15,
+  postDepartureMinutes = 15,
   rangeStart?: Date,
   rangeEnd?: Date
 ): Promise<CandidateVisit[]> {
@@ -156,7 +162,7 @@ async function detectCandidateVisitsForPlace(
         : undefined,
   });
 
-  return computeCandidateVisitsForPlace(place, allPoints, timeWindowMinutes);
+  return computeCandidateVisitsForPlace(place, allPoints, sessionGapMinutes, minDwellMinutes, postDepartureMinutes);
 }
 
 function overlaps(a: VisitRange, b: VisitRange): boolean {
@@ -223,13 +229,9 @@ function selectClosestCandidatesPerTimeRange(
 }
 
 export async function detectVisitsForPlace(
-  placeId: number,
-  timeWindowMinutes = 15
+  placeId: number
 ): Promise<number> {
-  const candidates = await detectCandidateVisitsForPlace(
-    placeId,
-    timeWindowMinutes
-  );
+  const candidates = await detectCandidateVisitsForPlace(placeId);
 
   let newVisitsCount = 0;
   for (const candidate of candidates) {
@@ -259,13 +261,9 @@ export async function detectVisitsForPlace(
 }
 
 export async function reconcileVisitSuggestionsForPlace(
-  placeId: number,
-  timeWindowMinutes = 15
+  placeId: number
 ): Promise<{ removed: number; added: number }> {
-  const candidates = await detectCandidateVisitsForPlace(
-    placeId,
-    timeWindowMinutes
-  );
+  const candidates = await detectCandidateVisitsForPlace(placeId);
 
   const existingSuggested = await prisma.visit.findMany({
     where: { placeId, status: "suggested" },
@@ -323,7 +321,9 @@ export async function reconcileVisitSuggestionsForPlace(
 }
 
 export async function detectVisitsForAllPlaces(
-  timeWindowMinutes = 15,
+  sessionGapMinutes = 15,
+  minDwellMinutes = 15,
+  postDepartureMinutes = 15,
   rangeStart?: Date,
   rangeEnd?: Date
 ): Promise<number> {
@@ -351,7 +351,7 @@ export async function detectVisitsForAllPlaces(
 
   const allCandidates: CandidateVisitWithPlace[] = [];
   for (const place of places) {
-    const candidates = computeCandidateVisitsForPlace(place, sharedPoints, timeWindowMinutes);
+    const candidates = computeCandidateVisitsForPlace(place, sharedPoints, sessionGapMinutes, minDwellMinutes, postDepartureMinutes);
 
     for (const candidate of candidates) {
       allCandidates.push({
