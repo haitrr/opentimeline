@@ -20,6 +20,7 @@ export default function VisitSuggestionsPanel() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<Visit | null>(null);
+  const [creatingPlaceForVisitCentroid, setCreatingPlaceForVisitCentroid] = useState<{ lat: number; lon: number } | null>(null);
 
   const { data: visits = [] } = useQuery<Visit[]>({
     queryKey: ["visits", "suggested"],
@@ -42,6 +43,24 @@ export default function VisitSuggestionsPanel() {
     }
   }
 
+  async function openCreatePlaceForVisit(visit: Visit) {
+    const params = new URLSearchParams({ start: visit.arrivalAt, end: visit.departureAt });
+    let lat = visit.place.lat;
+    let lon = visit.place.lon;
+    try {
+      const res = await fetch(`/api/locations?${params}`);
+      if (res.ok) {
+        const points: Array<{ lat: number; lon: number }> = await res.json();
+        if (points.length > 0) {
+          lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+          lon = points.reduce((s, p) => s + p.lon, 0) / points.length;
+        }
+      }
+    } catch { /* fallback to place coords */ }
+    setCreatingPlaceForVisitCentroid({ lat, lon });
+    setCreatingPlaceForVisit(visit);
+  }
+
   async function handlePlaceCreatedForVisit(visitId: number, placeId: number) {
     const res = await fetch(`/api/visits/${visitId}`, {
       method: "PUT",
@@ -51,6 +70,7 @@ export default function VisitSuggestionsPanel() {
 
     if (res.ok) {
       setCreatingPlaceForVisit(null);
+      setCreatingPlaceForVisitCentroid(null);
       queryClient.invalidateQueries({ queryKey: ["visits"] });
       queryClient.invalidateQueries({ queryKey: ["places"] });
     }
@@ -95,7 +115,7 @@ export default function VisitSuggestionsPanel() {
                   <FetchVisitPhotos arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
                   <div className="mt-1.5 flex gap-1.5">
                     <button
-                      onClick={(e) => { e.stopPropagation(); setCreatingPlaceForVisit(v); }}
+                      onClick={(e) => { e.stopPropagation(); openCreatePlaceForVisit(v); }}
                       className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
                     >
                       Create Place
@@ -120,11 +140,11 @@ export default function VisitSuggestionsPanel() {
         </div>
       )}
 
-      {creatingPlaceForVisit && (
+      {creatingPlaceForVisit && creatingPlaceForVisitCentroid && (
         <PlaceCreationModal
-          lat={creatingPlaceForVisit.place.lat}
-          lon={creatingPlaceForVisit.place.lon}
-          onClose={() => setCreatingPlaceForVisit(null)}
+          lat={creatingPlaceForVisitCentroid.lat}
+          lon={creatingPlaceForVisitCentroid.lon}
+          onClose={() => { setCreatingPlaceForVisit(null); setCreatingPlaceForVisitCentroid(null); }}
           onCreated={(place) => handlePlaceCreatedForVisit(creatingPlaceForVisit.id, place.id)}
         />
       )}
