@@ -19,13 +19,19 @@ export function getRangeBounds(
   switch (rangeType) {
     case "week":
       return {
-        start: startOfWeek(date, { weekStartsOn: 1 }),
-        end: endOfWeek(date, { weekStartsOn: 1 }),
+        start: startOfDay(startOfWeek(date, { weekStartsOn: 1 })),
+        end: endOfDay(endOfWeek(date, { weekStartsOn: 1 })),
       };
     case "month":
-      return { start: startOfMonth(date), end: endOfMonth(date) };
+      return {
+        start: startOfDay(startOfMonth(date)),
+        end: endOfDay(endOfMonth(date)),
+      };
     case "year":
-      return { start: startOfYear(date), end: endOfYear(date) };
+      return {
+        start: startOfDay(startOfYear(date)),
+        end: endOfDay(endOfYear(date)),
+      };
     case "custom": {
       const endDate = endDateStr ? parseISO(endDateStr) : date;
       return { start: startOfDay(date), end: endOfDay(endDate) };

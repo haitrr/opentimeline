@@ -54,8 +54,8 @@ export function computePeriodStats(
   for (const p of points) {
     const key =
       groupBy === "hour"
-        ? format(new Date(p.recordedAt), "HH")
-        : format(new Date(p.recordedAt), "yyyy-MM-dd");
+        ? format(p.recordedAt, "HH")
+        : format(p.recordedAt, "yyyy-MM-dd");
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key)!.push(p);
   }
@@ -65,12 +65,12 @@ export function computePeriodStats(
     .map(([, pts]) => ({
       key:
         groupBy === "hour"
-          ? format(new Date(pts[0].recordedAt), "HH:00")
-          : format(new Date(pts[0].recordedAt), "yyyy-MM-dd"),
+          ? format(pts[0].recordedAt, "HH:00")
+          : format(pts[0].recordedAt, "yyyy-MM-dd"),
       label:
         groupBy === "hour"
-          ? format(new Date(pts[0].recordedAt), "h a")
-          : format(new Date(pts[0].recordedAt), "EEE, MMM d"),
+          ? format(pts[0].recordedAt, "h a")
+          : format(pts[0].recordedAt, "EEE, MMM d"),
       points: pts,
       distanceKm: totalDistanceKm(pts),
     }));
@@ -80,7 +80,7 @@ export function computePeriodStats(
   const durationMinutes = Math.round((lastTst - firstTst) / 60);
 
   const daysWithData = new Set(
-    points.map((p) => format(new Date(p.recordedAt), "yyyy-MM-dd"))
+    points.map((p) => format(p.recordedAt, "yyyy-MM-dd"))
   ).size;
 
   return {
