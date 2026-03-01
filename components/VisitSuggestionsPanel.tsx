@@ -50,12 +50,8 @@ export default function VisitSuggestionsPanel() {
     setCreatingPlaceForVisit(visit);
   }
 
-  async function handlePlaceCreatedForVisit(visitId: number, placeId: number) {
-    const res = await fetch(`/api/visits/${visitId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ placeId }),
-    });
+  async function handlePlaceCreatedForVisit(visitId: number) {
+    const res = await fetch(`/api/visits/${visitId}`, { method: "DELETE" });
 
     if (res.ok) {
       setCreatingPlaceForVisit(null);
@@ -134,7 +130,7 @@ export default function VisitSuggestionsPanel() {
           lat={creatingPlaceForVisitCentroid.lat}
           lon={creatingPlaceForVisitCentroid.lon}
           onClose={() => { setCreatingPlaceForVisit(null); setCreatingPlaceForVisitCentroid(null); }}
-          onCreated={(place) => handlePlaceCreatedForVisit(creatingPlaceForVisit.id, place.id)}
+          onCreated={() => handlePlaceCreatedForVisit(creatingPlaceForVisit.id)}
         />
       )}
     </div>
