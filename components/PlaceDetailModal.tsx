@@ -635,7 +635,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
             )}
             {editError && <p className="mt-1 text-xs text-red-600">{editError}</p>}
           </div>
-          <div className="ml-2 flex shrink-0 flex-wrap items-start justify-end gap-1.5 sm:ml-4">
+          <div className="ml-2 flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:ml-4">
             {editing ? (
               <>
                 <button
@@ -688,7 +688,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
             )}
             <button
               onClick={onClose}
-              className="mt-0.5 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              className="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
             >
               ✕
             </button>
