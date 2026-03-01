@@ -293,7 +293,7 @@ async function detectCandidateVisitsForPlace(
 }
 
 function overlaps(a: VisitRange, b: VisitRange): boolean {
-  return a.arrivalAt <= b.departureAt && a.departureAt >= b.arrivalAt;
+  return a.arrivalAt < b.departureAt && a.departureAt > b.arrivalAt;
 }
 
 function selectClosestCandidatesPerTimeRange(
