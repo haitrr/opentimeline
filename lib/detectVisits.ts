@@ -367,13 +367,24 @@ export async function detectVisitsForPlace(
     select: { arrivalAt: true, departureAt: true },
   });
 
+  // Also fetch confirmed visits from other places to avoid creating suggestions
+  // that overlap with already-confirmed visits at other places.
+  const confirmedElsewhere = await prisma.visit.findMany({
+    where: { status: "confirmed", NOT: { placeId } },
+    select: { arrivalAt: true, departureAt: true },
+  });
+
   let newVisitsCount = 0;
   for (const candidate of candidates) {
     const hasOverlap = allExisting.some((v: ExistingVisitRange) =>
       overlaps(candidate, { arrivalAt: v.arrivalAt, departureAt: v.departureAt })
     );
+    const blockedByConfirmedElsewhere = confirmedElsewhere.some(
+      (v: ExistingVisitRange) =>
+        overlaps(candidate, { arrivalAt: v.arrivalAt, departureAt: v.departureAt })
+    );
 
-    if (!hasOverlap) {
+    if (!hasOverlap && !blockedByConfirmedElsewhere) {
       await prisma.visit.create({
         data: {
           placeId,
@@ -422,6 +433,13 @@ export async function reconcileVisitSuggestionsForPlace(
     select: { arrivalAt: true, departureAt: true },
   });
 
+  // Also fetch confirmed visits from other places to avoid creating suggestions
+  // that overlap with already-confirmed visits at other places.
+  const confirmedElsewhere = await prisma.visit.findMany({
+    where: { status: "confirmed", NOT: { placeId } },
+    select: { arrivalAt: true, departureAt: true },
+  });
+
   let added = 0;
   for (const candidate of candidates) {
     const hasOverlap = allExisting.some((visit: ExistingVisitRange) =>
@@ -430,8 +448,12 @@ export async function reconcileVisitSuggestionsForPlace(
         departureAt: visit.departureAt,
       })
     );
+    const blockedByConfirmedElsewhere = confirmedElsewhere.some(
+      (v: ExistingVisitRange) =>
+        overlaps(candidate, { arrivalAt: v.arrivalAt, departureAt: v.departureAt })
+    );
 
-    if (!hasOverlap) {
+    if (!hasOverlap && !blockedByConfirmedElsewhere) {
       await prisma.visit.create({
         data: {
           placeId,
