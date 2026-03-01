@@ -26,6 +26,7 @@ type NearbyPlaceOption = {
 type VisitCardProps = {
   visit: Visit;
   gapPx: number;
+  gapMs: number;
   hasDateSeparator: boolean;
   nextYear: number | null;
   nextMonthLabel: string | null;
@@ -41,6 +42,7 @@ type VisitCardProps = {
 function VisitCard({
   visit: v,
   gapPx: spacerPx,
+  gapMs,
   hasDateSeparator,
   nextYear,
   nextMonthLabel,
@@ -140,12 +142,12 @@ function VisitCard({
 
       {!isLast && (
         <div
-          className="relative flex items-center justify-center"
+          className="relative"
           style={{ height: spacerPx }}
           data-scrubber-segment={scrubberSegmentKey}
         >
           {hasDateSeparator && (
-            <div className="relative z-10 flex flex-col items-center gap-1">
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1">
               {nextYear !== null && (
                 <span className="rounded-full bg-[#1a7bb5] px-3 py-0.5 text-xs font-semibold text-white shadow-sm">
                   {nextYear}
@@ -157,6 +159,14 @@ function VisitCard({
                 </span>
               )}
             </div>
+          )}
+          {formatGapMs(gapMs) && (
+            <span
+              className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-2 py-0.5 text-[10px] text-gray-400 ring-1 ring-gray-200"
+              style={{ left: 15, top: "50%" }}
+            >
+              {formatGapMs(gapMs)}
+            </span>
           )}
         </div>
       )}
@@ -190,6 +200,24 @@ function formatVisitSpan(from: Date, to: Date): string {
   if (totalMonths >= 1) return `${totalMonths} mo`;
   const totalDays = differenceInDays(to, from);
   return `${Math.max(1, totalDays)} day${totalDays !== 1 ? "s" : ""}`;
+}
+
+function formatGapMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return "";
+  const totalMinutes = Math.round(ms / 60000);
+  if (totalMinutes < 60) return `${Math.max(1, totalMinutes)}m`;
+  const totalHours = Math.floor(totalMinutes / 60);
+  if (totalHours < 24) {
+    const rem = totalMinutes % 60;
+    return rem > 0 ? `${totalHours}h ${rem}m` : `${totalHours}h`;
+  }
+  const totalDays = Math.floor(ms / 86400000);
+  if (totalDays < 31) return `${totalDays}d`;
+  const totalMonths = Math.round(totalDays / 30.44);
+  if (totalMonths < 12) return `${totalMonths}mo`;
+  const years = Math.floor(totalMonths / 12);
+  const remMonths = totalMonths % 12;
+  return remMonths > 0 ? `${years}yr ${remMonths}mo` : `${years}yr`;
 }
 
 function formatDuration(minutes: number): string {
@@ -755,6 +783,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                     key={v.id}
                     visit={v}
                     gapPx={spacerPx}
+                    gapMs={gapsMs[i] ?? NaN}
                     hasDateSeparator={hasDateSeparator}
                     nextYear={nextYear}
                     nextMonthLabel={nextMonthLabel}
