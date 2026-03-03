@@ -1,15 +1,8 @@
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import { format } from "date-fns";
 
+export const dynamic = "force-dynamic";
+
 export default function TimelineIndexPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace(`/timeline/${format(new Date(), "yyyy-MM-dd")}`);
-  }, [router]);
-
-  return null;
+  redirect(`/timeline/${format(new Date(), "yyyy-MM-dd")}`);
 }
