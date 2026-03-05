@@ -392,6 +392,7 @@ export default function MapLibreMap({
             hasSuggestedInRange,
             hasVisitsInRange: hasConfirmedInRange || hasSuggestedInRange,
             hovered: p.id === hoveredPlaceId,
+            visitCount: (p.confirmedVisitsInRange ?? 0) + (p.suggestedVisitsInRange ?? 0),
           },
         };
       }),
@@ -822,7 +823,11 @@ export default function MapLibreMap({
             minzoom={9}
             layout={{
               visibility: vis(showVisitedPlaces),
-              "text-field": ["get", "name"],
+              "text-field": ["case",
+                [">", ["get", "visitCount"], 1],
+                ["concat", ["get", "name"], " x", ["to-string", ["get", "visitCount"]]],
+                ["get", "name"],
+              ],
               "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
               "text-size": 12,
               "text-anchor": "bottom",
