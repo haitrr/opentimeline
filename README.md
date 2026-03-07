@@ -187,12 +187,109 @@ Relevant endpoints:
 - `PUT /api/unknown-visits/:id`
 - `POST /api/unknown-visits/detect`
 
+## MCP Server
+
+OpenTimeline ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that lets AI agents interact with your timeline directly.
+
+### Embedded in the web server (HTTP)
+
+The MCP HTTP server starts automatically alongside the Next.js web server on port `3001` (Streamable HTTP transport, endpoint `/mcp`). No extra process needed.
+
+Set `MCP_PORT` in `.env` to change the port, or set it to `0` to disable the embedded server:
+
+```env
+MCP_PORT=3001   # default; set to 0 to disable
+```
+
+Point an MCP client at `http://localhost:3001/mcp`.
+
+### Standalone MCP server (stdio)
+
+```bash
+pnpm mcp
+```
+
+Communicates over stdio — use this for Claude Desktop / Claude Code config. The server reads `DATABASE_URL` (and optionally `IMMICH_BASE_URL` / `IMMICH_API_KEY`) from `.env`.
+
+### Standalone MCP server (HTTP)
+
+```bash
+MCP_PORT=3001 pnpm mcp
+# or
+pnpm mcp --http
+```
+
+### Configuring Claude Desktop / Claude Code
+
+**Option A — HTTP** (recommended when the web server is already running): use [`mcp-remote`](https://github.com/geelen/mcp-remote) to bridge the HTTP server to stdio:
+
+```json
+{
+  "mcpServers": {
+    "opentimeline": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://localhost:3001/mcp"]
+    }
+  }
+}
+```
+
+**Option B — stdio** (spawns a dedicated process, no web server required):
+
+```json
+{
+  "mcpServers": {
+    "opentimeline": {
+      "command": "pnpm",
+      "args": ["--prefix", "/absolute/path/to/opentimeline", "mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+Or with `tsx` directly:
+
+```json
+{
+  "mcpServers": {
+    "opentimeline": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/opentimeline/node_modules/.bin/tsx",
+        "--tsconfig", "/absolute/path/to/opentimeline/tsconfig.json",
+        "/absolute/path/to/opentimeline/mcp/server.ts"
+      ],
+      "env": {
+        "DATABASE_URL": "postgresql://user:pass@localhost:5432/opentimeline"
+      }
+    }
+  }
+}
+```
+
+### Available tools
+
+| Tool | Description |
+|------|-------------|
+| `trigger_visit_detection` | Run visit detection for all known places (optional date range) |
+| `trigger_unknown_visit_detection` | Detect dwell clusters at unknown locations (optional date range) |
+| `get_pending_unknown_visits` | List unknown visit suggestions with coordinates and duration |
+| `review_unknown_visit` | Get full details of a suggestion: coords, nearest places, Immich photos |
+| `confirm_unknown_visit` | Mark a suggestion as confirmed or rejected |
+| `create_place_from_unknown_visit` | Create a new named place from a suggestion and run visit detection |
+| `get_current_location` | Get the most recent GPS point recorded |
+| `get_location_history` | Get location points for a date or custom time range |
+| `get_visits` | Get confirmed/suggested visits with place info for a time range |
+| `get_places` | List all known places with coordinates and visit counts |
+
 ## Scripts
 
 - `pnpm dev` – run development server
 - `pnpm build` – production build
 - `pnpm start` – run production server
 - `pnpm lint` – run ESLint
+- `pnpm mcp` – run the MCP server (stdio transport)
 
 ## Project Docs
 
