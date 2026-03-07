@@ -1,33 +1,39 @@
-# OpenTimeline
+# 🗺️ OpenTimeline
 
-OpenTimeline is a self-hosted location timeline built with Next.js and PostgreSQL.
+OpenTimeline is a self-hosted drop-in replacement for Google Maps Timeline, built with Next.js and PostgreSQL.
+After Google moved Timeline to on-device storage in 2024, OpenTimeline gives you back a server-side timeline you own and control.
 It ingests location points (OwnTracks webhook or GPX import), renders them on a map, and helps you turn dwell periods into meaningful places and visit history.
 
-## Features
+## ✨ Features
 
-- Timeline views by day/week/month/year/custom/all.
-- Interactive map with location points and daily stats.
-- OwnTracks webhook ingestion (`POST /api/owntracks`).
-- GPX file import from the timeline UI.
-- Place management (create, update radius/name, delete).
-- Automatic visit suggestion detection for known places.
-- Automatic unknown-visit suggestion detection for dwell clusters outside known places.
-- Optional Immich photo overlay for selected date/time ranges.
+**🔒 Your data, your server**
+- Full timeline history across day / week / month / year / custom / all ranges
+- Interactive map with location tracks and daily stats
+- Live ingestion via OwnTracks webhook — or bulk import from GPX files
 
-## Tech Stack
+**📍 Smart place & visit tracking**
+- Define places with a custom radius; OpenTimeline does the rest
+- Automatic visit detection from dwell clusters — confirm or reject suggestions
+- Unknown-visit suggestions for dwell periods outside any known place
+
+**🔌 Integrations**
+- 📷 Immich photo overlay — see your photos in context on the map
+- 🤖 Built-in MCP server — AI agents (Claude, etc.) can query your timeline directly
+
+## 🛠️ Tech Stack
 
 - Next.js 16 (App Router) + React 19 + TypeScript
 - PostgreSQL + Prisma ORM
 - Tailwind CSS 4
 - Leaflet / react-leaflet
 
-## Requirements
+## 📋 Requirements
 
 - Node.js 20+
 - pnpm
 - PostgreSQL 14+
 
-## Quick Start
+## 🚀 Quick Start
 
 ### 1) Install dependencies
 
@@ -83,7 +89,7 @@ pnpm dev
 
 Open `http://localhost:3000`. The root route redirects to `/timeline/YYYY-MM-DD` for today.
 
-## Database Backups
+## 💾 Database Backups
 
 Docker Compose includes a `postgres-backup` sidecar that runs `pg_dump` on a schedule.
 
@@ -114,7 +120,7 @@ If you are using production compose, replace `docker compose` with:
 docker compose -f docker-compose.prod.yml
 ```
 
-## Data Ingestion
+## 📡 Data Ingestion
 
 ### Option A: OwnTracks webhook (live)
 
@@ -132,7 +138,7 @@ Endpoint: `POST /api/owntracks?u=<username>&d=<deviceId>`
 
 The app parses trackpoints/waypoints in-browser, posts them to `POST /api/import`, deduplicates by timestamp (`tst`), and inserts only new points.
 
-## Places, Visits, and Unknown Visits
+## 🏙️ Places, Visits, and Unknown Visits
 
 ### Places
 
@@ -151,7 +157,7 @@ The app parses trackpoints/waypoints in-browser, posts them to `POST /api/import
 - Suggestions can be confirmed/rejected.
 - Background detection runs on app load and then hourly.
 
-## Immich Integration (Optional)
+## 📷 Immich Integration (Optional)
 
 Set both:
 
@@ -165,7 +171,7 @@ Relevant endpoints:
 - `GET /api/immich?start=<ISO>&end=<ISO>`
 - `GET /api/immich/thumbnail?id=<assetId>&size=thumbnail|preview`
 
-## Key Routes
+## 🔗 Key Routes
 
 ### Pages
 
@@ -187,7 +193,7 @@ Relevant endpoints:
 - `PUT /api/unknown-visits/:id`
 - `POST /api/unknown-visits/detect`
 
-## MCP Server
+## 🤖 MCP Server
 
 OpenTimeline ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that lets AI agents interact with your timeline directly.
 
@@ -283,7 +289,7 @@ Or with `tsx` directly:
 | `get_visits` | Get confirmed/suggested visits with place info for a time range |
 | `get_places` | List all known places with coordinates and visit counts |
 
-## Scripts
+## 📜 Scripts
 
 - `pnpm dev` – run development server
 - `pnpm build` – production build
@@ -291,7 +297,35 @@ Or with `tsx` directly:
 - `pnpm lint` – run ESLint
 - `pnpm mcp` – run the MCP server (stdio transport)
 
-## Project Docs
+## ⚖️ Comparison: OpenTimeline vs Google Timeline vs Dawarich
+
+| Feature | OpenTimeline | Google Maps Timeline | Dawarich |
+|---|---|---|---|
+| **Self-hosted** | Yes | No (Google cloud) | Yes |
+| **Privacy** | Full — your data, your server | Google owns/processes your data | Full |
+| **Data ingestion** | OwnTracks webhook, GPX import | Google apps, Android background location | OwnTracks, GPX, Google Takeout, Overland, Strava, Immich |
+| **Map view** | Yes (Leaflet/OSM) | Yes (Google Maps) | Yes (Leaflet/OSM) |
+| **Timeline granularity** | Day/week/month/year/custom/all | Day-based | Day/month/year |
+| **Place management** | Manual create/edit/delete with radius | Automatic (Google AI) | Via Dawarich UI |
+| **Visit detection** | Auto-detect from dwell clusters | Auto (Google AI + manual confirm) | Auto-detect |
+| **Unknown visit suggestions** | Yes (dwell clusters outside known places) | Yes (Google suggests from POI database) | Yes |
+| **Photo overlay** | Immich integration | Google Photos auto-overlay | Immich integration |
+| **MCP / AI agent API** | Yes (built-in MCP server) | No | No |
+| **Trips / routes** | Raw GPS tracks | Inferred trips with transport mode | Raw GPS tracks + stats |
+| **Transport mode detection** | No | Yes (walk/drive/fly/transit) | No |
+| **Reverse geocoding** | No (place names are manual) | Yes (automatic) | Yes (Photon/Nominatim) |
+| **Stats & heatmaps** | Basic daily stats | Rich stats (distance, places visited) | Heatmaps, distance stats, country/city counts |
+| **Export** | — | Google Takeout (JSON) | GPX, GeoJSON, CSV |
+| **Mobile app** | Via OwnTracks (3rd party) | Native Google Maps app | Via OwnTracks/Overland (3rd party) |
+| **Tech stack** | Next.js, PostgreSQL, Prisma | Proprietary | Ruby on Rails, PostgreSQL |
+
+**Google Timeline** is the most polished — automatic transport detection, AI place inference, rich stats, photo overlay — but it's a cloud service with full Google data access.
+
+**Dawarich** is the most feature-complete self-hosted alternative: reverse geocoding, heatmaps, country/city stats, multiple import sources. It's closer to a Google Takeout migration target.
+
+**OpenTimeline** is leaner and more developer-focused. Its standout differentiator is the built-in MCP server — AI agents can query your timeline directly. Best suited if you want a lightweight self-hosted tracker with OwnTracks, and don't need reverse geocoding, export, or rich stats.
+
+## 📚 Project Docs
 
 - [GPX Import](docs/gpx-import.md)
 - [Places and Visits](docs/places-and-visits.md)
