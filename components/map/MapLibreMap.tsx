@@ -1,126 +1,19 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Map, { Source, Layer, Marker, Popup, type MapRef, type MapLayerMouseEvent } from "react-map-gl/maplibre";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Map, { Marker, type MapRef, type MapLayerMouseEvent } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { format } from "date-fns";
-import type { SerializedPoint } from "@/lib/groupByHour";
-import type { PlaceData } from "@/lib/detectVisits";
-import type { UnknownVisitData } from "@/components/map/MapWrapper";
-import type { ImmichPhoto } from "@/lib/immich";
 import { haversineKm } from "@/lib/geo";
-
-/** Interpolates green → cyan → blue → purple → red for t in [0, 1]. */
-function interpolateColor(t: number): string {
-  // 5 control points evenly spaced at 0, 0.25, 0.5, 0.75, 1
-  const stops: [number, number, number][] = [
-    [34, 197, 94],   // #22c55e green
-    [6, 182, 212],   // #06b6d4 cyan
-    [59, 130, 246],  // #3b82f6 blue
-    [168, 85, 247],  // #a855f7 purple
-    [239, 68, 68],   // #ef4444 red
-  ];
-  const seg = t * (stops.length - 1);
-  const i = Math.min(Math.floor(seg), stops.length - 2);
-  const s = seg - i;
-  const [r1, g1, b1] = stops[i];
-  const [r2, g2, b2] = stops[i + 1];
-  const r = Math.round(r1 + s * (r2 - r1));
-  const g = Math.round(g1 + s * (g2 - g1));
-  const b = Math.round(b1 + s * (b2 - b1));
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-}
-
-type Props = {
-  points: SerializedPoint[];
-  rangeKey?: string;
-  shouldAutoFit?: boolean;
-  places?: PlaceData[];
-  unknownVisits?: UnknownVisitData[];
-  photos?: ImmichPhoto[];
-  onMapClick?: (lat: number, lon: number) => void;
-  onCreateVisit?: (lat: number, lon: number) => void;
-  onPlaceClick?: (place: PlaceData) => void;
-  onPlaceMoveRequest?: (place: PlaceData, lat: number, lon: number) => void;
-  onUnknownVisitCreatePlace?: (uv: UnknownVisitData) => void;
-  onPhotoClick?: (photo: ImmichPhoto, list?: ImmichPhoto[]) => void;
-};
-
-type PopupState =
-  | { kind: "point"; point: SerializedPoint; lat: number; lon: number }
-  | { kind: "unknownVisit"; uv: UnknownVisitData; lat: number; lon: number }
-  | { kind: "photo"; photo: ImmichPhoto; lat: number; lon: number }
-  | null;
-
-/** Generates a polygon approximating a geo-accurate circle of radiusM metres. */
-function geoCircle(
-  lat: number,
-  lon: number,
-  radiusM: number,
-  steps = 64
-): { type: "Polygon"; coordinates: [number, number][][] } {
-  const coords: [number, number][] = [];
-  const earthR = 6371000;
-  const angR = radiusM / earthR;
-  for (let i = 0; i <= steps; i++) {
-    const angle = (i * 2 * Math.PI) / steps;
-    const dLat = angR * Math.cos(angle);
-    const dLon = (angR * Math.sin(angle)) / Math.cos((lat * Math.PI) / 180);
-    coords.push([lon + (dLon * 180) / Math.PI, lat + (dLat * 180) / Math.PI]);
-  }
-  return { type: "Polygon", coordinates: [coords] };
-}
-
-const MAP_LAYER_SETTINGS_KEY = "opentimeline:map-layer-settings";
-
-type MapLayerSettings = {
-  showHeatmap?: boolean;
-  showLine?: boolean;
-  showVisitedPlaces?: boolean;
-  showPoints?: boolean;
-  showPlaces?: boolean;
-  hidePoints?: boolean;
-  hidePlaces?: boolean;
-  hidePhotos?: boolean;
-};
-
-const DEFAULT_MAP_LAYER_SETTINGS = {
-  showHeatmap: false,
-  showLine: true,
-  showVisitedPlaces: true,
-  hidePoints: false,
-  hidePlaces: false,
-  hidePhotos: false,
-};
-
-const FIT_BOUNDS_PADDING = 40;
-const FIT_BOUNDS_MAX_ZOOM = 16.5;
-const PLAY_DURATION_PER_DAY_MS = 30000; // 30s per day of journey, capped at 5 min
-
-function computeInitialViewState(points: SerializedPoint[]) {
-  if (points.length === 0) return { longitude: 0, latitude: 20, zoom: 2 };
-  const lats = points.map((p) => p.lat);
-  const lons = points.map((p) => p.lon);
-  return {
-    bounds: [
-      [Math.min(...lons), Math.min(...lats)],
-      [Math.max(...lons), Math.max(...lats)],
-    ] as [[number, number], [number, number]],
-    fitBoundsOptions: { padding: 40 },
-  };
-}
-
-function FlyToHandler({ mapRef }: { mapRef: React.RefObject<MapRef | null> }) {
-  useEffect(() => {
-    function handler(e: Event) {
-      const { lat, lon } = (e as CustomEvent<{ lat: number; lon: number }>).detail;
-      mapRef.current?.flyTo({ center: [lon, lat], zoom: 17, duration: 1000 });
-    }
-    window.addEventListener("opentimeline:fly-to", handler);
-    return () => window.removeEventListener("opentimeline:fly-to", handler);
-  }, [mapRef]);
-  return null;
-}
+import type { ImmichPhoto } from "@/lib/immich";
+import { computeInitialViewState } from "@/components/map/mapUtils";
+import { FIT_BOUNDS_PADDING, FIT_BOUNDS_MAX_ZOOM, type PopupState, type Props } from "@/components/map/mapConstants";
+import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
+import { useJourneyPlayback } from "@/components/map/hooks/useJourneyPlayback";
+import { useMapGeoJSON } from "@/components/map/hooks/useMapGeoJSON";
+import FlyToHandler from "@/components/map/FlyToHandler";
+import MapLayers from "@/components/map/MapLayers";
+import MapPopups from "@/components/map/MapPopups";
+import MapControls from "@/components/map/MapControls";
 
 export default function MapLibreMap({
   points,
@@ -140,13 +33,6 @@ export default function MapLibreMap({
 
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(DEFAULT_MAP_LAYER_SETTINGS.showHeatmap);
-  const [showLine, setShowLine] = useState(DEFAULT_MAP_LAYER_SETTINGS.showLine);
-  const [showVisitedPlaces, setShowVisitedPlaces] = useState(DEFAULT_MAP_LAYER_SETTINGS.showVisitedPlaces);
-  const [hidePoints, setHidePoints] = useState(DEFAULT_MAP_LAYER_SETTINGS.hidePoints);
-  const [hidePlaces, setHidePlaces] = useState(DEFAULT_MAP_LAYER_SETTINGS.hidePlaces);
-  const [hidePhotos, setHidePhotos] = useState(DEFAULT_MAP_LAYER_SETTINGS.hidePhotos);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [layersMenuOpen, setLayersMenuOpen] = useState(false);
   const [popup, setPopup] = useState<PopupState>(null);
   const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
@@ -154,20 +40,15 @@ export default function MapLibreMap({
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const autoFitAppliedForRangeKeyRef = useRef<string | null>(null);
 
-  // Journey playback
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playPos, setPlayPos] = useState<{ lat: number; lon: number } | null>(null);
-  const [playProgress, setPlayProgress] = useState(0);
-  const [playTimestamp, setPlayTimestamp] = useState<number | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const playStartTimeRef = useRef<number | null>(null);
+  const layerSettings = useLayerSettings();
+  const { isPlaying, playPos, playProgress, playTimestamp, startPlay, stopPlay } = useJourneyPlayback(points, rangeKey);
+  const geoJSON = useMapGeoJSON(points, places, unknownVisits, photos, layerSettings.showVisitedPlaces, hoveredPlaceId);
 
   const unknownVisitPopupPhotos = useMemo(() => {
     if (popup?.kind !== "unknownVisit") return [] as ImmichPhoto[];
     const start = new Date(popup.uv.arrivalAt).getTime();
     const end = new Date(popup.uv.departureAt).getTime();
     const { lat, lon } = popup.uv;
-
     return photos
       .filter((photo) => {
         const takenAt = new Date(photo.takenAt).getTime();
@@ -177,57 +58,8 @@ export default function MapLibreMap({
         }
         return true;
       })
-      .sort(
-        (a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime()
-      );
+      .sort((a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime());
   }, [popup, photos]);
-
-  // Load layer settings from localStorage
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(MAP_LAYER_SETTINGS_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as MapLayerSettings;
-      if (typeof parsed.showHeatmap === "boolean") setShowHeatmap(parsed.showHeatmap);
-      if (typeof parsed.showLine === "boolean") setShowLine(parsed.showLine);
-      if (typeof parsed.showVisitedPlaces === "boolean") setShowVisitedPlaces(parsed.showVisitedPlaces);
-      if (typeof parsed.showPoints === "boolean") {
-        setHidePoints(!parsed.showPoints);
-      } else if (typeof parsed.hidePoints === "boolean") {
-        setHidePoints(parsed.hidePoints);
-      }
-      if (typeof parsed.showPlaces === "boolean") {
-        setHidePlaces(!parsed.showPlaces);
-      } else if (typeof parsed.hidePlaces === "boolean") {
-        setHidePlaces(parsed.hidePlaces);
-      }
-      if (typeof parsed.hidePhotos === "boolean") setHidePhotos(parsed.hidePhotos);
-    } catch {
-      // ignore invalid local storage values
-    } finally {
-      setSettingsLoaded(true);
-    }
-  }, []);
-
-  // Save layer settings to localStorage
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    try {
-      window.localStorage.setItem(
-        MAP_LAYER_SETTINGS_KEY,
-        JSON.stringify({
-          showHeatmap,
-          showLine,
-          showVisitedPlaces,
-          showPoints: !hidePoints,
-          showPlaces: !hidePlaces,
-          hidePhotos,
-        })
-      );
-    } catch {
-      // ignore local storage write errors
-    }
-  }, [settingsLoaded, showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces, hidePhotos]);
 
   // Theme detection
   useEffect(() => {
@@ -241,12 +73,8 @@ export default function MapLibreMap({
 
   // Meta key detection for place drag
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Meta") setIsCtrlPressed(true);
-    };
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.key === "Meta") setIsCtrlPressed(false);
-    };
+    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Meta") setIsCtrlPressed(true); };
+    const handleKeyUp = (e: KeyboardEvent) => { if (e.key === "Meta") setIsCtrlPressed(false); };
     const handleWindowBlur = () => setIsCtrlPressed(false);
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -258,7 +86,7 @@ export default function MapLibreMap({
     };
   }, []);
 
-  // Apply fit only when explicitly requested by manual DateNav changes
+  // Auto-fit bounds on range change
   useEffect(() => {
     if (!shouldAutoFit) {
       autoFitAppliedForRangeKeyRef.current = null;
@@ -266,10 +94,8 @@ export default function MapLibreMap({
     }
     if (!isMapLoaded || !rangeKey || points.length === 0) return;
     if (autoFitAppliedForRangeKeyRef.current === rangeKey) return;
-
     const map = mapRef.current;
     if (!map) return;
-
     const lats = points.map((p) => p.lat);
     const lons = points.map((p) => p.lon);
     map.fitBounds(
@@ -279,247 +105,33 @@ export default function MapLibreMap({
     autoFitAppliedForRangeKeyRef.current = rangeKey;
   }, [shouldAutoFit, isMapLoaded, rangeKey, points]);
 
-  // Keep label layers on top of all other custom layers.
-  // We register a persistent `idle` listener so that after EVERY batch of
-  // source-data loads / renders (including day navigation) the label layers
-  // are moved to the very top of the layer stack.
+  // Keep label layers on top after every render batch
   useEffect(() => {
     if (!isMapLoaded) return;
     const map = mapRef.current;
     if (!map) return;
-
     const bringLabelsToTop = () => {
       try {
         if (map.getLayer("uv-labels")) map.moveLayer("uv-labels");
         if (map.getLayer("place-labels")) map.moveLayer("place-labels");
-      } catch {
-        // layer may not exist yet
-      }
+      } catch { /* layer may not exist yet */ }
     };
-
-    // Run immediately for the current frame, then after every idle.
     bringLabelsToTop();
     map.on("idle", bringLabelsToTop);
-    return () => {
-      map.off("idle", bringLabelsToTop);
-    };
+    return () => { map.off("idle", bringLabelsToTop); };
   }, [isMapLoaded]);
 
-  // Compute initial view state once on mount
   const [initialViewState] = useState(() => computeInitialViewState(points));
 
-  // Path GeoJSON
-  const pathGeoJSON = useMemo(
-    () => ({
-      type: "Feature" as const,
-      geometry: {
-        type: "LineString" as const,
-        coordinates: points.map((p) => [p.lon, p.lat]),
-      },
-      properties: {},
-    }),
-    [points]
-  );
-
-  // Time-based line gradient: map each point's time-progress to its distance-progress
-  const lineGradientExpression = useMemo(() => {
-    const fallback = ["interpolate", ["linear"], ["line-progress"], 0, "#22c55e", 0.25, "#06b6d4", 0.5, "#3b82f6", 0.75, "#a855f7", 1, "#ef4444"];
-    if (points.length < 2) return fallback;
-
-    const startTime = points[0].tst;
-    const endTime = points[points.length - 1].tst;
-    const totalTime = endTime - startTime;
-
-    // Compute cumulative distances
-    const cumDist: number[] = [0];
-    for (let i = 1; i < points.length; i++) {
-      cumDist.push(cumDist[i - 1] + haversineKm(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon));
-    }
-    const totalDist = cumDist[cumDist.length - 1];
-    if (totalDist === 0 || totalTime === 0) return fallback;
-
-    // Sample up to 100 stops
-    const stride = Math.max(1, Math.floor(points.length / 100));
-    const expr: (string | number | string[])[] = ["interpolate", ["linear"], ["line-progress"]];
-    const seen = new Set<number>();
-
-    for (let i = 0; i < points.length; i += stride) {
-      const distProgress = Math.min(1, cumDist[i] / totalDist);
-      const key = Math.round(distProgress * 1e6);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const timeProgress = Math.min(1, Math.max(0, (points[i].tst - startTime) / totalTime));
-      expr.push(distProgress, interpolateColor(timeProgress));
-    }
-
-    // Always include the last point
-    const lastDist = 1;
-    const lastKey = Math.round(lastDist * 1e6);
-    if (!seen.has(lastKey)) expr.push(lastDist, "#ef4444");
-
-    return expr;
-  }, [points]);
-
-  // Location points GeoJSON (sampled for performance)
-  const pointsGeoJSON = useMemo(() => {
-    const features: Array<{
-      type: "Feature";
-      geometry: { type: "Point"; coordinates: [number, number] };
-      properties: { id: number; isFirst: boolean; isLast: boolean; batt: number | null; recordedAt: string; acc: number | null; vel: number | null };
-    }> = [];
-    points.forEach((p, i) => {
-      const isFirst = i === 0;
-      const isLast = i === points.length - 1;
-      const shouldRender =
-        isFirst ||
-        isLast ||
-        points.length <= 200 ||
-        i % Math.ceil(points.length / 200) === 0;
-      if (!shouldRender) return;
-      features.push({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [p.lon, p.lat] },
-        properties: {
-          id: p.id,
-          isFirst,
-          isLast,
-          batt: p.batt,
-          recordedAt: p.recordedAt,
-          acc: p.acc,
-          vel: p.vel,
-        },
-      });
-    });
-    return { type: "FeatureCollection" as const, features };
-  }, [points]);
-
-  // Heatmap GeoJSON with pre-computed weights
-  const heatGeoJSON = useMemo(() => {
-    if (points.length === 0) return { type: "FeatureCollection" as const, features: [] };
-    const maxPoints = 4000;
-    const stride = Math.max(1, Math.ceil(points.length / maxPoints));
-    const features = points
-      .filter((_, i) => i % stride === 0)
-      .map((p) => {
-        const accuracyWeight = p.acc ? Math.max(0.2, Math.min(1, 30 / p.acc)) : 0.7;
-        const speed = p.vel ?? 0;
-        const motionWeight =
-          speed >= 25 ? 0.01 :
-          speed >= 10 ? 0.03 :
-          speed >= 4 ? 0.08 :
-          speed >= 1.5 ? 0.6 :
-          1.9;
-        const weight = Math.max(0.005, accuracyWeight * motionWeight);
-        return {
-          type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] },
-          properties: { weight },
-        };
-      });
-    return { type: "FeatureCollection" as const, features };
-  }, [points]);
-
-  // Place circles GeoJSON (polygon features with numeric IDs for feature state)
-  const placeCirclesGeoJSON = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: places.map((p) => {
-        const hasConfirmedInRange = showVisitedPlaces && (p.confirmedVisitsInRange ?? 0) > 0;
-        const hasSuggestedInRange = showVisitedPlaces && (p.suggestedVisitsInRange ?? 0) > 0;
-        return {
-          type: "Feature" as const,
-          id: p.id,
-          geometry: geoCircle(p.lat, p.lon, p.radius),
-          properties: {
-            placeId: p.id,
-            hasConfirmedInRange,
-            hasSuggestedInRange,
-            hasVisitsInRange: hasConfirmedInRange || hasSuggestedInRange,
-            hovered: p.id === hoveredPlaceId,
-          },
-        };
-      }),
-    }),
-    [places, showVisitedPlaces, hoveredPlaceId]
-  );
-
-  // Place dots GeoJSON (point features + labels)
-  const placeDotsGeoJSON = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: places.map((p) => {
-        const hasConfirmedInRange = showVisitedPlaces && (p.confirmedVisitsInRange ?? 0) > 0;
-        const hasSuggestedInRange = showVisitedPlaces && (p.suggestedVisitsInRange ?? 0) > 0;
-        return {
-          type: "Feature" as const,
-          id: p.id,
-          geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] },
-          properties: {
-            placeId: p.id,
-            name: p.name,
-            hasConfirmedInRange,
-            hasSuggestedInRange,
-            hasVisitsInRange: hasConfirmedInRange || hasSuggestedInRange,
-            hovered: p.id === hoveredPlaceId,
-            visitCount: (p.confirmedVisitsInRange ?? 0) + (p.suggestedVisitsInRange ?? 0),
-          },
-        };
-      }),
-    }),
-    [places, showVisitedPlaces, hoveredPlaceId]
-  );
-
-  // Unknown visits GeoJSON
-  const unknownVisitsGeoJSON = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: unknownVisits.map((uv) => ({
-        type: "Feature" as const,
-        id: uv.id,
-        geometry: geoCircle(uv.lat, uv.lon, 50),
-        properties: {
-          uvId: uv.id,
-          lat: uv.lat,
-          lon: uv.lon,
-          arrivalAt: uv.arrivalAt,
-          departureAt: uv.departureAt,
-          pointCount: uv.pointCount,
-        },
-      })),
-    }),
-    [unknownVisits]
-  );
-
-  // Photos GeoJSON
-  const photosGeoJSON = useMemo(
-    () => ({
-      type: "FeatureCollection" as const,
-      features: photos
-        .filter((p) => p.lat !== null && p.lon !== null)
-        .map((p) => ({
-          type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: [p.lon!, p.lat!] },
-          properties: { photoId: p.id, takenAt: p.takenAt },
-        })),
-    }),
-    [photos]
-  );
-
-  // Map click handler
   const handleClick = useCallback(
     (event: MapLayerMouseEvent) => {
       const map = mapRef.current;
       if (!map) return;
-
       setContextMenu(null);
 
       const candidateLayers = [
-        "place-dot-circle-unvisited",
-        "place-dot-circle-visited",
-        "place-circle-fill",
-        "uv-fill",
-        "photo-circles",
-        "location-points",
+        "place-dot-circle-unvisited", "place-dot-circle-visited", "place-circle-fill",
+        "uv-fill", "photo-circles", "location-points",
       ].filter((id) => !!map.getLayer(id));
 
       const features = candidateLayers.length > 0
@@ -527,75 +139,44 @@ export default function MapLibreMap({
         : [];
 
       setPopup(null);
+      if (features.length === 0) return;
 
-      if (features.length > 0) {
-        const f = features[0];
-        const layerId = f.layer.id;
+      const f = features[0];
+      const layerId = f.layer.id;
 
-        if (layerId === "place-dot-circle-unvisited" || layerId === "place-dot-circle-visited" || layerId === "place-circle-fill") {
-          const placeId = f.properties?.placeId as number | undefined;
-          const place = places.find((p) => p.id === placeId);
-          if (place) onPlaceClick?.(place);
-          return;
-        }
-
-        if (layerId === "uv-fill") {
-          const props = f.properties as {
-            uvId: number;
-            lat: number;
-            lon: number;
-            arrivalAt: string;
-            departureAt: string;
-            pointCount: number;
-          };
-          const uv = unknownVisits.find((u) => u.id === props.uvId);
-          if (uv) {
-            setPopup({ kind: "unknownVisit", uv, lat: uv.lat, lon: uv.lon });
-          }
-          return;
-        }
-
-        if (layerId === "photo-circles") {
-          const photoId = f.properties?.photoId as string | undefined;
-          const photo = photos.find((p) => p.id === photoId);
-          if (photo) {
-            setPopup({ kind: "photo", photo, lat: photo.lat!, lon: photo.lon! });
-          }
-          return;
-        }
-
-        if (layerId === "location-points") {
-          const props = f.properties as SerializedPoint;
-          setPopup({ kind: "point", point: props, lat: event.lngLat.lat, lon: event.lngLat.lng });
-          return;
-        }
+      if (layerId === "place-dot-circle-unvisited" || layerId === "place-dot-circle-visited" || layerId === "place-circle-fill") {
+        const place = places.find((p) => p.id === (f.properties?.placeId as number | undefined));
+        if (place) onPlaceClick?.(place);
+        return;
+      }
+      if (layerId === "uv-fill") {
+        const uv = unknownVisits.find((u) => u.id === (f.properties as { uvId: number }).uvId);
+        if (uv) setPopup({ kind: "unknownVisit", uv, lat: uv.lat, lon: uv.lon });
+        return;
+      }
+      if (layerId === "photo-circles") {
+        const photo = photos.find((p) => p.id === (f.properties?.photoId as string | undefined));
+        if (photo) setPopup({ kind: "photo", photo, lat: photo.lat!, lon: photo.lon! });
+        return;
+      }
+      if (layerId === "location-points") {
+        setPopup({ kind: "point", point: f.properties as never, lat: event.lngLat.lat, lon: event.lngLat.lng });
       }
     },
     [places, unknownVisits, photos, onPlaceClick]
   );
 
-  // Right-click context menu handler
   const handleContextMenu = useCallback((event: MapLayerMouseEvent) => {
     event.preventDefault();
-    setContextMenu({
-      x: event.point.x,
-      y: event.point.y,
-      lat: event.lngLat.lat,
-      lon: event.lngLat.lng,
-    });
+    setContextMenu({ x: event.point.x, y: event.point.y, lat: event.lngLat.lat, lon: event.lngLat.lng });
   }, []);
 
-  // Mouse move handler for hover state and cursor
   const handleMouseMove = useCallback((event: MapLayerMouseEvent) => {
     const map = mapRef.current;
     if (!map) return;
     const candidateLayers = [
-      "place-dot-circle-unvisited",
-      "place-dot-circle-visited",
-      "place-circle-fill",
-      "uv-fill",
-      "photo-circles",
-      "location-points",
+      "place-dot-circle-unvisited", "place-dot-circle-visited", "place-circle-fill",
+      "uv-fill", "photo-circles", "location-points",
     ].filter((id) => !!map.getLayer(id));
 
     const features = candidateLayers.length > 0
@@ -603,7 +184,6 @@ export default function MapLibreMap({
       : [];
 
     map.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
-
     const placeFeature = features.find(
       (f) => f.layer.id === "place-dot-circle-unvisited" || f.layer.id === "place-dot-circle-visited" || f.layer.id === "place-circle-fill"
     );
@@ -618,95 +198,6 @@ export default function MapLibreMap({
     setHoveredPlaceId(null);
   }, []);
 
-  const mapStyle = isDarkTheme
-    ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-    : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
-
-  // Stop playback when points change (new day selected)
-  useEffect(() => {
-    if (animFrameRef.current != null) cancelAnimationFrame(animFrameRef.current);
-    animFrameRef.current = null;
-    playStartTimeRef.current = null;
-    setIsPlaying(false);
-    setPlayPos(null);
-    setPlayProgress(0);
-    setPlayTimestamp(null);
-  }, [rangeKey]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (animFrameRef.current != null) cancelAnimationFrame(animFrameRef.current);
-    };
-  }, []);
-
-  const stopPlay = useCallback(() => {
-    if (animFrameRef.current != null) cancelAnimationFrame(animFrameRef.current);
-    animFrameRef.current = null;
-    playStartTimeRef.current = null;
-    setIsPlaying(false);
-    setPlayPos(null);
-    setPlayProgress(0);
-    setPlayTimestamp(null);
-  }, []);
-
-  const startPlay = useCallback(() => {
-    if (points.length < 2) return;
-    stopPlay();
-    setIsPlaying(true);
-    playStartTimeRef.current = null;
-
-    // Subsample: only keep points where the person moved >= MOVE_THRESHOLD_M.
-    // This compresses long visit dwells (many clustered points) down to ~1 keyframe.
-    const MOVE_THRESHOLD_M = 15;
-    const keyPts: { lat: number; lon: number; tst: number }[] = [
-      { lat: points[0].lat, lon: points[0].lon, tst: points[0].tst },
-    ];
-    for (let k = 1; k < points.length; k++) {
-      const last = keyPts[keyPts.length - 1];
-      const distM = haversineKm(last.lat, last.lon, points[k].lat, points[k].lon) * 1000;
-      if (distM >= MOVE_THRESHOLD_M) keyPts.push({ lat: points[k].lat, lon: points[k].lon, tst: points[k].tst });
-    }
-    const last = points[points.length - 1];
-    if (keyPts[keyPts.length - 1].lat !== last.lat || keyPts[keyPts.length - 1].lon !== last.lon) {
-      keyPts.push({ lat: last.lat, lon: last.lon, tst: last.tst });
-    }
-
-    const journeyDays = (points[points.length - 1].tst - points[0].tst) / 86400;
-    const PLAY_DURATION_MS = Math.min(
-      Math.max(journeyDays, 1) * PLAY_DURATION_PER_DAY_MS,
-      5 * 60 * 1000, // cap at 5 min
-    );
-
-    const animate = (now: number) => {
-      if (playStartTimeRef.current == null) playStartTimeRef.current = now;
-      const elapsed = now - playStartTimeRef.current;
-      const t = Math.min(1, elapsed / PLAY_DURATION_MS);
-      const floatIndex = t * (keyPts.length - 1);
-      const i = Math.min(Math.floor(floatIndex), keyPts.length - 2);
-      const f = floatIndex - i;
-      const lat = keyPts[i].lat + f * (keyPts[i + 1].lat - keyPts[i].lat);
-      const lon = keyPts[i].lon + f * (keyPts[i + 1].lon - keyPts[i].lon);
-      const tst = keyPts[i].tst + f * (keyPts[i + 1].tst - keyPts[i].tst);
-      setPlayPos({ lat, lon });
-      setPlayProgress(t);
-      setPlayTimestamp(tst);
-
-      if (t < 1) {
-        animFrameRef.current = requestAnimationFrame(animate);
-      } else {
-        animFrameRef.current = null;
-        setIsPlaying(false);
-        setPlayPos(null);
-        setPlayProgress(0);
-        setPlayTimestamp(null);
-      }
-    };
-
-    animFrameRef.current = requestAnimationFrame(animate);
-  }, [points, stopPlay]);
-
-  // Add arrow SDF image on map load
   const handleMapLoad = useCallback(() => {
     setIsMapLoaded(true);
     const map = mapRef.current;
@@ -719,21 +210,17 @@ export default function MapLibreMap({
     if (!ctx) return;
     ctx.fillStyle = "white";
     ctx.beginPath();
-    ctx.moveTo(0, 4);
-    ctx.lineTo(6, 4);
-    ctx.lineTo(6, 1);
-    ctx.lineTo(12, 6);
-    ctx.lineTo(6, 11);
-    ctx.lineTo(6, 8);
-    ctx.lineTo(0, 8);
+    ctx.moveTo(0, 4); ctx.lineTo(6, 4); ctx.lineTo(6, 1);
+    ctx.lineTo(12, 6); ctx.lineTo(6, 11); ctx.lineTo(6, 8); ctx.lineTo(0, 8);
     ctx.closePath();
     ctx.fill();
     const data = ctx.getImageData(0, 0, size, size).data;
     map.addImage("arrow-direction", { width: size, height: size, data }, { sdf: true });
   }, []);
 
-  // Layer visibility helper
-  const vis = (show: boolean) => (show ? "visible" : "none") as "visible" | "none";
+  const mapStyle = isDarkTheme
+    ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+    : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
   const playTimestampFmt = points.length >= 2 &&
     new Date(points[0].tst * 1000).toDateString() !== new Date(points[points.length - 1].tst * 1000).toDateString()
@@ -755,625 +242,63 @@ export default function MapLibreMap({
       >
         <FlyToHandler mapRef={mapRef} />
 
-        {/* Heatmap */}
-        <Source id="heatmap" type="geojson" data={heatGeoJSON}>
-          <Layer
-            id="heatmap-layer"
-            type="heatmap"
-            layout={{ visibility: vis(showHeatmap) }}
-            paint={{
-              "heatmap-weight": ["interpolate", ["linear"], ["get", "weight"], 0, 0, 2, 1],
-              "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 8, 0.45, 11, 0.9, 14, 1.8],
-              "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 8, 5, 11, 7, 14, 12],
-              "heatmap-color": [
-                "interpolate",
-                ["linear"],
-                ["heatmap-density"],
-                0, "rgba(0,0,255,0)",
-                0.2, "#93c5fd",
-                0.5, "#c4b5fd",
-                0.8, "#f472b6",
-                1.0, "#ef4444",
-              ],
-              "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.75, 11, 0.80, 14, 0.85],
-            }}
-          />
-        </Source>
-
-        {/* Path line – always rendered so layer order stays stable (labels stay on top) */}
-        <Source id="path" type="geojson" data={pathGeoJSON} lineMetrics>
-          <Layer
-            id="path-line"
-            type="line"
-            layout={{ visibility: vis(showLine && points.length > 1), "line-cap": "round", "line-join": "round" }}
-            paint={{
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              "line-gradient": lineGradientExpression as any,
-              "line-width": showHeatmap ? 2 : 3,
-              "line-opacity": showHeatmap ? 0.5 : 0.75,
-            }}
-          />
-          <Layer
-            id="path-arrows"
-            type="symbol"
-            layout={{
-              visibility: vis(showLine && points.length > 1),
-              "symbol-placement": "line",
-              "symbol-spacing": 80,
-              "icon-image": "arrow-direction",
-              "icon-size": 1,
-              "icon-rotation-alignment": "map",
-              "icon-allow-overlap": false,
-            }}
-            paint={{
-              "icon-color": "#ffffff",
-              "icon-opacity": showHeatmap ? 0.4 : 0.65,
-            }}
-          />
-        </Source>
-
-        {/* Unknown visits (below place circles) */}
-        <Source id="unknown-visits" type="geojson" data={unknownVisitsGeoJSON}>
-          <Layer
-            id="uv-fill"
-            type="fill"
-            layout={{ visibility: vis(showVisitedPlaces) }}
-            paint={{ "fill-color": "#eab308", "fill-opacity": 0.2 }}
-          />
-          <Layer
-            id="uv-outline"
-            type="line"
-            layout={{ visibility: vis(showVisitedPlaces) }}
-            paint={{ "line-color": "#eab308", "line-width": 2, "line-dasharray": [5, 5] }}
-          />
-        </Source>
-
-        {/* Place circles */}
-        <Source id="place-circles" type="geojson" data={placeCirclesGeoJSON}>
-          {/* Fill */}
-          <Layer
-            id="place-circle-fill"
-            type="fill"
-            layout={{ visibility: vis(showVisitedPlaces) }}
-            filter={["any", ["get", "hasVisitsInRange"], ["get", "hovered"]]}
-            paint={{
-              "fill-color": ["case", ["get", "hasConfirmedInRange"], "#22c55e", "#a855f7"],
-              "fill-opacity": ["case", ["get", "hasConfirmedInRange"], 0.2, 0.15],
-            }}
-          />
-          {/* Solid outline: confirmed or hovered */}
-          <Layer
-            id="place-circle-solid-outline"
-            type="line"
-            layout={{ visibility: vis(showVisitedPlaces) }}
-            filter={["any", ["get", "hasConfirmedInRange"], ["get", "hovered"]]}
-            paint={{
-              "line-color": ["case", ["get", "hasConfirmedInRange"], "#16a34a", "#7e22ce"],
-              "line-width": 2,
-            }}
-          />
-          {/* Dashed outline: suggested only, not confirmed, not hovered */}
-          <Layer
-            id="place-circle-dashed-outline"
-            type="line"
-            layout={{ visibility: vis(showVisitedPlaces) }}
-            filter={["all",
-              ["get", "hasSuggestedInRange"],
-              ["!", ["get", "hasConfirmedInRange"]],
-              ["!", ["get", "hovered"]],
-            ]}
-            paint={{
-              "line-color": "#7e22ce",
-              "line-width": 2,
-              "line-dasharray": [6, 6],
-            }}
-          />
-        </Source>
-
-        {/* Location points */}
-        <Source id="points" type="geojson" data={pointsGeoJSON}>
-          <Layer
-            id="location-points"
-            type="circle"
-            layout={{ visibility: vis(!hidePoints) }}
-            paint={{
-              "circle-radius": [
-                "case",
-                ["any", ["get", "isFirst"], ["get", "isLast"]], 6,
-                4,
-              ],
-              "circle-color": [
-                "case",
-                ["get", "isFirst"], "#22c55e",
-                ["get", "isLast"], "#ef4444",
-                "#3b82f6",
-              ],
-              "circle-stroke-color": [
-                "case",
-                ["get", "isFirst"], "#15803d",
-                ["get", "isLast"], "#b91c1c",
-                "#1d4ed8",
-              ],
-              "circle-stroke-width": 1.5,
-              "circle-opacity": 0.85,
-            }}
-          />
-        </Source>
-
-        {/* Photos */}
-        <Source id="photos" type="geojson" data={photosGeoJSON}>
-          <Layer
-            id="photo-circles"
-            type="circle"
-            layout={{ visibility: vis(!hidePhotos) }}
-            paint={{
-              "circle-radius": 3,
-              "circle-color": "#f97316",
-              "circle-stroke-color": "#ea580c",
-              "circle-stroke-width": 1.5,
-              "circle-opacity": 0.9,
-            }}
-          />
-        </Source>
-
-        {/* Place dots (circles only – labels rendered last, see below) */}
-        <Source id="place-dots" type="geojson" data={placeDotsGeoJSON}>
-          <Layer
-            id="place-dot-circle-unvisited"
-            type="circle"
-            layout={{ visibility: vis(!hidePlaces) }}
-            filter={["!", ["get", "hasVisitsInRange"]]}
-            paint={{
-              "circle-radius": 3,
-              "circle-color": "#a855f7",
-              "circle-stroke-color": "#7e22ce",
-              "circle-stroke-width": 1.5,
-              "circle-opacity": 0.9,
-            }}
-          />
-          <Layer
-            id="place-dot-circle-visited"
-            type="circle"
-            layout={{ visibility: vis(showVisitedPlaces) }}
-            filter={["get", "hasVisitsInRange"]}
-            paint={{
-              "circle-radius": 5,
-              "circle-color": ["case", ["get", "hasConfirmedInRange"], "#22c55e", "#a855f7"],
-              "circle-stroke-color": ["case", ["get", "hasConfirmedInRange"], "#15803d", "#7e22ce"],
-              "circle-stroke-width": 2,
-              "circle-opacity": 0.9,
-            }}
-          />
-        </Source>
-
-        {/* Labels rendered last so they sit on top of all circle/line/fill layers */}
-        <Source id="uv-labels-source" type="geojson" data={unknownVisitsGeoJSON}>
-          <Layer
-            id="uv-labels"
-            type="symbol"
-            minzoom={10}
-            layout={{
-              visibility: vis(showVisitedPlaces),
-              "text-field": "Unknown",
-              "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-              "text-size": 12,
-              "text-anchor": "top",
-              "text-offset": [0, 0.5],
-              "text-allow-overlap": false,
-            }}
-            paint={{
-              "text-color": isDarkTheme ? "#fcd34d" : "#b45309",
-              "text-halo-color": isDarkTheme ? "#1f2937" : "#ffffff",
-              "text-halo-width": 1.5,
-            }}
-          />
-        </Source>
-        <Source id="place-labels-source" type="geojson" data={placeDotsGeoJSON}>
-          <Layer
-            id="place-labels"
-            type="symbol"
-            minzoom={9}
-            layout={{
-              visibility: vis(showVisitedPlaces),
-              "text-field": ["case",
-                [">", ["get", "visitCount"], 1],
-                ["concat", ["get", "name"], " x", ["to-string", ["get", "visitCount"]]],
-                ["get", "name"],
-              ],
-              "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-              "text-size": 12,
-              "text-anchor": "bottom",
-              "text-offset": [0, -0.8],
-              "text-allow-overlap": false,
-            }}
-            filter={["any", ["get", "hasVisitsInRange"], ["get", "hovered"]]}
-            paint={{
-              "text-color": isDarkTheme ? "#e5e7eb" : "#1f2937",
-              "text-halo-color": isDarkTheme ? "#111827" : "#ffffff",
-              "text-halo-width": 2,
-            }}
-          />
-        </Source>
-
-        {/* Journey playback marker */}
-        {playPos && (
-          <Marker latitude={playPos.lat} longitude={playPos.lon} anchor="bottom">
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              {playTimestamp != null && (
-                <div style={{
-                  background: "rgba(0,0,0,0.72)",
-                  color: "#fff",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "2px 7px",
-                  borderRadius: 99,
-                  whiteSpace: "nowrap",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-                  letterSpacing: 0.2,
-                }}>
-                  {format(new Date(playTimestamp * 1000), playTimestampFmt)}
-                </div>
-              )}
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  background: "#ef4444",
-                  borderRadius: "50% 50% 50% 0",
-                  transform: "rotate(-45deg)",
-                  border: "2.5px solid white",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.45)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <span style={{ transform: "rotate(45deg)", fontSize: 17, lineHeight: 1 }}>🚶</span>
-              </div>
-            </div>
-          </Marker>
-        )}
+        <MapLayers
+          layerSettings={layerSettings}
+          isDarkTheme={isDarkTheme}
+          pathGeoJSON={geoJSON.pathGeoJSON}
+          lineGradientExpression={geoJSON.lineGradientExpression}
+          heatGeoJSON={geoJSON.heatGeoJSON}
+          pointsGeoJSON={geoJSON.pointsGeoJSON}
+          placeCirclesGeoJSON={geoJSON.placeCirclesGeoJSON}
+          placeDotsGeoJSON={geoJSON.placeDotsGeoJSON}
+          unknownVisitsGeoJSON={geoJSON.unknownVisitsGeoJSON}
+          photosGeoJSON={geoJSON.photosGeoJSON}
+          pointCount={points.length}
+        />
 
         {/* Drag handles when Meta key held */}
-        {isCtrlPressed &&
-          !hidePlaces &&
-          places.map((place) => (
-            <Marker
-              key={`drag-${place.id}`}
-              latitude={place.lat}
-              longitude={place.lon}
-              draggable
-              onDragEnd={(e) =>
-                onPlaceMoveRequest?.(place, e.lngLat.lat, e.lngLat.lng)
-              }
-            >
-              <div className="h-4 w-4 rounded-full border-2 border-blue-700 bg-blue-500 opacity-80 shadow" style={{ cursor: "grab" }} />
-            </Marker>
-          ))}
-
-        {/* Point popup */}
-        {popup?.kind === "point" && (
-          <Popup
-            latitude={popup.lat}
-            longitude={popup.lon}
-            onClose={() => setPopup(null)}
-            closeButton
-            anchor="bottom"
+        {isCtrlPressed && !layerSettings.hidePlaces && places.map((place) => (
+          <Marker
+            key={`drag-${place.id}`}
+            latitude={place.lat}
+            longitude={place.lon}
+            draggable
+            onDragEnd={(e) => onPlaceMoveRequest?.(place, e.lngLat.lat, e.lngLat.lng)}
           >
-            <div className="text-xs">
-              <p className="font-semibold">
-                {format(new Date(popup.point.recordedAt), "HH:mm:ss")}
-              </p>
-              {popup.point.acc != null && (
-                <p className="text-gray-500">±{Math.round(popup.point.acc)}m</p>
-              )}
-              {popup.point.batt != null && (
-                <p className="text-gray-500">Battery: {popup.point.batt}%</p>
-              )}
-              {popup.point.vel != null && popup.point.vel > 0 && (
-                <p className="text-gray-500">{Math.round(popup.point.vel)} km/h</p>
-              )}
-              <p className="mt-1 text-gray-400">
-                {popup.lat.toFixed(5)}, {popup.lon.toFixed(5)}
-              </p>
-            </div>
-          </Popup>
-        )}
+            <div className="h-4 w-4 rounded-full border-2 border-blue-700 bg-blue-500 opacity-80 shadow" style={{ cursor: "grab" }} />
+          </Marker>
+        ))}
 
-        {/* Unknown visit popup */}
-        {popup?.kind === "unknownVisit" && (
-          <Popup
-            latitude={popup.lat}
-            longitude={popup.lon}
-            onClose={() => setPopup(null)}
-            closeButton
-            anchor="bottom"
-          >
-            <div className="text-xs" style={{ minWidth: 180, maxWidth: 260 }}>
-              <p className="font-semibold text-yellow-700">Unknown</p>
-              <p className="mt-0.5 text-gray-600">
-                {format(new Date(popup.uv.arrivalAt), "MMM d, HH:mm")} –{" "}
-                {format(new Date(popup.uv.departureAt), "HH:mm")}
-              </p>
-              <p className="mb-2 text-gray-400">{popup.uv.pointCount} points</p>
-
-              {unknownVisitPopupPhotos.length > 0 && (
-                <div className="mb-2">
-                  <p className="mb-1 text-[11px] font-medium text-gray-500">
-                    Photos in this period ({unknownVisitPopupPhotos.length})
-                  </p>
-                  <div className="flex gap-1 overflow-x-auto pb-1">
-                    {unknownVisitPopupPhotos.map((photo) => (
-                      <button
-                        key={photo.id}
-                        onClick={() => {
-                          onPhotoClick?.(photo, unknownVisitPopupPhotos);
-                          setPopup(null);
-                        }}
-                        className="shrink-0"
-                        style={{ border: "none", background: "none", padding: 0, cursor: "pointer" }}
-                        title={format(new Date(photo.takenAt), "HH:mm")}
-                        type="button"
-                      >
-                        <div
-                          className="h-14 w-14 rounded bg-cover bg-center"
-                          style={{ backgroundImage: `url(/api/immich/thumbnail?id=${photo.id})` }}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {onUnknownVisitCreatePlace && (
-                <button
-                  onClick={() => {
-                    onUnknownVisitCreatePlace(popup.uv);
-                    setPopup(null);
-                  }}
-                  className="w-full rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
-                >
-                  Create Place
-                </button>
-              )}
-            </div>
-          </Popup>
-        )}
-
-        {/* Photo popup */}
-        {popup?.kind === "photo" && (
-          <Popup
-            latitude={popup.lat}
-            longitude={popup.lon}
-            onClose={() => setPopup(null)}
-            closeButton
-            anchor="bottom"
-          >
-            <div className="text-xs" style={{ minWidth: 120 }}>
-              <button
-                onClick={() => {
-                  onPhotoClick?.(popup.photo, photos);
-                  setPopup(null);
-                }}
-                style={{ display: "block", padding: 0, border: "none", background: "none", cursor: "pointer" }}
-              >
-                <img
-                  src={`/api/immich/thumbnail?id=${popup.photo.id}`}
-                  alt=""
-                  style={{ width: 128, height: 96, objectFit: "cover", borderRadius: 4, marginBottom: 4 }}
-                />
-              </button>
-              <p className="text-center text-gray-500">
-                {format(new Date(popup.photo.takenAt), "HH:mm")}
-              </p>
-            </div>
-          </Popup>
-        )}
+        <MapPopups
+          popup={popup}
+          onClosePopup={() => setPopup(null)}
+          unknownVisitPopupPhotos={unknownVisitPopupPhotos}
+          onPhotoClick={onPhotoClick}
+          onUnknownVisitCreatePlace={onUnknownVisitCreatePlace}
+          allPhotos={photos}
+          playPos={playPos}
+          playTimestamp={playTimestamp}
+          playTimestampFmt={playTimestampFmt}
+        />
       </Map>
 
-      {/* Right-click context menu */}
-      {contextMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-999"
-            onClick={() => setContextMenu(null)}
-          />
-          <div
-            className="absolute z-1000 min-w-35 rounded-md border border-gray-200 bg-white py-1 shadow-lg"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-          >
-            {onCreateVisit && (
-              <button
-                type="button"
-                onClick={() => {
-                  onCreateVisit(contextMenu.lat, contextMenu.lon);
-                  setContextMenu(null);
-                }}
-                className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Create visit here
-              </button>
-            )}
-            {onMapClick && (
-              <button
-                type="button"
-                onClick={() => {
-                  onMapClick(contextMenu.lat, contextMenu.lon);
-                  setContextMenu(null);
-                }}
-                className="w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100"
-              >
-                Create place here
-              </button>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Journey playback progress bar */}
-      {isPlaying && (
-        <div className="pointer-events-none absolute bottom-16 left-1/2 z-900 -translate-x-1/2">
-          <div className="flex min-w-52 flex-col gap-1.5 rounded-xl border border-white/30 bg-black/60 px-4 py-2.5 shadow-lg backdrop-blur-sm">
-            <div className="flex items-center justify-between text-xs font-medium text-white">
-              <span>{playTimestamp != null ? format(new Date(playTimestamp * 1000), playTimestampFmt) : ""}</span>
-              <span className="text-white/50">{Math.round(playProgress * 100)}%</span>
-            </div>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-white/20">
-              <div
-                className="h-full rounded-full bg-white"
-                style={{ width: `${playProgress * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Fit all points button + Play journey button */}
-      {points.length > 0 && (
-        <div className="pointer-events-none absolute bottom-4 left-16 z-900 flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              const map = mapRef.current;
-              if (!map || points.length === 0) return;
-              const lats = points.map((p) => p.lat);
-              const lons = points.map((p) => p.lon);
-              map.fitBounds(
-                [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-                { padding: FIT_BOUNDS_PADDING, duration: 800, maxZoom: FIT_BOUNDS_MAX_ZOOM }
-              );
-            }}
-            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 shadow-md hover:bg-gray-50 hover:text-gray-800"
-            aria-label="Fit all points"
-            title="Fit all points"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-              <path d="M13.28 7.78l3.22-3.22v2.69a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.69l-3.22 3.22a.75.75 0 001.06 1.06zM2 17.25v-4.5a.75.75 0 011.5 0v2.69l3.22-3.22a.75.75 0 011.06 1.06L4.56 16.5h2.69a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75zM12.22 13.28l3.22 3.22h-2.69a.75.75 0 000 1.5h4.5a.75.75 0 00.75-.75v-4.5a.75.75 0 00-1.5 0v2.69l-3.22-3.22a.75.75 0 10-1.06 1.06zM3.5 4.56l3.22 3.22a.75.75 0 001.06-1.06L4.56 3.5h2.69a.75.75 0 000-1.5h-4.5a.75.75 0 00-.75.75v4.5a.75.75 0 001.5 0V4.56z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={isPlaying ? stopPlay : startPlay}
-            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 shadow-md hover:bg-gray-50 hover:text-gray-800"
-            aria-label={isPlaying ? "Stop journey" : "Play journey"}
-            title={isPlaying ? "Stop journey" : "Play journey"}
-          >
-            {isPlaying ? (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                <path fillRule="evenodd" d="M4.5 2.25a.75.75 0 000 1.5v12a.75.75 0 000 1.5h1.5a.75.75 0 000-1.5v-12a.75.75 0 000-1.5h-1.5zm9.75 0a.75.75 0 000 1.5v12a.75.75 0 000 1.5H15.75a.75.75 0 000-1.5v-12a.75.75 0 000-1.5h-1.5z" clipRule="evenodd" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-              </svg>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Layer settings menu */}
-      <div className="pointer-events-none absolute bottom-4 left-4 z-900">
-        {layersMenuOpen && (
-          <div className="pointer-events-auto absolute bottom-full left-0 mb-2 w-56 rounded-md border border-gray-200 bg-white p-2 shadow-lg">
-            <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Map layers
-            </p>
-            <label className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Heatmap</span>
-              <input
-                type="checkbox"
-                checked={showHeatmap}
-                onChange={(e) => setShowHeatmap(e.target.checked)}
-                className="h-4 w-4"
-              />
-            </label>
-            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Path line</span>
-              <input
-                type="checkbox"
-                checked={showLine}
-                onChange={(e) => setShowLine(e.target.checked)}
-                className="h-4 w-4"
-              />
-            </label>
-            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Visited places</span>
-              <input
-                type="checkbox"
-                checked={showVisitedPlaces}
-                onChange={(e) => setShowVisitedPlaces(e.target.checked)}
-                className="h-4 w-4"
-              />
-            </label>
-            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Points</span>
-              <input
-                type="checkbox"
-                checked={!hidePoints}
-                onChange={(e) => setHidePoints(!e.target.checked)}
-                className="h-4 w-4"
-              />
-            </label>
-            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Places</span>
-              <input
-                type="checkbox"
-                checked={!hidePlaces}
-                onChange={(e) => setHidePlaces(!e.target.checked)}
-                className="h-4 w-4"
-              />
-            </label>
-            <label className="mt-1 flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100">
-              <span>Photos</span>
-              <input
-                type="checkbox"
-                checked={!hidePhotos}
-                onChange={(e) => setHidePhotos(!e.target.checked)}
-                className="h-4 w-4"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                setShowHeatmap(DEFAULT_MAP_LAYER_SETTINGS.showHeatmap);
-                setShowLine(DEFAULT_MAP_LAYER_SETTINGS.showLine);
-                setShowVisitedPlaces(DEFAULT_MAP_LAYER_SETTINGS.showVisitedPlaces);
-                setHidePoints(DEFAULT_MAP_LAYER_SETTINGS.hidePoints);
-                setHidePlaces(DEFAULT_MAP_LAYER_SETTINGS.hidePlaces);
-                setHidePhotos(DEFAULT_MAP_LAYER_SETTINGS.hidePhotos);
-                try {
-                  window.localStorage.removeItem(MAP_LAYER_SETTINGS_KEY);
-                } catch {
-                  // ignore local storage errors
-                }
-              }}
-              className="mt-2 w-full rounded border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
-            >
-              Reset map settings
-            </button>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => setLayersMenuOpen((open) => !open)}
-          className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 shadow-md hover:bg-gray-50 hover:text-gray-800"
-          aria-expanded={layersMenuOpen}
-          aria-label="Open map layer settings"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="h-3.5 w-3.5"
-          >
-            <path
-              fillRule="evenodd"
-              d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.223 1.164a6.98 6.98 0 0 1 1.48.85l1.08-.54a1 1 0 0 1 1.232.236l1.668 1.668a1 1 0 0 1 .236 1.232l-.54 1.08c.332.46.616.958.85 1.48l1.164.223a1 1 0 0 1 .804.98v2.36a1 1 0 0 1-.804.98l-1.164.223a6.98 6.98 0 0 1-.85 1.48l.54 1.08a1 1 0 0 1-.236 1.232l-1.668 1.668a1 1 0 0 1-1.232.236l-1.08-.54a6.98 6.98 0 0 1-1.48.85l-.223 1.164a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.223-1.164a6.98 6.98 0 0 1-1.48-.85l-1.08.54a1 1 0 0 1-1.232-.236L2.157 16.61a1 1 0 0 1-.236-1.232l.54-1.08a6.98 6.98 0 0 1-.85-1.48l-1.164-.223A1 1 0 0 1 .643 11.615v-2.36a1 1 0 0 1 .804-.98l1.164-.223a6.98 6.98 0 0 1 .85-1.48l-.54-1.08a1 1 0 0 1 .236-1.232L4.825 2.592a1 1 0 0 1 1.232-.236l1.08.54c.46-.332.958-.616 1.48-.85l.223-1.164ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
-      </div>
+      <MapControls
+        mapRef={mapRef}
+        points={points}
+        layerSettings={layerSettings}
+        layersMenuOpen={layersMenuOpen}
+        setLayersMenuOpen={setLayersMenuOpen}
+        isPlaying={isPlaying}
+        startPlay={startPlay}
+        stopPlay={stopPlay}
+        playProgress={playProgress}
+        playTimestamp={playTimestamp}
+        playTimestampFmt={playTimestampFmt}
+        contextMenu={contextMenu}
+        setContextMenu={setContextMenu}
+        onCreateVisit={onCreateVisit}
+        onMapClick={onMapClick}
+      />
     </div>
   );
 }

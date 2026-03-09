@@ -20,7 +20,8 @@
       "Bash(grep:*)",
       "Bash(find:*)",
       "Bash(PGPASSWORD=postgres psql -h localhost -p 54324 -U postgres -d opentimeline -c 'SELECT * FROM \"\"AppSettings\"\";')",
-      "Bash(npx eslint components/CreateVisitModal.tsx --rule '{\"\"react/jsx-max-depth\"\": \"\"error\"\"}')"
+      "Bash(npx eslint components/CreateVisitModal.tsx --rule '{\"\"react/jsx-max-depth\"\": \"\"error\"\"}')",
+      "Bash(tee /tmp/maplibremap_full.txt)"
     ]
   }
 }
