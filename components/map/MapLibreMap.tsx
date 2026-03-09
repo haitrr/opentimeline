@@ -95,6 +95,7 @@ const DEFAULT_MAP_LAYER_SETTINGS = {
 
 const FIT_BOUNDS_PADDING = 40;
 const FIT_BOUNDS_MAX_ZOOM = 16.5;
+const PLAY_DURATION_PER_DAY_MS = 30000; // 30s per day of journey, capped at 5 min
 
 function computeInitialViewState(points: SerializedPoint[]) {
   if (points.length === 0) return { longitude: 0, latitude: 20, zoom: 2 };
@@ -152,6 +153,14 @@ export default function MapLibreMap({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lat: number; lon: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const autoFitAppliedForRangeKeyRef = useRef<string | null>(null);
+
+  // Journey playback
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playPos, setPlayPos] = useState<{ lat: number; lon: number } | null>(null);
+  const [playProgress, setPlayProgress] = useState(0);
+  const [playTimestamp, setPlayTimestamp] = useState<number | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const playStartTimeRef = useRef<number | null>(null);
 
   const unknownVisitPopupPhotos = useMemo(() => {
     if (popup?.kind !== "unknownVisit") return [] as ImmichPhoto[];
@@ -613,6 +622,90 @@ export default function MapLibreMap({
     ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
     : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
+  // Stop playback when points change (new day selected)
+  useEffect(() => {
+    if (animFrameRef.current != null) cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = null;
+    playStartTimeRef.current = null;
+    setIsPlaying(false);
+    setPlayPos(null);
+    setPlayProgress(0);
+    setPlayTimestamp(null);
+  }, [rangeKey]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current != null) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, []);
+
+  const stopPlay = useCallback(() => {
+    if (animFrameRef.current != null) cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = null;
+    playStartTimeRef.current = null;
+    setIsPlaying(false);
+    setPlayPos(null);
+    setPlayProgress(0);
+    setPlayTimestamp(null);
+  }, []);
+
+  const startPlay = useCallback(() => {
+    if (points.length < 2) return;
+    stopPlay();
+    setIsPlaying(true);
+    playStartTimeRef.current = null;
+
+    // Subsample: only keep points where the person moved >= MOVE_THRESHOLD_M.
+    // This compresses long visit dwells (many clustered points) down to ~1 keyframe.
+    const MOVE_THRESHOLD_M = 15;
+    const keyPts: { lat: number; lon: number; tst: number }[] = [
+      { lat: points[0].lat, lon: points[0].lon, tst: points[0].tst },
+    ];
+    for (let k = 1; k < points.length; k++) {
+      const last = keyPts[keyPts.length - 1];
+      const distM = haversineKm(last.lat, last.lon, points[k].lat, points[k].lon) * 1000;
+      if (distM >= MOVE_THRESHOLD_M) keyPts.push({ lat: points[k].lat, lon: points[k].lon, tst: points[k].tst });
+    }
+    const last = points[points.length - 1];
+    if (keyPts[keyPts.length - 1].lat !== last.lat || keyPts[keyPts.length - 1].lon !== last.lon) {
+      keyPts.push({ lat: last.lat, lon: last.lon, tst: last.tst });
+    }
+
+    const journeyDays = (points[points.length - 1].tst - points[0].tst) / 86400;
+    const PLAY_DURATION_MS = Math.min(
+      Math.max(journeyDays, 1) * PLAY_DURATION_PER_DAY_MS,
+      5 * 60 * 1000, // cap at 5 min
+    );
+
+    const animate = (now: number) => {
+      if (playStartTimeRef.current == null) playStartTimeRef.current = now;
+      const elapsed = now - playStartTimeRef.current;
+      const t = Math.min(1, elapsed / PLAY_DURATION_MS);
+      const floatIndex = t * (keyPts.length - 1);
+      const i = Math.min(Math.floor(floatIndex), keyPts.length - 2);
+      const f = floatIndex - i;
+      const lat = keyPts[i].lat + f * (keyPts[i + 1].lat - keyPts[i].lat);
+      const lon = keyPts[i].lon + f * (keyPts[i + 1].lon - keyPts[i].lon);
+      const tst = keyPts[i].tst + f * (keyPts[i + 1].tst - keyPts[i].tst);
+      setPlayPos({ lat, lon });
+      setPlayProgress(t);
+      setPlayTimestamp(tst);
+
+      if (t < 1) {
+        animFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        animFrameRef.current = null;
+        setIsPlaying(false);
+        setPlayPos(null);
+        setPlayProgress(0);
+        setPlayTimestamp(null);
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(animate);
+  }, [points, stopPlay]);
+
   // Add arrow SDF image on map load
   const handleMapLoad = useCallback(() => {
     setIsMapLoaded(true);
@@ -641,6 +734,11 @@ export default function MapLibreMap({
 
   // Layer visibility helper
   const vis = (show: boolean) => (show ? "visible" : "none") as "visible" | "none";
+
+  const playTimestampFmt = points.length >= 2 &&
+    new Date(points[0].tst * 1000).toDateString() !== new Date(points[points.length - 1].tst * 1000).toDateString()
+    ? "MMM d, HH:mm"
+    : "HH:mm";
 
   return (
     <div className="relative h-full w-full">
@@ -897,6 +995,45 @@ export default function MapLibreMap({
           />
         </Source>
 
+        {/* Journey playback marker */}
+        {playPos && (
+          <Marker latitude={playPos.lat} longitude={playPos.lon} anchor="bottom">
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              {playTimestamp != null && (
+                <div style={{
+                  background: "rgba(0,0,0,0.72)",
+                  color: "#fff",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "2px 7px",
+                  borderRadius: 99,
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+                  letterSpacing: 0.2,
+                }}>
+                  {format(new Date(playTimestamp * 1000), playTimestampFmt)}
+                </div>
+              )}
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  background: "#ef4444",
+                  borderRadius: "50% 50% 50% 0",
+                  transform: "rotate(-45deg)",
+                  border: "2.5px solid white",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.45)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <span style={{ transform: "rotate(45deg)", fontSize: 17, lineHeight: 1 }}>🚶</span>
+              </div>
+            </div>
+          </Marker>
+        )}
+
         {/* Drag handles when Meta key held */}
         {isCtrlPressed &&
           !hidePlaces &&
@@ -1073,9 +1210,27 @@ export default function MapLibreMap({
         </>
       )}
 
-      {/* Fit all points button */}
+      {/* Journey playback progress bar */}
+      {isPlaying && (
+        <div className="pointer-events-none absolute bottom-16 left-1/2 z-900 -translate-x-1/2">
+          <div className="flex min-w-52 flex-col gap-1.5 rounded-xl border border-white/30 bg-black/60 px-4 py-2.5 shadow-lg backdrop-blur-sm">
+            <div className="flex items-center justify-between text-xs font-medium text-white">
+              <span>{playTimestamp != null ? format(new Date(playTimestamp * 1000), playTimestampFmt) : ""}</span>
+              <span className="text-white/50">{Math.round(playProgress * 100)}%</span>
+            </div>
+            <div className="h-1 w-full overflow-hidden rounded-full bg-white/20">
+              <div
+                className="h-full rounded-full bg-white"
+                style={{ width: `${playProgress * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fit all points button + Play journey button */}
       {points.length > 0 && (
-        <div className="pointer-events-none absolute bottom-4 left-16 z-900">
+        <div className="pointer-events-none absolute bottom-4 left-16 z-900 flex gap-2">
           <button
             type="button"
             onClick={() => {
@@ -1095,6 +1250,23 @@ export default function MapLibreMap({
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
               <path d="M13.28 7.78l3.22-3.22v2.69a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.69l-3.22 3.22a.75.75 0 001.06 1.06zM2 17.25v-4.5a.75.75 0 011.5 0v2.69l3.22-3.22a.75.75 0 011.06 1.06L4.56 16.5h2.69a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75zM12.22 13.28l3.22 3.22h-2.69a.75.75 0 000 1.5h4.5a.75.75 0 00.75-.75v-4.5a.75.75 0 00-1.5 0v2.69l-3.22-3.22a.75.75 0 10-1.06 1.06zM3.5 4.56l3.22 3.22a.75.75 0 001.06-1.06L4.56 3.5h2.69a.75.75 0 000-1.5h-4.5a.75.75 0 00-.75.75v4.5a.75.75 0 001.5 0V4.56z" />
             </svg>
+          </button>
+          <button
+            type="button"
+            onClick={isPlaying ? stopPlay : startPlay}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 shadow-md hover:bg-gray-50 hover:text-gray-800"
+            aria-label={isPlaying ? "Stop journey" : "Play journey"}
+            title={isPlaying ? "Stop journey" : "Play journey"}
+          >
+            {isPlaying ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                <path fillRule="evenodd" d="M4.5 2.25a.75.75 0 000 1.5v12a.75.75 0 000 1.5h1.5a.75.75 0 000-1.5v-12a.75.75 0 000-1.5h-1.5zm9.75 0a.75.75 0 000 1.5v12a.75.75 0 000 1.5H15.75a.75.75 0 000-1.5v-12a.75.75 0 000-1.5h-1.5z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+              </svg>
+            )}
           </button>
         </div>
       )}
