@@ -10,6 +10,27 @@ import type { UnknownVisitData } from "@/components/map/MapWrapper";
 import type { ImmichPhoto } from "@/lib/immich";
 import { haversineKm } from "@/lib/geo";
 
+/** Interpolates green → cyan → blue → purple → red for t in [0, 1]. */
+function interpolateColor(t: number): string {
+  // 5 control points evenly spaced at 0, 0.25, 0.5, 0.75, 1
+  const stops: [number, number, number][] = [
+    [34, 197, 94],   // #22c55e green
+    [6, 182, 212],   // #06b6d4 cyan
+    [59, 130, 246],  // #3b82f6 blue
+    [168, 85, 247],  // #a855f7 purple
+    [239, 68, 68],   // #ef4444 red
+  ];
+  const seg = t * (stops.length - 1);
+  const i = Math.min(Math.floor(seg), stops.length - 2);
+  const s = seg - i;
+  const [r1, g1, b1] = stops[i];
+  const [r2, g2, b2] = stops[i + 1];
+  const r = Math.round(r1 + s * (r2 - r1));
+  const g = Math.round(g1 + s * (g2 - g1));
+  const b = Math.round(b1 + s * (b2 - b1));
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
 type Props = {
   points: SerializedPoint[];
   rangeKey?: string;
@@ -290,6 +311,45 @@ export default function MapLibreMap({
     }),
     [points]
   );
+
+  // Time-based line gradient: map each point's time-progress to its distance-progress
+  const lineGradientExpression = useMemo(() => {
+    const fallback = ["interpolate", ["linear"], ["line-progress"], 0, "#22c55e", 0.25, "#06b6d4", 0.5, "#3b82f6", 0.75, "#a855f7", 1, "#ef4444"];
+    if (points.length < 2) return fallback;
+
+    const startTime = points[0].tst;
+    const endTime = points[points.length - 1].tst;
+    const totalTime = endTime - startTime;
+
+    // Compute cumulative distances
+    const cumDist: number[] = [0];
+    for (let i = 1; i < points.length; i++) {
+      cumDist.push(cumDist[i - 1] + haversineKm(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon));
+    }
+    const totalDist = cumDist[cumDist.length - 1];
+    if (totalDist === 0 || totalTime === 0) return fallback;
+
+    // Sample up to 100 stops
+    const stride = Math.max(1, Math.floor(points.length / 100));
+    const expr: (string | number | string[])[] = ["interpolate", ["linear"], ["line-progress"]];
+    const seen = new Set<number>();
+
+    for (let i = 0; i < points.length; i += stride) {
+      const distProgress = Math.min(1, cumDist[i] / totalDist);
+      const key = Math.round(distProgress * 1e6);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const timeProgress = Math.min(1, Math.max(0, (points[i].tst - startTime) / totalTime));
+      expr.push(distProgress, interpolateColor(timeProgress));
+    }
+
+    // Always include the last point
+    const lastDist = 1;
+    const lastKey = Math.round(lastDist * 1e6);
+    if (!seen.has(lastKey)) expr.push(lastDist, "#ef4444");
+
+    return expr;
+  }, [points]);
 
   // Location points GeoJSON (sampled for performance)
   const pointsGeoJSON = useMemo(() => {
@@ -629,14 +689,8 @@ export default function MapLibreMap({
             type="line"
             layout={{ visibility: vis(showLine && points.length > 1), "line-cap": "round", "line-join": "round" }}
             paint={{
-              "line-gradient": [
-                "interpolate",
-                ["linear"],
-                ["line-progress"],
-                0,   "#22c55e",
-                0.5, "#3b82f6",
-                1,   "#ef4444",
-              ],
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              "line-gradient": lineGradientExpression as any,
               "line-width": showHeatmap ? 2 : 3,
               "line-opacity": showHeatmap ? 0.5 : 0.75,
             }}
