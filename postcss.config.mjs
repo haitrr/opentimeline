@@ -1,7 +1,21 @@
-const config = {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
-};
+import {defineConfig, globalIgnores} from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
 
-export default config;
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+  ]),
+  {
+    plugins: {
+      "@tailwindcss/postcss": {},
+    },
+  }
+])
+
+export default eslintConfig

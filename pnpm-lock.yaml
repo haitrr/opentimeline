@@ -65,7 +65,7 @@ devDependencies:
     specifier: ^17.3.1
     version: 17.3.1
   eslint:
-    specifier: ^9
+    specifier: ^9.39.3
     version: 9.39.3
   eslint-config-next:
     specifier: 16.1.6

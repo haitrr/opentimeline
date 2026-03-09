@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "react/jsx-max-props-per-line": ["error", { maximum: 1, when: "multiline" }],
+      "react/jsx-max-depth": ["error", { max: 5 }],
+    },
+  },
 ]);
 
 export default eslintConfig;

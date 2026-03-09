@@ -19,7 +19,8 @@
       "Bash(pnpm remove:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(PGPASSWORD=postgres psql -h localhost -p 54324 -U postgres -d opentimeline -c 'SELECT * FROM \"\"AppSettings\"\";')"
+      "Bash(PGPASSWORD=postgres psql -h localhost -p 54324 -U postgres -d opentimeline -c 'SELECT * FROM \"\"AppSettings\"\";')",
+      "Bash(npx eslint components/CreateVisitModal.tsx --rule '{\"\"react/jsx-max-depth\"\": \"\"error\"\"}')"
     ]
   }
 }

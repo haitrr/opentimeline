@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { format, differenceInMinutes } from "date-fns";
 import type { PlaceData } from "@/lib/detectVisits";
 import { haversineKm } from "@/lib/geo";
+import NewPlaceOption from "./NewPlaceOption";
+import CustomPeriodOption from "./CustomPeriodOption";
 
 const DEFAULT_SCAN_RADIUS_M = 50;
 
@@ -30,6 +32,21 @@ type Props = {
   onClose: () => void;
   onCreated: () => void;
 };
+
+
+function TimePeriodHeader({ scanRadius, onScanRadiusChange }: { scanRadius: number; onScanRadiusChange: (v: number) => void }) {
+  return (
+    <div className="mb-1.5 flex items-center justify-between gap-3">
+      <p className="text-xs font-medium text-gray-700">Time period</p>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-400">Scan radius</span>
+        <input type="range" min={20} max={500} step={10} value={scanRadius} onChange={(e) => onScanRadiusChange(Number(e.target.value))} className="w-24 accent-blue-500" />
+        <span className="w-12 text-right text-xs tabular-nums text-gray-500">{scanRadius}m</span>
+      </div>
+    </div>
+  );
+}
+
 
 export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEnd, onClose, onCreated }: Props) {
   const [scanRadius, setScanRadius] = useState(DEFAULT_SCAN_RADIUS_M);
@@ -160,8 +177,7 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
 
   return (
     <div className="fixed inset-0 z-1000 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
-        <div className="p-5">
+      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
           <h2 className="mb-0.5 text-sm font-semibold text-gray-900">Create Visit</h2>
           <p className="mb-4 text-xs text-gray-500">
             {lat.toFixed(5)}, {lon.toFixed(5)}
@@ -193,68 +209,20 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
                   </label>
                 ))}
 
-                {/* New place option */}
-                <label className="flex cursor-pointer items-start gap-2 px-2.5 py-1.5 hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="place"
-                    checked={isNewPlace}
-                    onChange={() => setIsNewPlace(true)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-gray-800">Create new place here</span>
-                    {isNewPlace && (
-                      <div className="mt-2 space-y-2">
-                        <div>
-                          <label className="mb-0.5 block text-xs text-gray-500">Name</label>
-                          <input
-                            type="text"
-                            value={newPlaceName}
-                            onChange={(e) => setNewPlaceName(e.target.value)}
-                            placeholder="e.g. Home, Work, Gym"
-                            autoFocus
-                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-0.5 block text-xs text-gray-500">Radius (m)</label>
-                          <input
-                            type="number"
-                            value={newPlaceRadius}
-                            onChange={(e) => setNewPlaceRadius(Number(e.target.value))}
-                            min={10}
-                            max={5000}
-                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </label>
+                <NewPlaceOption
+                  isNewPlace={isNewPlace}
+                  setIsNewPlace={setIsNewPlace}
+                  newPlaceName={newPlaceName}
+                  setNewPlaceName={setNewPlaceName}
+                  newPlaceRadius={newPlaceRadius}
+                  setNewPlaceRadius={setNewPlaceRadius}
+                />
               </div>
             </div>
 
             {/* Time period */}
             <div>
-              <div className="mb-1.5 flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-gray-700">Time period</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-400">Scan radius</span>
-                  <input
-                    type="range"
-                    min={20}
-                    max={500}
-                    step={10}
-                    value={scanRadius}
-                    onChange={(e) => setScanRadius(Number(e.target.value))}
-                    className="w-24 accent-blue-500"
-                  />
-                  <span className="w-12 text-right text-xs tabular-nums text-gray-500">
-                    {scanRadius}m
-                  </span>
-                </div>
-              </div>
+              <TimePeriodHeader scanRadius={scanRadius} onScanRadiusChange={setScanRadius} />
               <div className="rounded border border-gray-200">
                 {periodsLoading ? (
                   <p className="px-2.5 py-3 text-xs text-gray-400">Detecting periods…</p>
@@ -285,41 +253,14 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
                   })
                 )}
 
-                {/* Custom option */}
-                <label className="flex cursor-pointer items-start gap-2 px-2.5 py-1.5 hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="period"
-                    checked={periodIndex === -1}
-                    onChange={() => setPeriodIndex(-1)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-gray-800">Custom</span>
-                    {periodIndex === -1 && (
-                      <div className="mt-2 space-y-2">
-                        <div>
-                          <label className="mb-0.5 block text-xs text-gray-500">Arrival</label>
-                          <input
-                            type="datetime-local"
-                            value={customStart}
-                            onChange={(e) => setCustomStart(e.target.value)}
-                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-0.5 block text-xs text-gray-500">Departure</label>
-                          <input
-                            type="datetime-local"
-                            value={customEnd}
-                            onChange={(e) => setCustomEnd(e.target.value)}
-                            className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </label>
+                <CustomPeriodOption
+                  periodIndex={periodIndex}
+                  setPeriodIndex={setPeriodIndex}
+                  customStart={customStart}
+                  setCustomStart={setCustomStart}
+                  customEnd={customEnd}
+                  setCustomEnd={setCustomEnd}
+                />
               </div>
             </div>
 
@@ -343,7 +284,6 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
               </button>
             </div>
           </form>
-        </div>
       </div>
     </div>
   );
