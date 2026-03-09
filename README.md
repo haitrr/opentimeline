@@ -323,6 +323,15 @@ Or with `tsx` directly:
 
 **Dawarich** is the most feature-complete self-hosted alternative: reverse geocoding, heatmaps, country/city stats, multiple import sources. It's closer to a Google Takeout migration target.
 
+### Why not Dawarich?
+
+Dawarich is great for many use cases, but it didn't work well for my situation:
+
+- **Inaccurate visit detection in dense cities** — In high-density urban areas common in Asia, places are packed close together. Automatic visit detection based on dwell clusters and proximity frequently misidentifies locations, making the visit history unreliable.
+- **Reverse geocoding is unreliable in my country** — OpenStreetMap and Nominatim coverage is incomplete in many parts of Southeast Asia. Auto-assigned place names are often wrong or missing, so manually creating and naming places yields far more accurate results.
+- **Slow to load** — Dawarich felt sluggish in practice, especially with a large dataset. OpenTimeline is leaner and loads faster.
+- **Hard to review and manually create visits** — Dawarich's UI makes it cumbersome to review suggestions or manually create visits. For a workflow that relies on manual curation, this friction adds up quickly.
+
 **OpenTimeline** is leaner and more developer-focused. Its standout differentiator is the built-in MCP server — AI agents can query your timeline directly. Best suited if you want a lightweight self-hosted tracker with OwnTracks, and don't need reverse geocoding, export, or rich stats.
 
 ## 📚 Project Docs
