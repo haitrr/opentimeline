@@ -49,7 +49,13 @@ function TimePeriodHeader({ scanRadius, onScanRadiusChange }: { scanRadius: numb
 
 
 export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEnd, onClose, onCreated }: Props) {
-  const [scanRadius, setScanRadius] = useState(DEFAULT_SCAN_RADIUS_M);
+  const [scanRadius, setScanRadius] = useState(() => {
+    const firstPlace = [...places]
+      .map((p) => ({ ...p, distM: haversineKm(lat, lon, p.lat, p.lon) * 1000 }))
+      .filter((p) => p.distM <= 1000)
+      .sort((a, b) => a.distM - b.distM)[0];
+    return firstPlace?.radius ?? DEFAULT_SCAN_RADIUS_M;
+  });
   const [detectedPeriods, setDetectedPeriods] = useState<DetectedPeriod[]>([]);
   const [periodsLoading, setPeriodsLoading] = useState(true);
 
@@ -62,12 +68,26 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [scanRadius]);
 
+  const sortedPlaces = [...places]
+    .map((p) => ({ ...p, distM: haversineKm(lat, lon, p.lat, p.lon) * 1000 }))
+    .filter((p) => p.distM <= 1000)
+    .sort((a, b) => a.distM - b.distM);
+
+  const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(
+    () => sortedPlaces[0]?.id ?? null
+  );
+  const [isNewPlace, setIsNewPlace] = useState(() => sortedPlaces.length === 0);
+
   // Fetch detected periods from the server (includes ±5-day buffer around the range)
   useEffect(() => {
+    const selectedPlace = sortedPlaces.find((p) => p.id === selectedPlaceId);
+    const detectionLat = selectedPlace?.lat ?? lat;
+    const detectionLon = selectedPlace?.lon ?? lon;
+
     setPeriodsLoading(true);
     const params = new URLSearchParams({
-      lat: String(lat),
-      lon: String(lon),
+      lat: String(detectionLat),
+      lon: String(detectionLon),
       radiusM: String(debouncedRadius),
       ...(rangeStart ? { rangeStart } : {}),
       ...(rangeEnd ? { rangeEnd } : {}),
@@ -85,17 +105,7 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
       })
       .catch(() => setDetectedPeriods([]))
       .finally(() => setPeriodsLoading(false));
-  }, [lat, lon, debouncedRadius, rangeStart, rangeEnd]);
-
-  const sortedPlaces = [...places]
-    .map((p) => ({ ...p, distM: haversineKm(lat, lon, p.lat, p.lon) * 1000 }))
-    .filter((p) => p.distM <= 100)
-    .sort((a, b) => a.distM - b.distM);
-
-  const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(
-    () => sortedPlaces[0]?.id ?? null
-  );
-  const [isNewPlace, setIsNewPlace] = useState(() => sortedPlaces.length === 0);
+  }, [lat, lon, selectedPlaceId, debouncedRadius, rangeStart, rangeEnd]);
   const [newPlaceName, setNewPlaceName] = useState("");
   const [newPlaceRadius, setNewPlaceRadius] = useState(50);
   const [periodIndex, setPeriodIndex] = useState<number>(-1);
@@ -187,7 +197,7 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
             {/* Place */}
             <div>
               <p className="mb-1.5 text-xs font-medium text-gray-700">Place</p>
-              <div className="max-h-48 overflow-y-auto rounded border border-gray-200">
+              <div className="max-h-62.5 overflow-y-auto rounded border border-gray-200">
                 {sortedPlaces.map((p) => (
                   <label
                     key={p.id}
@@ -197,7 +207,7 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
                       type="radio"
                       name="place"
                       checked={!isNewPlace && selectedPlaceId === p.id}
-                      onChange={() => { setSelectedPlaceId(p.id); setIsNewPlace(false); }}
+                      onChange={() => { setSelectedPlaceId(p.id); setIsNewPlace(false); setScanRadius(p.radius); }}
                       className="shrink-0"
                     />
                     <span className="flex-1 text-sm text-gray-800">{p.name}</span>
