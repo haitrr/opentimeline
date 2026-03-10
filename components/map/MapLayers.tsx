@@ -2,9 +2,10 @@
 
 import React from "react";
 import { Source, Layer } from "react-map-gl/maplibre";
+import type { GeoJSON } from "geojson";
 import type { LayerSettings } from "@/components/map/hooks/useLayerSettings";
 
-type GeoJSONData = object;
+type GeoJSONData = GeoJSON;
 
 type Props = {
   layerSettings: LayerSettings;
