@@ -6,6 +6,10 @@ import { haversineKm } from "@/lib/geo";
 export async function GET(request: NextRequest) {
   const startParam = request.nextUrl.searchParams.get("start");
   const endParam = request.nextUrl.searchParams.get("end");
+  const minLat = request.nextUrl.searchParams.get("minLat");
+  const maxLat = request.nextUrl.searchParams.get("maxLat");
+  const minLon = request.nextUrl.searchParams.get("minLon");
+  const maxLon = request.nextUrl.searchParams.get("maxLon");
 
   const start = startParam ? new Date(startParam) : null;
   const end = endParam ? new Date(endParam) : null;
@@ -16,6 +20,16 @@ export async function GET(request: NextRequest) {
     !Number.isNaN(start.getTime()) &&
     !Number.isNaN(end.getTime());
 
+  const hasBounds =
+    minLat != null && maxLat != null && minLon != null && maxLon != null;
+
+  const boundsWhere = hasBounds
+    ? {
+        lat: { gte: parseFloat(minLat!), lte: parseFloat(maxLat!) },
+        lon: { gte: parseFloat(minLon!), lte: parseFloat(maxLon!) },
+      }
+    : {};
+
   const visitsWhere = hasValidRange
     ? {
         status: { in: ["confirmed", "suggested"] },
@@ -25,6 +39,7 @@ export async function GET(request: NextRequest) {
     : { status: { in: ["confirmed", "suggested"] } };
 
   const places = await prisma.place.findMany({
+    where: boundsWhere,
     include: {
       _count: { select: { visits: true } },
       visits: {
@@ -35,6 +50,27 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
+  // Get last confirmed visit date per place in a single query
+  const placeIds = places.map((p: (typeof places)[number]) => p.id);
+  const lastVisits =
+    placeIds.length > 0
+      ? await prisma.visit.groupBy({
+          by: ["placeId"],
+          where: {
+            placeId: { in: placeIds },
+            status: "confirmed",
+          },
+          _max: { departureAt: true },
+        })
+      : [];
+
+  const lastVisitMap = new Map(
+    lastVisits.map((lv: (typeof lastVisits)[number]) => [
+      lv.placeId,
+      lv._max.departureAt,
+    ])
+  );
+
   const result = places.map((p: (typeof places)[number]) => {
     const confirmedVisitsInRange = p.visits.filter(
       (visit: (typeof p.visits)[number]) => visit.status === "confirmed"
@@ -42,6 +78,8 @@ export async function GET(request: NextRequest) {
     const suggestedVisitsInRange = p.visits.filter(
       (visit: (typeof p.visits)[number]) => visit.status === "suggested"
     ).length;
+
+    const lastVisitDate = lastVisitMap.get(p.id);
 
     return {
       id: p.id,
@@ -56,6 +94,7 @@ export async function GET(request: NextRequest) {
       visitsInRange: confirmedVisitsInRange + suggestedVisitsInRange,
       confirmedVisitsInRange,
       suggestedVisitsInRange,
+      lastVisitAt: lastVisitDate ? lastVisitDate.toISOString() : null,
     };
   });
 

@@ -11,6 +11,7 @@ export type PlaceData = {
   visitsInRange?: number;
   confirmedVisitsInRange?: number;
   suggestedVisitsInRange?: number;
+  lastVisitAt?: string;
 };
 
 type CandidateVisit = {

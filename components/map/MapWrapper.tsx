@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
@@ -11,6 +11,8 @@ import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import PlaceDetailModal from "@/components/PlaceDetailModal";
 import PhotoModal from "@/components/PhotoModal";
 import CreateVisitModal from "@/components/CreateVisitModal";
+import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
+import type { MapBounds } from "@/components/map/mapConstants";
 
 const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
   ssr: false,
@@ -42,6 +44,7 @@ export type UnknownVisitData = {
 
 export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit = false }: Props) {
   const queryClient = useQueryClient();
+  const layerSettings = useLayerSettings();
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [modalCoords, setModalCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<PlaceData | null>(null);
@@ -50,6 +53,20 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
   const [createVisitCoords, setCreateVisitCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [updatingPlaceMove, setUpdatingPlaceMove] = useState(false);
   const [placeMoveError, setPlaceMoveError] = useState<string | null>(null);
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleBoundsChange = useCallback((bounds: MapBounds) => {
+    if (boundsDebounceRef.current) clearTimeout(boundsDebounceRef.current);
+    boundsDebounceRef.current = setTimeout(() => {
+      setMapBounds({
+        minLon: Math.floor(bounds.minLon * 100) / 100,
+        minLat: Math.floor(bounds.minLat * 100) / 100,
+        maxLon: Math.ceil(bounds.maxLon * 100) / 100,
+        maxLat: Math.ceil(bounds.maxLat * 100) / 100,
+      });
+    }, 400);
+  }, []);
 
   const { data: points = [] } = useQuery<SerializedPoint[]>({
     queryKey: ["locations", isAll ? "all" : rangeStart, isAll ? "all" : rangeEnd],
@@ -68,18 +85,25 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
   });
 
   const { data: places = [] } = useQuery<PlaceData[]>({
-    queryKey: ["places", rangeStart, rangeEnd],
+    queryKey: ["places", rangeStart, rangeEnd, mapBounds],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (rangeStart && rangeEnd) {
         params.set("start", rangeStart);
         params.set("end", rangeEnd);
       }
+      if (mapBounds) {
+        params.set("minLat", String(mapBounds.minLat));
+        params.set("maxLat", String(mapBounds.maxLat));
+        params.set("minLon", String(mapBounds.minLon));
+        params.set("maxLon", String(mapBounds.maxLon));
+      }
       const url = params.toString() ? `/api/places?${params}` : "/api/places";
       const res = await fetch(url);
       if (!res.ok) return [];
       return res.json();
     },
+    enabled: !layerSettings.hidePlaces && layerSettings.settingsLoaded && mapBounds !== null,
   });
 
   const { data: unknownVisits = [] } = useQuery<UnknownVisitData[]>({
@@ -188,6 +212,8 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
         rangeKey={isAll ? "all" : `${rangeStart ?? ""}__${rangeEnd ?? ""}`}
         shouldAutoFit={shouldAutoFit}
         places={places}
+        layerSettings={layerSettings}
+        onBoundsChange={handleBoundsChange}
         unknownVisits={
           rangeStart && rangeEnd
             ? unknownVisits.filter(

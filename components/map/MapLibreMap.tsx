@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Map, { Marker, type MapRef, type MapLayerMouseEvent } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { formatDistanceToNow } from "date-fns";
 import { haversineKm } from "@/lib/geo";
 import type { ImmichPhoto } from "@/lib/immich";
 import { computeInitialViewState } from "@/components/map/mapUtils";
@@ -22,6 +23,8 @@ export default function MapLibreMap({
   places = [],
   unknownVisits = [],
   photos = [],
+  layerSettings: layerSettingsProp,
+  onBoundsChange,
   onMapClick,
   onCreateVisit,
   onPlaceClick,
@@ -35,14 +38,22 @@ export default function MapLibreMap({
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [layersMenuOpen, setLayersMenuOpen] = useState(false);
   const [popup, setPopup] = useState<PopupState>(null);
-  const [hoveredPlaceId, setHoveredPlaceId] = useState<number | null>(null);
+  const [hoveredPlace, setHoveredPlace] = useState<{ id: number; x: number; y: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lat: number; lon: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const autoFitAppliedForRangeKeyRef = useRef<string | null>(null);
 
-  const layerSettings = useLayerSettings();
+  const internalLayerSettings = useLayerSettings();
+  const layerSettings = layerSettingsProp ?? internalLayerSettings;
+
+  const hoveredPlaceId = hoveredPlace?.id ?? null;
   const { isPlaying, playPos, playProgress, playTimestamp, startPlay, stopPlay } = useJourneyPlayback(points, rangeKey);
   const geoJSON = useMapGeoJSON(points, places, unknownVisits, photos, layerSettings.showVisitedPlaces, hoveredPlaceId);
+
+  const hoveredPlaceData = useMemo(
+    () => (hoveredPlaceId != null ? places.find((p) => p.id === hoveredPlaceId) ?? null : null),
+    [hoveredPlaceId, places]
+  );
 
   const unknownVisitPopupPhotos = useMemo(() => {
     if (popup?.kind !== "unknownVisit") return [] as ImmichPhoto[];
@@ -121,6 +132,20 @@ export default function MapLibreMap({
     return () => { map.off("idle", bringLabelsToTop); };
   }, [isMapLoaded]);
 
+  const reportBounds = useCallback(() => {
+    if (!onBoundsChange) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const bounds = map.getBounds();
+    if (!bounds) return;
+    onBoundsChange({
+      minLon: bounds.getWest(),
+      minLat: bounds.getSouth(),
+      maxLon: bounds.getEast(),
+      maxLat: bounds.getNorth(),
+    });
+  }, [onBoundsChange]);
+
   const [initialViewState] = useState(() => computeInitialViewState(points));
 
   const handleClick = useCallback(
@@ -188,20 +213,27 @@ export default function MapLibreMap({
       (f) => f.layer.id === "place-dot-circle-unvisited" || f.layer.id === "place-dot-circle-visited" || f.layer.id === "place-circle-fill"
     );
     const newHoveredId = (placeFeature?.properties?.placeId as number | undefined) ?? null;
-    setHoveredPlaceId((prev) => (prev === newHoveredId ? prev : newHoveredId));
+    setHoveredPlace((prev) => {
+      if (newHoveredId === null) return null;
+      if (prev?.id === newHoveredId && prev.x === event.point.x && prev.y === event.point.y) return prev;
+      return { id: newHoveredId, x: event.point.x, y: event.point.y };
+    });
   }, []);
 
   const handleMouseLeave = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
     map.getCanvas().style.cursor = "";
-    setHoveredPlaceId(null);
+    setHoveredPlace(null);
   }, []);
 
   const handleMapLoad = useCallback(() => {
     setIsMapLoaded(true);
     const map = mapRef.current;
-    if (!map || map.hasImage("arrow-direction")) return;
+    if (!map) return;
+    // Report initial bounds so MapWrapper can start loading places
+    reportBounds();
+    if (map.hasImage("arrow-direction")) return;
     const size = 12;
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -216,7 +248,7 @@ export default function MapLibreMap({
     ctx.fill();
     const data = ctx.getImageData(0, 0, size, size).data;
     map.addImage("arrow-direction", { width: size, height: size, data }, { sdf: true });
-  }, []);
+  }, [reportBounds]);
 
   const mapStyle = isDarkTheme
     ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
@@ -238,6 +270,7 @@ export default function MapLibreMap({
         onContextMenu={handleContextMenu}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
+        onMoveEnd={reportBounds}
         style={{ width: "100%", height: "100%" }}
       >
         <FlyToHandler mapRef={mapRef} />
@@ -281,6 +314,21 @@ export default function MapLibreMap({
           playTimestampFmt={playTimestampFmt}
         />
       </Map>
+
+      {/* Place hover tooltip */}
+      {hoveredPlace && hoveredPlaceData && (
+        <div
+          className="pointer-events-none absolute z-10 rounded-md bg-gray-900/90 px-2.5 py-1.5 text-xs text-white shadow-lg"
+          style={{ left: hoveredPlace.x + 12, top: hoveredPlace.y - 8 }}
+        >
+          <p className="font-semibold leading-tight">{hoveredPlaceData.name}</p>
+          <p className="mt-0.5 text-gray-300">
+            {hoveredPlaceData.lastVisitAt
+              ? formatDistanceToNow(new Date(hoveredPlaceData.lastVisitAt), { addSuffix: true })
+              : "No visits yet"}
+          </p>
+        </div>
+      )}
 
       <MapControls
         mapRef={mapRef}

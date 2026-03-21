@@ -5,23 +5,10 @@ import {
   DEFAULT_MAP_LAYER_SETTINGS,
   MAP_LAYER_SETTINGS_KEY,
   type MapLayerSettings,
+  type LayerSettings,
 } from "@/components/map/mapConstants";
 
-export type LayerSettings = {
-  showHeatmap: boolean;
-  setShowHeatmap: (v: boolean) => void;
-  showLine: boolean;
-  setShowLine: (v: boolean) => void;
-  showVisitedPlaces: boolean;
-  setShowVisitedPlaces: (v: boolean) => void;
-  hidePoints: boolean;
-  setHidePoints: (v: boolean) => void;
-  hidePlaces: boolean;
-  setHidePlaces: (v: boolean) => void;
-  hidePhotos: boolean;
-  setHidePhotos: (v: boolean) => void;
-  settingsLoaded: boolean;
-};
+export type { LayerSettings };
 
 export function useLayerSettings(): LayerSettings {
   const [showHeatmap, setShowHeatmap] = useState(DEFAULT_MAP_LAYER_SETTINGS.showHeatmap);

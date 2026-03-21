@@ -3,6 +3,29 @@ import type { UnknownVisitData } from "@/components/map/MapWrapper";
 import type { ImmichPhoto } from "@/lib/immich";
 import type { SerializedPoint } from "@/lib/groupByHour";
 
+export type MapBounds = {
+  minLon: number;
+  minLat: number;
+  maxLon: number;
+  maxLat: number;
+};
+
+export type LayerSettings = {
+  showHeatmap: boolean;
+  setShowHeatmap: (v: boolean) => void;
+  showLine: boolean;
+  setShowLine: (v: boolean) => void;
+  showVisitedPlaces: boolean;
+  setShowVisitedPlaces: (v: boolean) => void;
+  hidePoints: boolean;
+  setHidePoints: (v: boolean) => void;
+  hidePlaces: boolean;
+  setHidePlaces: (v: boolean) => void;
+  hidePhotos: boolean;
+  setHidePhotos: (v: boolean) => void;
+  settingsLoaded: boolean;
+};
+
 export type Props = {
   points: SerializedPoint[];
   rangeKey?: string;
@@ -10,6 +33,8 @@ export type Props = {
   places?: PlaceData[];
   unknownVisits?: UnknownVisitData[];
   photos?: ImmichPhoto[];
+  layerSettings?: LayerSettings;
+  onBoundsChange?: (bounds: MapBounds) => void;
   onMapClick?: (lat: number, lon: number) => void;
   onCreateVisit?: (lat: number, lon: number) => void;
   onPlaceClick?: (place: PlaceData) => void;
