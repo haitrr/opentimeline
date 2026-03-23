@@ -272,6 +272,7 @@ export default function MapLibreMap({
         onMouseLeave={handleMouseLeave}
         onMoveEnd={reportBounds}
         style={{ width: "100%", height: "100%" }}
+        attributionControl={false}
       >
         <FlyToHandler mapRef={mapRef} />
 

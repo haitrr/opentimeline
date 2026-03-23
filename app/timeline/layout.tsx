@@ -7,14 +7,15 @@ import MapWrapper from "@/components/map/MapWrapper";
 import PlacesPanel from "@/components/PlacesPanel";
 import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
 import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
-import ThemeToggle from "@/components/ThemeToggle";
 import ImportGpxButton from "@/components/ImportGpxButton";
 import ImportImmichButton from "@/components/ImportImmichButton";
 import SettingsModal from "@/components/SettingsModal";
+import AsideHeader from "@/components/AsideHeader";
 import { getRangeBounds } from "@/lib/getRangeBounds";
 import type { RangeType } from "@/app/timeline/[date]/page";
 
 const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
+
 
 function TimelineShell({ children }: { children: React.ReactNode }) {
   const params = useParams();
@@ -99,28 +100,16 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-gray-50 md:h-screen md:w-screen md:flex-row">
+      {mobilePanelsOpen && (
+        <div
+          className="absolute inset-0 z-[899] bg-black/40 md:hidden"
+          onClick={() => setMobilePanelsOpen(false)}
+        />
+      )}
       <aside
-        className={`absolute inset-x-0 top-0 z-900 h-full max-h-[75vh] md:max-h-[100vh] flex-col overflow-hidden border-b border-gray-200 bg-white shadow-lg transition-transform md:relative md:flex md:h-full md:w-[480px] md:max-w-[40vw] md:shrink-0 md:border-b-0 md:border-r md:shadow-none ${mobilePanelsOpen ? "flex" : "hidden"}`}
+        className={`absolute inset-y-0 left-0 z-900 flex w-[85vw] max-w-sm flex-col overflow-hidden border-r border-gray-200 bg-white shadow-xl transition-transform duration-300 ease-in-out md:relative md:flex md:h-full md:w-120 md:max-w-[40vw] md:shrink-0 md:shadow-none md:translate-x-0 ${mobilePanelsOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <header className="px-4 pt-3 pb-0">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-blue-500" />
-              <h1 className="text-base font-semibold text-gray-900">OpenTimeline</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <button
-                type="button"
-                onClick={() => setMobilePanelsOpen(false)}
-                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 md:hidden"
-                aria-label="Close panel"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        </header>
+        <AsideHeader onClose={() => setMobilePanelsOpen(false)} />
         {children}
         <PlacesPanel />
         <VisitSuggestionsPanel />
@@ -191,9 +180,12 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => setMobilePanelsOpen((open) => !open)}
-          className="absolute left-3 top-3 z-900 rounded border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow md:hidden"
+          className="absolute bottom-6 right-4 z-900 flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg active:scale-95 md:hidden"
+          aria-label="Toggle panel"
         >
-          {mobilePanelsOpen ? "Hide panel" : "Show panel"}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+            <path fillRule="evenodd" d="M3 6.75A.75.75 0 0 1 3.75 6h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 6.75ZM3 12a.75.75 0 0 1 .75-.75h16.5a.75.75 0 0 1 0 1.5H3.75A.75.75 0 0 1 3 12Zm0 5.25a.75.75 0 0 1 .75-.75H12a.75.75 0 0 1 0 1.5H3.75a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
+          </svg>
         </button>
       </main>
     </div>
