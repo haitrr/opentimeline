@@ -103,7 +103,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: !layerSettings.hidePlaces && layerSettings.settingsLoaded && mapBounds !== null,
+    enabled: layerSettings.settingsLoaded && mapBounds !== null,
   });
 
   const { data: unknownVisits = [] } = useQuery<UnknownVisitData[]>({
