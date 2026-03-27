@@ -107,9 +107,9 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
         />
       )}
       <aside
-        className={`absolute inset-y-0 left-0 z-900 flex w-[85vw] max-w-sm flex-col overflow-hidden border-r border-gray-200 bg-white shadow-xl transition-transform duration-300 ease-in-out md:relative md:flex md:h-full md:w-120 md:max-w-[40vw] md:shrink-0 md:shadow-none md:translate-x-0 ${mobilePanelsOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`absolute inset-y-0 left-0 z-901 flex w-[95vw] max-w-sm flex-col overflow-hidden border-r border-gray-200 bg-white shadow-xl transition-transform duration-300 ease-in-out md:relative md:flex md:h-full md:w-120 md:max-w-[40vw] md:shrink-0 md:shadow-none md:translate-x-0 ${mobilePanelsOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
-        <AsideHeader onClose={() => setMobilePanelsOpen(false)} />
+        <AsideHeader onClose={() => setMobilePanelsOpen(false)} onDetect={detectVisits} detecting={detecting} />
         {children}
         <PlacesPanel />
         <VisitSuggestionsPanel />
@@ -119,17 +119,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
             <div className="absolute bottom-full left-0 mb-2 w-56 rounded-md border border-gray-200 bg-white p-2 shadow-lg">
               <ImportGpxButton />
               <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
-              <button
-                type="button"
-                onClick={detectVisits}
-                disabled={detecting}
-                className="mt-1 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
-                </svg>
-                {detecting ? "Detecting…" : "Detect visits"}
-              </button>
               <div className="my-1 border-t border-gray-100" />
               <button
                 type="button"
@@ -154,7 +143,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 20 20"
               fill="currentColor"
-              className="h-3.5 w-3.5"
+              className="h-5 w-5"
             >
               <path
                 fillRule="evenodd"
