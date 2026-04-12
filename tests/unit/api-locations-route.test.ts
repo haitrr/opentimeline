@@ -59,6 +59,7 @@ describe("GET /api/locations", () => {
 
     expect(res.status).toBe(200);
     expect(body.decimated).toBe(false);
+    expect(body.boundsIgnored).toBe(false);
     expect(body.total).toBe(5000);
     expect(body.points).toHaveLength(2);
     expect(body.nextCursor).toBe("2:102");
@@ -75,6 +76,7 @@ describe("GET /api/locations", () => {
     const res = await GET(req({ ...BOUNDS, limit: "100" }));
     const body = await res.json();
     expect(body.nextCursor).toBeNull();
+    expect(body.boundsIgnored).toBe(false);
   });
 
   it("decimates when count exceeds threshold", async () => {
@@ -99,6 +101,7 @@ describe("GET /api/locations", () => {
     const body = await res.json();
 
     expect(body.decimated).toBe(true);
+    expect(body.boundsIgnored).toBe(false);
     expect(body.nextCursor).toBeNull();
     expect(body.total).toBe(100000);
     expect(body.points.length).toBeLessThanOrEqual(20000);
@@ -125,5 +128,90 @@ describe("GET /api/locations", () => {
     const res = await GET(req({ ...BOUNDS, limit: "99999" }));
     expect(res.status).toBe(200);
     expect(queryRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores bbox when skipBoundsIfSmall=true and time-range count fits", async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ total: BigInt(5000) }])
+      .mockResolvedValueOnce([
+        { id: 1, lat: 99, lon: 99, tst: 1, recordedAt: new Date("2026-04-12T01:00:00Z"), acc: null, batt: null, tid: null, alt: null, vel: null },
+      ]);
+
+    const res = await GET(req({ ...BOUNDS, skipBoundsIfSmall: "true" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.boundsIgnored).toBe(true);
+    expect(body.decimated).toBe(false);
+    expect(body.total).toBe(5000);
+
+    const countSql = JSON.stringify(queryRaw.mock.calls[0]);
+    expect(countSql).not.toContain("lat BETWEEN");
+    expect(countSql).not.toContain("lon BETWEEN");
+
+    const pageSql = JSON.stringify(queryRaw.mock.calls[1]);
+    expect(pageSql).not.toContain("lat BETWEEN");
+    expect(pageSql).not.toContain("lon BETWEEN");
+  });
+
+  it("falls back to bounded flow when skipBoundsIfSmall=true but time-range count exceeds threshold", async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ total: BigInt(100000) }])
+      .mockResolvedValueOnce([{ total: BigInt(50000) }])
+      .mockResolvedValueOnce(
+        Array.from({ length: 20000 }, (_, i) => ({
+          id: i + 1,
+          lat: 11,
+          lon: 31,
+          tst: i,
+          recordedAt: new Date("2026-04-12T01:00:00Z"),
+          acc: null,
+          batt: null,
+          tid: null,
+          alt: null,
+          vel: null,
+        })),
+      );
+
+    const res = await GET(req({ ...BOUNDS, skipBoundsIfSmall: "true" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.boundsIgnored).toBe(false);
+    expect(body.decimated).toBe(true);
+    expect(body.total).toBe(50000);
+
+    const boundedCountSql = JSON.stringify(queryRaw.mock.calls[1]);
+    expect(boundedCountSql).toContain("lat BETWEEN");
+    expect(boundedCountSql).toContain("lon BETWEEN");
+  });
+
+  it("keeps bbox when skipBoundsIfSmall is absent (default)", async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ total: BigInt(100) }])
+      .mockResolvedValueOnce([]);
+
+    const res = await GET(req(BOUNDS));
+    const body = await res.json();
+
+    expect(body.boundsIgnored).toBe(false);
+
+    const countSql = JSON.stringify(queryRaw.mock.calls[0]);
+    expect(countSql).toContain("lat BETWEEN");
+    expect(countSql).toContain("lon BETWEEN");
+  });
+
+  it("passes cursor into the unbounded pagination query", async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ total: BigInt(100) }])
+      .mockResolvedValueOnce([]);
+
+    await GET(req({ ...BOUNDS, skipBoundsIfSmall: "true", cursor: "42:500" }));
+
+    const pageCallArgs = queryRaw.mock.calls[1];
+    const text = JSON.stringify(pageCallArgs);
+    expect(text).toContain("500");
+    expect(text).toContain("42");
+    expect(text).not.toContain("lat BETWEEN");
   });
 });

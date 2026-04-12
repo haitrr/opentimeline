@@ -100,6 +100,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         maxLat: String(mapBounds!.maxLat),
         minLon: String(mapBounds!.minLon),
         maxLon: String(mapBounds!.maxLon),
+        skipBoundsIfSmall: "true",
       });
       if (typeof pageParam === "string") params.set("cursor", pageParam);
       const res = await fetch(`/api/locations?${params}`);
