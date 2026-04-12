@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { detectVisitsForPlace } from "@/lib/detectVisits";
 import { haversineKm } from "@/lib/geo";
 
 export async function GET(request: NextRequest) {
@@ -172,7 +171,5 @@ export async function POST(request: NextRequest) {
     await prisma.visit.delete({ where: { id: supersededVisit.id } });
   }
 
-  const newVisits = await detectVisitsForPlace(place.id);
-
-  return NextResponse.json({ place, newVisits }, { status: 201 });
+  return NextResponse.json({ place }, { status: 201 });
 }
