@@ -114,6 +114,17 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
     [locationsData],
   );
 
+  const { data: pointsEnvelope = null } = useQuery<MapBounds | null>({
+    queryKey: ["locations-bounds", rangeStart, rangeEnd],
+    enabled: Boolean(rangeStart) && Boolean(rangeEnd),
+    queryFn: async () => {
+      const params = new URLSearchParams({ start: rangeStart!, end: rangeEnd! });
+      const res = await fetch(`/api/locations/bounds?${params}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
   const { data: places = [] } = useQuery<PlaceData[]>({
     queryKey: ["places", rangeStart, rangeEnd, mapBounds],
     queryFn: async () => {
@@ -239,6 +250,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
     <div className="h-full w-full">
       <MapLibreMap
         points={points}
+        pointsEnvelope={pointsEnvelope}
         rangeKey={`${rangeStart ?? ""}__${rangeEnd ?? ""}`}
         shouldAutoFit={shouldAutoFit}
         places={places}
