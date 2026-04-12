@@ -50,6 +50,10 @@ function encodeCursor(row: { tst: number; id: number }): string {
   return `${row.tst}:${row.id}`;
 }
 
+function parseBool(raw: string | null): boolean {
+  return raw === "true" || raw === "1";
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -73,6 +77,44 @@ export async function GET(request: Request) {
     Math.min(MAX_PAGE_LIMIT, limitRaw ?? DEFAULT_PAGE_LIMIT),
   );
   const cursor = parseCursor(searchParams.get("cursor"));
+  const skipBoundsIfSmall = parseBool(searchParams.get("skipBoundsIfSmall"));
+
+  const selectCols = Prisma.sql`id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel`;
+  const cursorClause = cursor
+    ? Prisma.sql`AND (tst, id) > (${cursor.tst}, ${cursor.id})`
+    : Prisma.empty;
+
+  if (skipBoundsIfSmall) {
+    const timeWhere = Prisma.sql`"recordedAt" BETWEEN ${start} AND ${end}`;
+
+    const timeCountRows = await prisma.$queryRaw<{ total: bigint }[]>`
+      SELECT COUNT(*)::bigint AS total
+      FROM "LocationPoint"
+      WHERE ${timeWhere};
+    `;
+    const timeTotal = Number(timeCountRows[0]?.total ?? BigInt(0));
+
+    if (timeTotal <= DECIMATION_THRESHOLD) {
+      const rows = await prisma.$queryRaw<PointRow[]>`
+        SELECT ${selectCols}
+        FROM "LocationPoint"
+        WHERE ${timeWhere}
+        ${cursorClause}
+        ORDER BY tst, id
+        LIMIT ${limit};
+      `;
+
+      const nextCursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : null;
+
+      return NextResponse.json({
+        points: rows.map(serializeRow),
+        nextCursor,
+        decimated: false,
+        boundsIgnored: true,
+        total: timeTotal,
+      });
+    }
+  }
 
   const where = Prisma.sql`
     "recordedAt" BETWEEN ${start} AND ${end}
@@ -86,8 +128,6 @@ export async function GET(request: Request) {
     WHERE ${where};
   `;
   const total = Number(countRows[0]?.total ?? BigInt(0));
-
-  const selectCols = Prisma.sql`id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel`;
 
   if (total > DECIMATION_THRESHOLD) {
     const stride = Math.ceil(total / DECIMATION_THRESHOLD);
@@ -106,13 +146,11 @@ export async function GET(request: Request) {
       points: rows.map(serializeRow),
       nextCursor: null,
       decimated: true,
+      boundsIgnored: false,
       total,
     });
   }
 
-  const cursorClause = cursor
-    ? Prisma.sql`AND (tst, id) > (${cursor.tst}, ${cursor.id})`
-    : Prisma.empty;
   const rows = await prisma.$queryRaw<PointRow[]>`
     SELECT ${selectCols}
     FROM "LocationPoint"
@@ -128,6 +166,7 @@ export async function GET(request: Request) {
     points: rows.map(serializeRow),
     nextCursor,
     decimated: false,
+    boundsIgnored: false,
     total,
   });
 }
