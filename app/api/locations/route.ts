@@ -1,11 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import {
-  DECIMATION_THRESHOLD,
-  DEFAULT_PAGE_LIMIT,
-  MAX_PAGE_LIMIT,
-} from "@/lib/locations";
+import { DECIMATION_THRESHOLD } from "@/lib/locations";
 
 type PointRow = {
   id: number;
@@ -37,19 +33,6 @@ function parseDate(raw: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function parseCursor(raw: string | null): { tst: number; id: number } | null {
-  if (raw === null || raw === "") return null;
-  const [tstStr, idStr] = raw.split(":");
-  const tst = Number(tstStr);
-  const id = Number(idStr);
-  if (!Number.isFinite(tst) || !Number.isFinite(id)) return null;
-  return { tst, id };
-}
-
-function encodeCursor(row: { tst: number; id: number }): string {
-  return `${row.tst}:${row.id}`;
-}
-
 function parseBool(raw: string | null): boolean {
   return raw === "true" || raw === "1";
 }
@@ -71,18 +54,9 @@ export async function GET(request: Request) {
     );
   }
 
-  const limitRaw = parseNumber(searchParams.get("limit"));
-  const limit = Math.max(
-    1,
-    Math.min(MAX_PAGE_LIMIT, limitRaw ?? DEFAULT_PAGE_LIMIT),
-  );
-  const cursor = parseCursor(searchParams.get("cursor"));
   const skipBoundsIfSmall = parseBool(searchParams.get("skipBoundsIfSmall"));
 
   const selectCols = Prisma.sql`id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel`;
-  const cursorClause = cursor
-    ? Prisma.sql`AND (tst, id) > (${cursor.tst}, ${cursor.id})`
-    : Prisma.empty;
 
   if (skipBoundsIfSmall) {
     const timeWhere = Prisma.sql`"recordedAt" BETWEEN ${start} AND ${end}`;
@@ -99,16 +73,11 @@ export async function GET(request: Request) {
         SELECT ${selectCols}
         FROM "LocationPoint"
         WHERE ${timeWhere}
-        ${cursorClause}
-        ORDER BY tst, id
-        LIMIT ${limit};
+        ORDER BY tst, id;
       `;
-
-      const nextCursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : null;
 
       return NextResponse.json({
         points: rows.map(serializeRow),
-        nextCursor,
         decimated: false,
         boundsIgnored: true,
         total: timeTotal,
@@ -144,7 +113,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       points: rows.map(serializeRow),
-      nextCursor: null,
       decimated: true,
       boundsIgnored: false,
       total,
@@ -155,16 +123,11 @@ export async function GET(request: Request) {
     SELECT ${selectCols}
     FROM "LocationPoint"
     WHERE ${where}
-    ${cursorClause}
-    ORDER BY tst, id
-    LIMIT ${limit};
+    ORDER BY tst, id;
   `;
-
-  const nextCursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : null;
 
   return NextResponse.json({
     points: rows.map(serializeRow),
-    nextCursor,
     decimated: false,
     boundsIgnored: false,
     total,

@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useRef, useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
@@ -32,12 +32,14 @@ type Props = {
   shouldAutoFit?: boolean;
 };
 
-type LocationsPage = {
+type LocationsResponse = {
   points: SerializedPoint[];
-  nextCursor: string | null;
   decimated: boolean;
+  boundsIgnored: boolean;
   total: number;
 };
+
+const EMPTY_POINTS: SerializedPoint[] = [];
 
 export type UnknownVisitData = {
   id: number;
@@ -61,19 +63,25 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   const [placeMoveError, setPlaceMoveError] = useState<string | null>(null);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const boundsIgnoredRef = useRef(false);
 
   const handleBoundsChange = useCallback((bounds: MapBounds) => {
     if (boundsDebounceRef.current) clearTimeout(boundsDebounceRef.current);
     boundsDebounceRef.current = setTimeout(() => {
-      const w = bounds.maxLon - bounds.minLon;
-      const h = bounds.maxLat - bounds.minLat;
-      const cellW = Math.max(w / 2, 0.005);
-      const cellH = Math.max(h / 2, 0.005);
-      setMapBounds({
-        minLon: Math.floor(bounds.minLon / cellW) * cellW - cellW,
-        maxLon: Math.ceil(bounds.maxLon / cellW) * cellW + cellW,
-        minLat: Math.floor(bounds.minLat / cellH) * cellH - cellH,
-        maxLat: Math.ceil(bounds.maxLat / cellH) * cellH + cellH,
+      setMapBounds((prev) => {
+        // When the server returned the full time-range unbounded, any bounds change
+        // would refetch identical data — skip it to avoid a visible re-render.
+        if (prev !== null && boundsIgnoredRef.current) return prev;
+        const w = bounds.maxLon - bounds.minLon;
+        const h = bounds.maxLat - bounds.minLat;
+        const cellW = Math.max(w / 2, 0.005);
+        const cellH = Math.max(h / 2, 0.005);
+        return {
+          minLon: Math.floor(bounds.minLon / cellW) * cellW - cellW,
+          maxLon: Math.ceil(bounds.maxLon / cellW) * cellW + cellW,
+          minLat: Math.floor(bounds.minLat / cellH) * cellH - cellH,
+          maxLat: Math.ceil(bounds.maxLat / cellH) * cellH + cellH,
+        };
       });
     }, 100);
   }, []);
@@ -81,18 +89,11 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   const locationsEnabled =
     mapBounds !== null && Boolean(rangeStart) && Boolean(rangeEnd);
 
-  const {
-    data: locationsData,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery<LocationsPage>({
+  const { data: locationsData } = useQuery<LocationsResponse>({
     queryKey: ["locations", rangeStart, rangeEnd, mapBounds],
     enabled: locationsEnabled,
     placeholderData: keepPreviousData,
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => last.nextCursor,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async () => {
       const params = new URLSearchParams({
         start: rangeStart!,
         end: rangeEnd!,
@@ -102,23 +103,14 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         maxLon: String(mapBounds!.maxLon),
         skipBoundsIfSmall: "true",
       });
-      if (typeof pageParam === "string") params.set("cursor", pageParam);
       const res = await fetch(`/api/locations?${params}`);
       if (!res.ok) throw new Error(`locations ${res.status}`);
       return res.json();
     },
   });
 
-  useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage) {
-      void fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  const points = useMemo<SerializedPoint[]>(
-    () => locationsData?.pages.flatMap((p) => p.points) ?? [],
-    [locationsData],
-  );
+  const points = locationsData?.points ?? EMPTY_POINTS;
+  boundsIgnoredRef.current = locationsData?.boundsIgnored ?? false;
 
   const { data: pointsEnvelope = null } = useQuery<MapBounds | null>({
     queryKey: ["locations-bounds", rangeStart, rangeEnd],

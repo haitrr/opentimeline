@@ -4,8 +4,6 @@ import type { DailyStats } from "@/lib/groupByHour";
 import { assembleStats, type StatsGlobalsRow, type StatsBucketRow } from "@/lib/stats";
 
 export const DECIMATION_THRESHOLD = 20_000;
-export const DEFAULT_PAGE_LIMIT = 5_000;
-export const MAX_PAGE_LIMIT = 10_000;
 
 type GlobalsRawRow = {
   total_points: bigint;
