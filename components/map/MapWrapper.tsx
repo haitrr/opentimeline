@@ -65,13 +65,17 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   const handleBoundsChange = useCallback((bounds: MapBounds) => {
     if (boundsDebounceRef.current) clearTimeout(boundsDebounceRef.current);
     boundsDebounceRef.current = setTimeout(() => {
+      const w = bounds.maxLon - bounds.minLon;
+      const h = bounds.maxLat - bounds.minLat;
+      const cellW = Math.max(w / 2, 0.005);
+      const cellH = Math.max(h / 2, 0.005);
       setMapBounds({
-        minLon: Math.floor(bounds.minLon * 100) / 100,
-        minLat: Math.floor(bounds.minLat * 100) / 100,
-        maxLon: Math.ceil(bounds.maxLon * 100) / 100,
-        maxLat: Math.ceil(bounds.maxLat * 100) / 100,
+        minLon: Math.floor(bounds.minLon / cellW) * cellW - cellW,
+        maxLon: Math.ceil(bounds.maxLon / cellW) * cellW + cellW,
+        minLat: Math.floor(bounds.minLat / cellH) * cellH - cellH,
+        maxLat: Math.ceil(bounds.maxLat / cellH) * cellH + cellH,
       });
-    }, 400);
+    }, 150);
   }, []);
 
   const locationsEnabled =
