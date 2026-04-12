@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
@@ -85,6 +85,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   } = useInfiniteQuery<LocationsPage>({
     queryKey: ["locations", rangeStart, rangeEnd, mapBounds],
     enabled: locationsEnabled,
+    placeholderData: keepPreviousData,
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     queryFn: async ({ pageParam }) => {
