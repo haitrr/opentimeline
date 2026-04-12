@@ -8,7 +8,7 @@ import type { ImmichPhoto } from "@/lib/immich";
 import { haversineKm } from "@/lib/geo";
 import { geoCircle, interpolateColor } from "@/components/map/mapUtils";
 
-const PATH_SPLIT_SEC = 3600;
+const PATH_SPLIT_SEC = 600;
 const PATH_SPLIT_KM = 5;
 const TIME_BUCKETS = 256;
 
