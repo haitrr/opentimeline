@@ -9,7 +9,7 @@ import { haversineKm } from "@/lib/geo";
 import { geoCircle, interpolateColor } from "@/components/map/mapUtils";
 
 const PATH_SPLIT_SEC = 600;
-const PATH_SPLIT_KM = 5;
+const PATH_SPLIT_KM = 0.5;
 const TIME_BUCKETS = 256;
 
 export function useMapGeoJSON(
