@@ -19,6 +19,8 @@ import MapControls from "@/components/map/MapControls";
 export default function MapLibreMap({
   points,
   pointsEnvelope = null,
+  rangeStart,
+  rangeEnd,
   rangeKey,
   shouldAutoFit = false,
   places = [],
@@ -49,7 +51,7 @@ export default function MapLibreMap({
 
   const hoveredPlaceId = hoveredPlace?.id ?? null;
   const { isPlaying, playPos, playProgress, playTimestamp, startPlay, stopPlay } = useJourneyPlayback(points, rangeKey);
-  const geoJSON = useMapGeoJSON(points, places, unknownVisits, photos, layerSettings.showVisitedPlaces, hoveredPlaceId);
+  const geoJSON = useMapGeoJSON(points, places, unknownVisits, photos, layerSettings.showVisitedPlaces, hoveredPlaceId, rangeStart, rangeEnd);
 
   const hoveredPlaceData = useMemo(
     () => (hoveredPlaceId != null ? places.find((p) => p.id === hoveredPlaceId) ?? null : null),
@@ -279,7 +281,6 @@ export default function MapLibreMap({
           layerSettings={layerSettings}
           isDarkTheme={isDarkTheme}
           pathGeoJSON={geoJSON.pathGeoJSON}
-          lineGradientExpression={geoJSON.lineGradientExpression}
           heatGeoJSON={geoJSON.heatGeoJSON}
           pointsGeoJSON={geoJSON.pointsGeoJSON}
           placeCirclesGeoJSON={geoJSON.placeCirclesGeoJSON}

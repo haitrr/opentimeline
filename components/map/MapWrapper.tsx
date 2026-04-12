@@ -257,6 +257,8 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
       <MapLibreMap
         points={points}
         pointsEnvelope={pointsEnvelope}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
         rangeKey={`${rangeStart ?? ""}__${rangeEnd ?? ""}`}
         shouldAutoFit={shouldAutoFit}
         places={places}

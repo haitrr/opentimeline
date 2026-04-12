@@ -10,6 +10,7 @@ import { geoCircle, interpolateColor } from "@/components/map/mapUtils";
 
 const PATH_SPLIT_SEC = 3600;
 const PATH_SPLIT_KM = 5;
+const TIME_BUCKETS = 256;
 
 export function useMapGeoJSON(
   points: SerializedPoint[],
@@ -18,67 +19,67 @@ export function useMapGeoJSON(
   photos: ImmichPhoto[],
   showVisitedPlaces: boolean,
   hoveredPlaceId: number | null,
+  rangeStart?: string,
+  rangeEnd?: string,
 ) {
   const pathGeoJSON = useMemo(() => {
-    const segments: [number, number][][] = [];
+    type PathFeature = {
+      type: "Feature";
+      geometry: { type: "LineString"; coordinates: [number, number][] };
+      properties: { color: string };
+    };
+    const features: PathFeature[] = [];
+    if (points.length < 2) {
+      return { type: "FeatureCollection" as const, features };
+    }
+
+    const rangeStartSec = rangeStart ? Math.floor(new Date(rangeStart).getTime() / 1000) : points[0].tst;
+    const rangeEndSec = rangeEnd ? Math.floor(new Date(rangeEnd).getTime() / 1000) : points[points.length - 1].tst;
+    const totalTime = Math.max(1, rangeEndSec - rangeStartSec);
+
+    const bucketOf = (tst: number) => {
+      const raw = Math.floor(((tst - rangeStartSec) / totalTime) * TIME_BUCKETS);
+      return Math.max(0, Math.min(TIME_BUCKETS - 1, raw));
+    };
+    const colorOf = (bucket: number) => interpolateColor((bucket + 0.5) / TIME_BUCKETS);
+
     let current: [number, number][] = [];
-    for (let i = 0; i < points.length; i++) {
+    let currentBucket = bucketOf(points[0].tst);
+    const flush = () => {
+      if (current.length > 1) {
+        features.push({
+          type: "Feature",
+          geometry: { type: "LineString", coordinates: current },
+          properties: { color: colorOf(currentBucket) },
+        });
+      }
+    };
+
+    current.push([points[0].lon, points[0].lat]);
+    for (let i = 1; i < points.length; i++) {
       const p = points[i];
-      if (i > 0) {
-        const prev = points[i - 1];
-        const tstGap = p.tst - prev.tst;
-        const distKm = haversineKm(prev.lat, prev.lon, p.lat, p.lon);
-        if (tstGap > PATH_SPLIT_SEC || distKm > PATH_SPLIT_KM) {
-          if (current.length > 1) segments.push(current);
-          current = [];
-        }
+      const prev = points[i - 1];
+      const tstGap = p.tst - prev.tst;
+      const distKm = haversineKm(prev.lat, prev.lon, p.lat, p.lon);
+      const bucket = bucketOf(p.tst);
+      const isGap = tstGap > PATH_SPLIT_SEC || distKm > PATH_SPLIT_KM;
+      if (isGap) {
+        flush();
+        current = [];
+        currentBucket = bucket;
+      } else if (bucket !== currentBucket) {
+        // Keep this point to start the new colored segment and close the previous one on it.
+        current.push([p.lon, p.lat]);
+        flush();
+        current = [[p.lon, p.lat]];
+        currentBucket = bucket;
+        continue;
       }
       current.push([p.lon, p.lat]);
     }
-    if (current.length > 1) segments.push(current);
-    return {
-      type: "Feature" as const,
-      geometry: {
-        type: "MultiLineString" as const,
-        coordinates: segments,
-      },
-      properties: {},
-    };
-  }, [points]);
-
-  const lineGradientExpression = useMemo(() => {
-    const fallback = ["interpolate", ["linear"], ["line-progress"], 0, "#22c55e", 0.25, "#06b6d4", 0.5, "#3b82f6", 0.75, "#a855f7", 1, "#ef4444"];
-    if (points.length < 2) return fallback;
-
-    const startTime = points[0].tst;
-    const endTime = points[points.length - 1].tst;
-    const totalTime = endTime - startTime;
-
-    const cumDist: number[] = [0];
-    for (let i = 1; i < points.length; i++) {
-      cumDist.push(cumDist[i - 1] + haversineKm(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon));
-    }
-    const totalDist = cumDist[cumDist.length - 1];
-    if (totalDist === 0 || totalTime === 0) return fallback;
-
-    const stride = Math.max(1, Math.floor(points.length / 100));
-    const expr: (string | number | string[])[] = ["interpolate", ["linear"], ["line-progress"]];
-    const seen = new Set<number>();
-
-    for (let i = 0; i < points.length; i += stride) {
-      const distProgress = Math.min(1, cumDist[i] / totalDist);
-      const key = Math.round(distProgress * 1e6);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const timeProgress = Math.min(1, Math.max(0, (points[i].tst - startTime) / totalTime));
-      expr.push(distProgress, interpolateColor(timeProgress));
-    }
-
-    const lastKey = Math.round(1e6);
-    if (!seen.has(lastKey)) expr.push(1, "#ef4444");
-
-    return expr;
-  }, [points]);
+    flush();
+    return { type: "FeatureCollection" as const, features };
+  }, [points, rangeStart, rangeEnd]);
 
   const pointsGeoJSON = useMemo(() => {
     const features: Array<{
@@ -213,7 +214,6 @@ export function useMapGeoJSON(
 
   return {
     pathGeoJSON,
-    lineGradientExpression,
     pointsGeoJSON,
     heatGeoJSON,
     placeCirclesGeoJSON,

@@ -11,7 +11,6 @@ type Props = {
   layerSettings: LayerSettings;
   isDarkTheme: boolean;
   pathGeoJSON: GeoJSONData;
-  lineGradientExpression: unknown[];
   heatGeoJSON: GeoJSONData;
   pointsGeoJSON: GeoJSONData;
   placeCirclesGeoJSON: GeoJSONData;
@@ -29,7 +28,6 @@ export default function MapLayers({
   layerSettings,
   isDarkTheme,
   pathGeoJSON,
-  lineGradientExpression,
   heatGeoJSON,
   pointsGeoJSON,
   placeCirclesGeoJSON,
@@ -68,14 +66,13 @@ export default function MapLayers({
       </Source>
 
       {/* Path line */}
-      <Source id="path" type="geojson" data={pathGeoJSON} lineMetrics>
+      <Source id="path" type="geojson" data={pathGeoJSON}>
         <Layer
           id="path-line"
           type="line"
           layout={{ visibility: vis(showLine && pointCount > 1), "line-cap": "round", "line-join": "round" }}
           paint={{
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            "line-gradient": lineGradientExpression as any,
+            "line-color": ["get", "color"],
             "line-width": showHeatmap ? 2 : 3,
             "line-opacity": showHeatmap ? 0.5 : 0.75,
           }}
