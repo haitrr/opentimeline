@@ -49,14 +49,14 @@ If you want to run Postgres via Docker:
 docker compose up -d postgres
 ```
 
-This exposes Postgres on `localhost:54324` with user `postgres` and password `postgres`.
+This exposes Postgres on `localhost:54231` with user `postgres` and password `postgres`.
 
 ### 3) Create `.env`
 
 Create `.env` in the project root with:
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:54324/postgres?schema=public"
+DATABASE_URL="postgresql://postgres:postgres@localhost:54231/postgres?schema=public"
 
 # Optional: periodic Postgres dump backup schedule/retention
 POSTGRES_BACKUP_SCHEDULE="@daily"
