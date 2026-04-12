@@ -17,7 +17,6 @@ export type SerializedPoint = {
 export type TimeGroup = {
   key: string;
   label: string;
-  points: SerializedPoint[];
   distanceKm: number;
 };
 
@@ -71,7 +70,6 @@ export function computePeriodStats(
         groupBy === "hour"
           ? format(pts[0].recordedAt, "h a")
           : format(pts[0].recordedAt, "EEE, MMM d"),
-      points: pts,
       distanceKm: totalDistanceKm(pts),
     }));
 
