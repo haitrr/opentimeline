@@ -75,7 +75,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         minLat: Math.floor(bounds.minLat / cellH) * cellH - cellH,
         maxLat: Math.ceil(bounds.maxLat / cellH) * cellH + cellH,
       });
-    }, 150);
+    }, 100);
   }, []);
 
   const locationsEnabled =
