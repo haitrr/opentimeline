@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { startOfDay, endOfDay } from "date-fns";
-import type { SerializedPoint, DailyStats } from "@/lib/groupByHour";
+import type { DailyStats } from "@/lib/groupByHour";
 import { assembleStats, type StatsGlobalsRow, type StatsBucketRow } from "@/lib/stats";
 
 export const DECIMATION_THRESHOLD = 20_000;
@@ -113,38 +112,3 @@ export async function getStatsForRange(
   return assembleStats(globals, buckets, groupBy);
 }
 
-export async function getPointsForDate(date: Date): Promise<SerializedPoint[]> {
-  return getPointsForRange(startOfDay(date), endOfDay(date));
-}
-
-export async function getPointsForRange(
-  start: Date,
-  end: Date
-): Promise<SerializedPoint[]> {
-  const points = await prisma.locationPoint.findMany({
-    where: {
-      recordedAt: {
-        gte: start,
-        lte: end,
-      },
-    },
-    orderBy: { tst: "asc" },
-    select: {
-      id: true,
-      lat: true,
-      lon: true,
-      tst: true,
-      recordedAt: true,
-      acc: true,
-      batt: true,
-      tid: true,
-      alt: true,
-      vel: true,
-    },
-  });
-
-  return points.map((p) => ({
-    ...p,
-    recordedAt: p.recordedAt.toISOString(),
-  }));
-}
