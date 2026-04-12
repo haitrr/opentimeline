@@ -85,7 +85,7 @@ export async function GET(request: Request) {
         FROM "LocationPoint"
         WHERE ${where}
       ) AS sub
-      WHERE rn % ${stride} = 0
+      WHERE (rn - 1) % ${stride} = 0
       ORDER BY tst;
     `);
 
