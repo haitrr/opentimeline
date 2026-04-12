@@ -62,45 +62,48 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   const [updatingPlaceMove, setUpdatingPlaceMove] = useState(false);
   const [placeMoveError, setPlaceMoveError] = useState<string | null>(null);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const [locationsBounds, setLocationsBounds] = useState<MapBounds | null>(null);
   const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boundsIgnoredRef = useRef(false);
 
   const handleBoundsChange = useCallback((bounds: MapBounds) => {
     if (boundsDebounceRef.current) clearTimeout(boundsDebounceRef.current);
     boundsDebounceRef.current = setTimeout(() => {
-      setMapBounds((prev) => {
+      const w = bounds.maxLon - bounds.minLon;
+      const h = bounds.maxLat - bounds.minLat;
+      const cellW = Math.max(w / 2, 0.005);
+      const cellH = Math.max(h / 2, 0.005);
+      const snapped: MapBounds = {
+        minLon: Math.floor(bounds.minLon / cellW) * cellW - cellW,
+        maxLon: Math.ceil(bounds.maxLon / cellW) * cellW + cellW,
+        minLat: Math.floor(bounds.minLat / cellH) * cellH - cellH,
+        maxLat: Math.ceil(bounds.maxLat / cellH) * cellH + cellH,
+      };
+      setMapBounds(snapped);
+      setLocationsBounds((prev) => {
         // When the server returned the full time-range unbounded, any bounds change
-        // would refetch identical data — skip it to avoid a visible re-render.
+        // would refetch identical point data — skip it to avoid a visible re-render.
         if (prev !== null && boundsIgnoredRef.current) return prev;
-        const w = bounds.maxLon - bounds.minLon;
-        const h = bounds.maxLat - bounds.minLat;
-        const cellW = Math.max(w / 2, 0.005);
-        const cellH = Math.max(h / 2, 0.005);
-        return {
-          minLon: Math.floor(bounds.minLon / cellW) * cellW - cellW,
-          maxLon: Math.ceil(bounds.maxLon / cellW) * cellW + cellW,
-          minLat: Math.floor(bounds.minLat / cellH) * cellH - cellH,
-          maxLat: Math.ceil(bounds.maxLat / cellH) * cellH + cellH,
-        };
+        return snapped;
       });
     }, 100);
   }, []);
 
   const locationsEnabled =
-    mapBounds !== null && Boolean(rangeStart) && Boolean(rangeEnd);
+    locationsBounds !== null && Boolean(rangeStart) && Boolean(rangeEnd);
 
   const { data: locationsData } = useQuery<LocationsResponse>({
-    queryKey: ["locations", rangeStart, rangeEnd, mapBounds],
+    queryKey: ["locations", rangeStart, rangeEnd, locationsBounds],
     enabled: locationsEnabled,
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const params = new URLSearchParams({
         start: rangeStart!,
         end: rangeEnd!,
-        minLat: String(mapBounds!.minLat),
-        maxLat: String(mapBounds!.maxLat),
-        minLon: String(mapBounds!.minLon),
-        maxLon: String(mapBounds!.maxLon),
+        minLat: String(locationsBounds!.minLat),
+        maxLat: String(locationsBounds!.maxLat),
+        minLon: String(locationsBounds!.minLon),
+        maxLon: String(locationsBounds!.maxLon),
         skipBoundsIfSmall: "true",
       });
       const res = await fetch(`/api/locations?${params}`);
