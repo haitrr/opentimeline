@@ -48,21 +48,6 @@ export function hasEvidenceOfLeavingInGap(
   return false;
 }
 
-export function totalDistanceKm(
-  points: { lat: number; lon: number }[]
-): number {
-  let total = 0;
-  for (let i = 1; i < points.length; i++) {
-    total += haversineKm(
-      points[i - 1].lat,
-      points[i - 1].lon,
-      points[i].lat,
-      points[i].lon
-    );
-  }
-  return total;
-}
-
 /**
  * Computes the median latitude and longitude of a set of points.
  * More robust than the mean when GPS drift or noise pulls the running

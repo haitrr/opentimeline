@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPointsForDate, getPointsForRange, getAllPoints } from "@/lib/locations";
+import { getPointsForDate, getPointsForRange } from "@/lib/locations";
 import { format } from "date-fns";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-
-  if (searchParams.get("all") === "true") {
-    const points = await getAllPoints();
-    return NextResponse.json(points);
-  }
 
   const startParam = searchParams.get("start");
   const endParam = searchParams.get("end");
