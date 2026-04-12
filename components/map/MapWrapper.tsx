@@ -128,6 +128,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
 
   const { data: places = [] } = useQuery<PlaceData[]>({
     queryKey: ["places", rangeStart, rangeEnd, mapBounds],
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const params = new URLSearchParams();
       if (rangeStart && rangeEnd) {
