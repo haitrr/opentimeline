@@ -54,7 +54,7 @@ describe("GET /api/locations", () => {
         { id: 102, lat: 12, lon: 32, tst: 2, recordedAt: new Date("2026-04-12T02:00:00Z"), acc: null, batt: null, tid: null, alt: null, vel: null },
       ]);
 
-    const res = await GET(req(BOUNDS));
+    const res = await GET(req({ ...BOUNDS, limit: "2" }));
     const body = await res.json();
 
     expect(res.status).toBe(200);

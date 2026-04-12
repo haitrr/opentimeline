@@ -107,7 +107,7 @@ export async function GET(request: Request) {
     LIMIT ${limit};
   `);
 
-  const nextCursor = total >= limit ? (rows[rows.length - 1]?.id ?? null) : null;
+  const nextCursor = rows.length === limit ? rows[rows.length - 1].id : null;
 
   return NextResponse.json({
     points: rows.map(serializeRow),
