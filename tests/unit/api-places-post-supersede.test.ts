@@ -111,4 +111,21 @@ describe("POST /api/places — supersedesVisitId", () => {
     expect(prisma.visit.create).not.toHaveBeenCalled();
     expect(prisma.visit.delete).not.toHaveBeenCalled();
   });
+
+  it("does not invoke detectVisitsForPlace when creating a place without supersedesVisitId", async () => {
+    await POST(
+      makeRequest({ name: "Home", lat: 10, lon: 20, radius: 50 }),
+    );
+
+    expect(detectVisitsForPlace).not.toHaveBeenCalled();
+  });
+
+  it("does not include newVisits in the response body on plain creation", async () => {
+    const res = await POST(
+      makeRequest({ name: "Home", lat: 10, lon: 20, radius: 50 }),
+    );
+    const body = await res.json();
+
+    expect(body).toEqual({ place: NEW_PLACE });
+  });
 });
