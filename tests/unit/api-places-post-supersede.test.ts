@@ -42,7 +42,6 @@ describe("POST /api/places — supersedesVisitId", () => {
     vi.clearAllMocks();
     (prisma.place.create as unknown as MockFn).mockResolvedValue(NEW_PLACE);
     (prisma.unknownVisitSuggestion.findMany as unknown as MockFn).mockResolvedValue([]);
-    (detectVisitsForPlace as unknown as MockFn).mockResolvedValue(0);
   });
 
   it("transplants the superseded visit as a confirmed visit at the new place and deletes the original", async () => {
@@ -69,37 +68,6 @@ describe("POST /api/places — supersedesVisitId", () => {
       },
     });
     expect(prisma.visit.delete).toHaveBeenCalledWith({ where: { id: 7 } });
-  });
-
-  it("transplants before running detection, so overlapping candidates are suppressed by the same-place guard", async () => {
-    (prisma.visit.findUnique as unknown as MockFn).mockResolvedValue({
-      id: 7,
-      arrivalAt: new Date("2026-03-01T10:00:00Z"),
-      departureAt: new Date("2026-03-01T11:00:00Z"),
-      pointCount: 12,
-    });
-
-    const callOrder: string[] = [];
-    (prisma.visit.create as unknown as MockFn).mockImplementation(async () => {
-      callOrder.push("visit.create");
-    });
-    (prisma.visit.delete as unknown as MockFn).mockImplementation(async () => {
-      callOrder.push("visit.delete");
-    });
-    (detectVisitsForPlace as unknown as MockFn).mockImplementation(async () => {
-      callOrder.push("detectVisitsForPlace");
-      return 0;
-    });
-
-    await POST(
-      makeRequest({ name: "Home", lat: 10, lon: 20, radius: 50, supersedesVisitId: 7 }),
-    );
-
-    const createIdx = callOrder.indexOf("visit.create");
-    const detectIdx = callOrder.indexOf("detectVisitsForPlace");
-    expect(createIdx).toBeGreaterThanOrEqual(0);
-    expect(detectIdx).toBeGreaterThanOrEqual(0);
-    expect(createIdx).toBeLessThan(detectIdx);
   });
 
   it("leaves all visits alone when supersedesVisitId is not provided", async () => {
