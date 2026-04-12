@@ -27,10 +27,7 @@ Creating a place via `POST /api/places` performs no automatic detection of past 
 - Remove `newVisits` from the 201 response body.
 - Preserve the `supersedesVisitId` branch untouched: when the caller provides it, the existing visit is still transplanted to the new place.
 
-Response shape:
-
-- Without supersede: `{ place }`
-- With supersede: `{ place, transplantedVisit }` (matching the existing shape minus `newVisits`)
+Response shape (both paths): `{ place }`. The supersede branch still performs the transplant server-side, but the response body does not need to surface it — no caller reads it.
 
 ### 2. `tests/unit/api-places-post-supersede.test.ts`
 
