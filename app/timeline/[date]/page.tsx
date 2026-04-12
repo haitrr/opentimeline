@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getPointsForRange, getAllPoints } from "@/lib/locations";
-import { computePeriodStats } from "@/lib/groupByHour";
+import { getStatsForRange } from "@/lib/locations";
 import { getRangeBounds } from "@/lib/getRangeBounds";
 import DateNav from "@/components/DateNav";
 import DailyStats from "@/components/DailyStats";
@@ -28,18 +27,21 @@ export default async function TimelineDatePage({ params, searchParams }: Props) 
     ? (range as RangeType)
     : "day";
 
-  let points;
+  const groupBy = rangeType === "day" ? "hour" : "day";
+
   let rangeStart: string | undefined;
   let rangeEnd: string | undefined;
+  let stats;
   if (rangeType === "all") {
-    points = await getAllPoints();
+    rangeStart = new Date(0).toISOString();
+    rangeEnd = new Date().toISOString();
+    stats = await getStatsForRange(undefined, undefined, groupBy);
   } else {
     const { start, end: rangeBoundEnd } = getRangeBounds(parsedDate, rangeType, end);
     rangeStart = start.toISOString();
     rangeEnd = rangeBoundEnd.toISOString();
-    points = await getPointsForRange(start, rangeBoundEnd);
+    stats = await getStatsForRange(start, rangeBoundEnd, groupBy);
   }
-  const stats = computePeriodStats(points, rangeType === "day" ? "hour" : "day");
 
   return (
     <>

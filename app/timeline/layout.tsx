@@ -31,13 +31,18 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   const endDate = searchParams.get("end") ?? undefined;
   const shouldAutoFit = searchParams.get("fit") === "1";
 
-  const { rangeStart, rangeEnd, isAll } = useMemo(() => {
-    if (!date) return { rangeStart: undefined, rangeEnd: undefined, isAll: false };
-    if (range === "all") return { rangeStart: undefined, rangeEnd: undefined, isAll: true };
+  const { rangeStart, rangeEnd } = useMemo(() => {
+    if (!date) return { rangeStart: undefined, rangeEnd: undefined };
+    if (range === "all") {
+      return {
+        rangeStart: new Date(0).toISOString(),
+        rangeEnd: new Date().toISOString(),
+      };
+    }
     const parsedDate = new Date(`${date}T00:00:00`);
-    if (isNaN(parsedDate.getTime())) return { rangeStart: undefined, rangeEnd: undefined, isAll: false };
+    if (isNaN(parsedDate.getTime())) return { rangeStart: undefined, rangeEnd: undefined };
     const { start, end } = getRangeBounds(parsedDate, range, endDate);
-    return { rangeStart: start.toISOString(), rangeEnd: end.toISOString(), isAll: false };
+    return { rangeStart: start.toISOString(), rangeEnd: end.toISOString() };
   }, [date, range, endDate]);
 
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState(false);
@@ -160,7 +165,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
       )}
 
       <main className="relative min-h-0 flex-1">
-        <MapWrapper rangeStart={rangeStart} rangeEnd={rangeEnd} isAll={isAll} shouldAutoFit={shouldAutoFit} />
+        <MapWrapper rangeStart={rangeStart} rangeEnd={rangeEnd} shouldAutoFit={shouldAutoFit} />
 {toast && (
           <div className="absolute top-4 left-1/2 z-900 -translate-x-1/2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-lg">
             {toast}

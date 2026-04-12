@@ -18,6 +18,9 @@ import MapControls from "@/components/map/MapControls";
 
 export default function MapLibreMap({
   points,
+  pointsEnvelope = null,
+  rangeStart,
+  rangeEnd,
   rangeKey,
   shouldAutoFit = false,
   places = [],
@@ -48,7 +51,7 @@ export default function MapLibreMap({
 
   const hoveredPlaceId = hoveredPlace?.id ?? null;
   const { isPlaying, playPos, playProgress, playTimestamp, startPlay, stopPlay } = useJourneyPlayback(points, rangeKey);
-  const geoJSON = useMapGeoJSON(points, places, unknownVisits, photos, layerSettings.showVisitedPlaces, hoveredPlaceId);
+  const geoJSON = useMapGeoJSON(points, places, unknownVisits, photos, layerSettings.showVisitedPlaces, hoveredPlaceId, rangeStart, rangeEnd);
 
   const hoveredPlaceData = useMemo(
     () => (hoveredPlaceId != null ? places.find((p) => p.id === hoveredPlaceId) ?? null : null),
@@ -103,18 +106,16 @@ export default function MapLibreMap({
       autoFitAppliedForRangeKeyRef.current = null;
       return;
     }
-    if (!isMapLoaded || !rangeKey || points.length === 0) return;
+    if (!isMapLoaded || !rangeKey || !pointsEnvelope) return;
     if (autoFitAppliedForRangeKeyRef.current === rangeKey) return;
     const map = mapRef.current;
     if (!map) return;
-    const lats = points.map((p) => p.lat);
-    const lons = points.map((p) => p.lon);
     map.fitBounds(
-      [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      [[pointsEnvelope.minLon, pointsEnvelope.minLat], [pointsEnvelope.maxLon, pointsEnvelope.maxLat]],
       { padding: FIT_BOUNDS_PADDING, duration: 800, maxZoom: FIT_BOUNDS_MAX_ZOOM }
     );
     autoFitAppliedForRangeKeyRef.current = rangeKey;
-  }, [shouldAutoFit, isMapLoaded, rangeKey, points]);
+  }, [shouldAutoFit, isMapLoaded, rangeKey, pointsEnvelope]);
 
   // Keep label layers on top after every render batch
   useEffect(() => {
@@ -280,7 +281,6 @@ export default function MapLibreMap({
           layerSettings={layerSettings}
           isDarkTheme={isDarkTheme}
           pathGeoJSON={geoJSON.pathGeoJSON}
-          lineGradientExpression={geoJSON.lineGradientExpression}
           heatGeoJSON={geoJSON.heatGeoJSON}
           pointsGeoJSON={geoJSON.pointsGeoJSON}
           placeCirclesGeoJSON={geoJSON.placeCirclesGeoJSON}
@@ -334,6 +334,7 @@ export default function MapLibreMap({
       <MapControls
         mapRef={mapRef}
         points={points}
+        pointsEnvelope={pointsEnvelope}
         layerSettings={layerSettings}
         layersMenuOpen={layersMenuOpen}
         setLayersMenuOpen={setLayersMenuOpen}

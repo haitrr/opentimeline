@@ -28,6 +28,9 @@ export type LayerSettings = {
 
 export type Props = {
   points: SerializedPoint[];
+  pointsEnvelope?: MapBounds | null;
+  rangeStart?: string;
+  rangeEnd?: string;
   rangeKey?: string;
   shouldAutoFit?: boolean;
   places?: PlaceData[];

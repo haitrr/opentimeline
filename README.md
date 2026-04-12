@@ -179,7 +179,8 @@ Relevant endpoints:
 
 ### API
 
-- `GET /api/locations?date=YYYY-MM-DD`
+- `GET /api/locations?start=<ISO>&end=<ISO>&minLat=<n>&maxLat=<n>&minLon=<n>&maxLon=<n>&cursor=<id>&limit=<n>` — returns `{ points, nextCursor, decimated, total }`. `start`, `end`, and all four bounds are required. `limit` defaults to 5000, clamped to 10000. When the in-range+in-bounds count exceeds 20 000, the response is a single decimated snapshot (`decimated: true`, `nextCursor: null`).
+- `GET /api/location-centroid?start=<ISO>&end=<ISO>` — returns `{ lat, lon }` averaged across GPS points in the window, or 404 if no points fall in it.
 - `POST /api/owntracks`
 - `POST /api/import`
 - `GET /api/places`

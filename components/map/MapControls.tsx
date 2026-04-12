@@ -4,7 +4,7 @@ import React from "react";
 import { format } from "date-fns";
 import type { MapRef } from "react-map-gl/maplibre";
 import type { LayerSettings } from "@/components/map/hooks/useLayerSettings";
-import { DEFAULT_MAP_LAYER_SETTINGS, FIT_BOUNDS_PADDING, FIT_BOUNDS_MAX_ZOOM, MAP_LAYER_SETTINGS_KEY } from "@/components/map/mapConstants";
+import { DEFAULT_MAP_LAYER_SETTINGS, FIT_BOUNDS_PADDING, FIT_BOUNDS_MAX_ZOOM, MAP_LAYER_SETTINGS_KEY, type MapBounds } from "@/components/map/mapConstants";
 import type { SerializedPoint } from "@/lib/groupByHour";
 
 type ContextMenu = { x: number; y: number; lat: number; lon: number } | null;
@@ -12,6 +12,7 @@ type ContextMenu = { x: number; y: number; lat: number; lon: number } | null;
 type Props = {
   mapRef: React.RefObject<MapRef | null>;
   points: SerializedPoint[];
+  pointsEnvelope?: MapBounds | null;
   layerSettings: LayerSettings;
   layersMenuOpen: boolean;
   setLayersMenuOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
@@ -30,6 +31,7 @@ type Props = {
 export default function MapControls({
   mapRef,
   points,
+  pointsEnvelope = null,
   layerSettings,
   layersMenuOpen,
   setLayersMenuOpen,
@@ -107,13 +109,21 @@ export default function MapControls({
       )}
 
       {/* Fit all points + Play journey buttons */}
-      {points.length > 0 && (
+      {(pointsEnvelope || points.length > 0) && (
         <div className="pointer-events-none absolute bottom-4 left-16 z-900 flex gap-2">
           <button
             type="button"
             onClick={() => {
               const map = mapRef.current;
-              if (!map || points.length === 0) return;
+              if (!map) return;
+              if (pointsEnvelope) {
+                map.fitBounds(
+                  [[pointsEnvelope.minLon, pointsEnvelope.minLat], [pointsEnvelope.maxLon, pointsEnvelope.maxLat]],
+                  { padding: FIT_BOUNDS_PADDING, duration: 800, maxZoom: FIT_BOUNDS_MAX_ZOOM }
+                );
+                return;
+              }
+              if (points.length === 0) return;
               const lats = points.map((p) => p.lat);
               const lons = points.map((p) => p.lon);
               map.fitBounds(
