@@ -24,7 +24,9 @@
       "Bash(tee /tmp/maplibremap_full.txt)",
       "Bash(pnpm exec eslint components/PlaceDetailModal.tsx components/PlaceDetailHeader.tsx components/EditVisitModal.tsx components/VisitCard.tsx lib/placeDetailUtils.ts --max-warnings=0)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm exec:*)"
+      "Bash(pnpm exec:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
