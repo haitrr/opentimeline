@@ -111,8 +111,8 @@ describe("GET /api/locations", () => {
 
     await GET(req({ ...BOUNDS, cursor: "500" }));
 
-    const pageCall = queryRaw.mock.calls[1][0];
-    const text = JSON.stringify(pageCall);
+    const pageCallArgs = queryRaw.mock.calls[1];
+    const text = JSON.stringify(pageCallArgs);
     expect(text).toContain("500");
   });
 

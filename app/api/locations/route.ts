@@ -67,18 +67,18 @@ export async function GET(request: Request) {
     AND lon BETWEEN ${minLon} AND ${maxLon}
   `;
 
-  const countRows = await prisma.$queryRaw<{ total: bigint }[]>(Prisma.sql`
+  const countRows = await prisma.$queryRaw<{ total: bigint }[]>`
     SELECT COUNT(*)::bigint AS total
     FROM "LocationPoint"
     WHERE ${where};
-  `);
+  `;
   const total = Number(countRows[0]?.total ?? BigInt(0));
 
   const selectCols = Prisma.sql`id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel`;
 
   if (total > DECIMATION_THRESHOLD) {
     const stride = Math.ceil(total / DECIMATION_THRESHOLD);
-    const rows = await prisma.$queryRaw<PointRow[]>(Prisma.sql`
+    const rows = await prisma.$queryRaw<PointRow[]>`
       SELECT ${selectCols}
       FROM (
         SELECT ${selectCols}, ROW_NUMBER() OVER (ORDER BY tst) AS rn
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
       ) AS sub
       WHERE (rn - 1) % ${stride} = 0
       ORDER BY tst;
-    `);
+    `;
 
     return NextResponse.json({
       points: rows.map(serializeRow),
@@ -98,14 +98,14 @@ export async function GET(request: Request) {
   }
 
   const cursorClause = cursor !== null ? Prisma.sql`AND id > ${cursor}` : Prisma.empty;
-  const rows = await prisma.$queryRaw<PointRow[]>(Prisma.sql`
+  const rows = await prisma.$queryRaw<PointRow[]>`
     SELECT ${selectCols}
     FROM "LocationPoint"
     WHERE ${where}
     ${cursorClause}
     ORDER BY id
     LIMIT ${limit};
-  `);
+  `;
 
   const nextCursor = rows.length === limit ? rows[rows.length - 1].id : null;
 

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
@@ -15,11 +14,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Invalid date" }, { status: 400 });
   }
 
-  const rows = await prisma.$queryRaw<{ lat: number | null; lon: number | null }[]>(Prisma.sql`
+  const rows = await prisma.$queryRaw<{ lat: number | null; lon: number | null }[]>`
     SELECT AVG(lat)::double precision AS lat, AVG(lon)::double precision AS lon
     FROM "LocationPoint"
     WHERE "recordedAt" BETWEEN ${start} AND ${end};
-  `);
+  `;
 
   const row = rows[0];
   if (!row || row.lat === null || row.lon === null) {

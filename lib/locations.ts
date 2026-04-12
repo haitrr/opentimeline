@@ -32,7 +32,7 @@ export async function getStatsForRange(
     : Prisma.empty;
   const bucketFormat = groupBy === "hour" ? "HH24" : "YYYY-MM-DD";
 
-  const globalsRows = await prisma.$queryRaw<GlobalsRawRow[]>(Prisma.sql`
+  const globalsRows = await prisma.$queryRaw<GlobalsRawRow[]>`
     WITH ordered AS (
       SELECT
         tst,
@@ -59,9 +59,9 @@ export async function getStatsForRange(
         END
       ), 0)::double precision                                        AS total_km
     FROM ordered;
-  `);
+  `;
 
-  const bucketRows = await prisma.$queryRaw<BucketRawRow[]>(Prisma.sql`
+  const bucketRows = await prisma.$queryRaw<BucketRawRow[]>`
     WITH ordered AS (
       SELECT
         tst,
@@ -91,7 +91,7 @@ export async function getStatsForRange(
     FROM ordered
     GROUP BY bucket_key
     ORDER BY bucket_key;
-  `);
+  `;
 
   const globals: StatsGlobalsRow = globalsRows[0]
     ? {
