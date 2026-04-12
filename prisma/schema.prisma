@@ -24,6 +24,8 @@ model LocationPoint {
 
   @@index([recordedAt])
   @@index([username, deviceId, recordedAt])
+  @@index([recordedAt, lat, lon])
+  @@index([tst, id])
 }
 
 model Place {
@@ -35,6 +37,8 @@ model Place {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   visits    Visit[]
+
+  @@index([lat, lon])
 }
 
 model Visit {
