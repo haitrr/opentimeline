@@ -26,7 +26,13 @@
       "Bash(pnpm test:*)",
       "Bash(pnpm exec:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git worktree:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm rebuild:*)",
+      "Bash(git stash:*)",
+      "Bash(cat test-results/map-progressive-load-*/error-context.md)",
+      "Bash(curl -sS 'http://localhost:3000/api/location-centroid?start=2026-03-01T00:00:00Z&end=2026-03-01T23:59:59Z')"
     ]
   }
 }
