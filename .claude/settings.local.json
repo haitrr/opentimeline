@@ -22,7 +22,9 @@
       "Bash(PGPASSWORD=postgres psql -h localhost -p 54324 -U postgres -d opentimeline -c 'SELECT * FROM \"\"AppSettings\"\";')",
       "Bash(npx eslint components/CreateVisitModal.tsx --rule '{\"\"react/jsx-max-depth\"\": \"\"error\"\"}')",
       "Bash(tee /tmp/maplibremap_full.txt)",
-      "Bash(pnpm exec eslint components/PlaceDetailModal.tsx components/PlaceDetailHeader.tsx components/EditVisitModal.tsx components/VisitCard.tsx lib/placeDetailUtils.ts --max-warnings=0)"
+      "Bash(pnpm exec eslint components/PlaceDetailModal.tsx components/PlaceDetailHeader.tsx components/EditVisitModal.tsx components/VisitCard.tsx lib/placeDetailUtils.ts --max-warnings=0)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm exec:*)"
     ]
   }
 }

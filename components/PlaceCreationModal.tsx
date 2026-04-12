@@ -6,11 +6,12 @@ import type { PlaceData } from "@/lib/detectVisits";
 type Props = {
   lat: number;
   lon: number;
+  supersedesVisitId?: number;
   onClose: () => void;
   onCreated: (place: PlaceData) => void;
 };
 
-export default function PlaceCreationModal({ lat, lon, onClose, onCreated }: Props) {
+export default function PlaceCreationModal({ lat, lon, supersedesVisitId, onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [radius, setRadius] = useState(50);
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,7 @@ export default function PlaceCreationModal({ lat, lon, onClose, onCreated }: Pro
       const res = await fetch("/api/places", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), lat, lon, radius }),
+        body: JSON.stringify({ name: name.trim(), lat, lon, radius, supersedesVisitId }),
       });
       if (!res.ok) {
         const data = await res.json();

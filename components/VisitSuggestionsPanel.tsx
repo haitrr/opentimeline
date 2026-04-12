@@ -50,15 +50,11 @@ export default function VisitSuggestionsPanel() {
     setCreatingPlaceForVisit(visit);
   }
 
-  async function handlePlaceCreatedForVisit(visitId: number) {
-    const res = await fetch(`/api/visits/${visitId}`, { method: "DELETE" });
-
-    if (res.ok) {
-      setCreatingPlaceForVisit(null);
-      setCreatingPlaceForVisitCentroid(null);
-      queryClient.invalidateQueries({ queryKey: ["visits"] });
-      queryClient.invalidateQueries({ queryKey: ["places"] });
-    }
+  function handlePlaceCreatedForVisit() {
+    setCreatingPlaceForVisit(null);
+    setCreatingPlaceForVisitCentroid(null);
+    queryClient.invalidateQueries({ queryKey: ["visits"] });
+    queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
   return (
@@ -129,8 +125,9 @@ export default function VisitSuggestionsPanel() {
         <PlaceCreationModal
           lat={creatingPlaceForVisitCentroid.lat}
           lon={creatingPlaceForVisitCentroid.lon}
+          supersedesVisitId={creatingPlaceForVisit.id}
           onClose={() => { setCreatingPlaceForVisit(null); setCreatingPlaceForVisitCentroid(null); }}
-          onCreated={() => handlePlaceCreatedForVisit(creatingPlaceForVisit.id)}
+          onCreated={handlePlaceCreatedForVisit}
         />
       )}
     </div>

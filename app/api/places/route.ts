@@ -103,13 +103,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, lat, lon, radius } = body;
+  const { name, lat, lon, radius, supersedesVisitId } = body;
 
   if (!name || lat == null || lon == null) {
     return NextResponse.json(
       { error: "name, lat, and lon are required" },
       { status: 400 }
     );
+  }
+
+  let supersededVisit: {
+    id: number;
+    arrivalAt: Date;
+    departureAt: Date;
+    pointCount: number;
+  } | null = null;
+  if (supersedesVisitId != null) {
+    const id = Number(supersedesVisitId);
+    if (Number.isInteger(id)) {
+      supersededVisit = await prisma.visit.findUnique({
+        where: { id },
+        select: { id: true, arrivalAt: true, departureAt: true, pointCount: true },
+      });
+    }
   }
 
   const place = await prisma.place.create({
@@ -138,6 +154,22 @@ export async function POST(request: NextRequest) {
       },
       data: { status: "confirmed" },
     });
+  }
+
+  // Transplant the superseded suggestion's exact time range as a confirmed
+  // visit at the new place before detection runs, so the narrower radius
+  // can't split it into multiple overlapping candidates.
+  if (supersededVisit) {
+    await prisma.visit.create({
+      data: {
+        placeId: place.id,
+        arrivalAt: supersededVisit.arrivalAt,
+        departureAt: supersededVisit.departureAt,
+        status: "confirmed",
+        pointCount: supersededVisit.pointCount,
+      },
+    });
+    await prisma.visit.delete({ where: { id: supersededVisit.id } });
   }
 
   const newVisits = await detectVisitsForPlace(place.id);
