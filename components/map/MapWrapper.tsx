@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { ImmichPhoto } from "@/lib/immich";
@@ -29,8 +29,14 @@ const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
 type Props = {
   rangeStart?: string;
   rangeEnd?: string;
-  isAll?: boolean;
   shouldAutoFit?: boolean;
+};
+
+type LocationsPage = {
+  points: SerializedPoint[];
+  nextCursor: number | null;
+  decimated: boolean;
+  total: number;
 };
 
 export type UnknownVisitData = {
@@ -42,7 +48,7 @@ export type UnknownVisitData = {
   pointCount: number;
 };
 
-export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit = false }: Props) {
+export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false }: Props) {
   const queryClient = useQueryClient();
   const layerSettings = useLayerSettings();
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
@@ -68,21 +74,45 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
     }, 400);
   }, []);
 
-  const { data: points = [] } = useQuery<SerializedPoint[]>({
-    queryKey: ["locations", isAll ? "all" : rangeStart, isAll ? "all" : rangeEnd],
-    queryFn: async () => {
-      if (isAll) {
-        const res = await fetch("/api/locations?all=true");
-        if (!res.ok) return [];
-        return res.json();
-      }
-      if (!rangeStart || !rangeEnd) return [];
-      const params = new URLSearchParams({ start: rangeStart, end: rangeEnd });
+  const locationsEnabled =
+    mapBounds !== null && Boolean(rangeStart) && Boolean(rangeEnd);
+
+  const {
+    data: locationsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery<LocationsPage>({
+    queryKey: ["locations", rangeStart, rangeEnd, mapBounds],
+    enabled: locationsEnabled,
+    initialPageParam: null as number | null,
+    getNextPageParam: (last) => last.nextCursor,
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams({
+        start: rangeStart!,
+        end: rangeEnd!,
+        minLat: String(mapBounds!.minLat),
+        maxLat: String(mapBounds!.maxLat),
+        minLon: String(mapBounds!.minLon),
+        maxLon: String(mapBounds!.maxLon),
+      });
+      if (pageParam !== null) params.set("cursor", String(pageParam));
       const res = await fetch(`/api/locations?${params}`);
-      if (!res.ok) return [];
+      if (!res.ok) throw new Error(`locations ${res.status}`);
       return res.json();
     },
   });
+
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const points = useMemo<SerializedPoint[]>(
+    () => locationsData?.pages.flatMap((p) => p.points) ?? [],
+    [locationsData],
+  );
 
   const { data: places = [] } = useQuery<PlaceData[]>({
     queryKey: ["places", rangeStart, rangeEnd, mapBounds],
@@ -209,7 +239,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
     <div className="h-full w-full">
       <MapLibreMap
         points={points}
-        rangeKey={isAll ? "all" : `${rangeStart ?? ""}__${rangeEnd ?? ""}`}
+        rangeKey={`${rangeStart ?? ""}__${rangeEnd ?? ""}`}
         shouldAutoFit={shouldAutoFit}
         places={places}
         layerSettings={layerSettings}
@@ -292,8 +322,8 @@ export default function MapWrapper({ rangeStart, rangeEnd, isAll, shouldAutoFit 
           lat={createVisitCoords.lat}
           lon={createVisitCoords.lon}
           places={places}
-          rangeStart={isAll ? undefined : rangeStart}
-          rangeEnd={isAll ? undefined : rangeEnd}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
           onClose={() => setCreateVisitCoords(null)}
           onCreated={handleVisitCreated}
         />
