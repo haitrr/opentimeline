@@ -37,6 +37,19 @@ function parseDate(raw: string | null): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function parseCursor(raw: string | null): { tst: number; id: number } | null {
+  if (raw === null || raw === "") return null;
+  const [tstStr, idStr] = raw.split(":");
+  const tst = Number(tstStr);
+  const id = Number(idStr);
+  if (!Number.isFinite(tst) || !Number.isFinite(id)) return null;
+  return { tst, id };
+}
+
+function encodeCursor(row: { tst: number; id: number }): string {
+  return `${row.tst}:${row.id}`;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -59,7 +72,7 @@ export async function GET(request: Request) {
     1,
     Math.min(MAX_PAGE_LIMIT, limitRaw ?? DEFAULT_PAGE_LIMIT),
   );
-  const cursor = parseNumber(searchParams.get("cursor"));
+  const cursor = parseCursor(searchParams.get("cursor"));
 
   const where = Prisma.sql`
     "recordedAt" BETWEEN ${start} AND ${end}
@@ -97,17 +110,19 @@ export async function GET(request: Request) {
     });
   }
 
-  const cursorClause = cursor !== null ? Prisma.sql`AND id > ${cursor}` : Prisma.empty;
+  const cursorClause = cursor
+    ? Prisma.sql`AND (tst, id) > (${cursor.tst}, ${cursor.id})`
+    : Prisma.empty;
   const rows = await prisma.$queryRaw<PointRow[]>`
     SELECT ${selectCols}
     FROM "LocationPoint"
     WHERE ${where}
     ${cursorClause}
-    ORDER BY id
+    ORDER BY tst, id
     LIMIT ${limit};
   `;
 
-  const nextCursor = rows.length === limit ? rows[rows.length - 1].id : null;
+  const nextCursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : null;
 
   return NextResponse.json({
     points: rows.map(serializeRow),

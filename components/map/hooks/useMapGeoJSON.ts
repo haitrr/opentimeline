@@ -8,6 +8,9 @@ import type { ImmichPhoto } from "@/lib/immich";
 import { haversineKm } from "@/lib/geo";
 import { geoCircle, interpolateColor } from "@/components/map/mapUtils";
 
+const PATH_SPLIT_SEC = 3600;
+const PATH_SPLIT_KM = 5;
+
 export function useMapGeoJSON(
   points: SerializedPoint[],
   places: PlaceData[],
@@ -16,17 +19,32 @@ export function useMapGeoJSON(
   showVisitedPlaces: boolean,
   hoveredPlaceId: number | null,
 ) {
-  const pathGeoJSON = useMemo(
-    () => ({
+  const pathGeoJSON = useMemo(() => {
+    const segments: [number, number][][] = [];
+    let current: [number, number][] = [];
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      if (i > 0) {
+        const prev = points[i - 1];
+        const tstGap = p.tst - prev.tst;
+        const distKm = haversineKm(prev.lat, prev.lon, p.lat, p.lon);
+        if (tstGap > PATH_SPLIT_SEC || distKm > PATH_SPLIT_KM) {
+          if (current.length > 1) segments.push(current);
+          current = [];
+        }
+      }
+      current.push([p.lon, p.lat]);
+    }
+    if (current.length > 1) segments.push(current);
+    return {
       type: "Feature" as const,
       geometry: {
-        type: "LineString" as const,
-        coordinates: points.map((p) => [p.lon, p.lat]),
+        type: "MultiLineString" as const,
+        coordinates: segments,
       },
       properties: {},
-    }),
-    [points]
-  );
+    };
+  }, [points]);
 
   const lineGradientExpression = useMemo(() => {
     const fallback = ["interpolate", ["linear"], ["line-progress"], 0, "#22c55e", 0.25, "#06b6d4", 0.5, "#3b82f6", 0.75, "#a855f7", 1, "#ef4444"];

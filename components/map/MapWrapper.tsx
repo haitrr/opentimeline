@@ -34,7 +34,7 @@ type Props = {
 
 type LocationsPage = {
   points: SerializedPoint[];
-  nextCursor: number | null;
+  nextCursor: string | null;
   decimated: boolean;
   total: number;
 };
@@ -85,7 +85,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   } = useInfiniteQuery<LocationsPage>({
     queryKey: ["locations", rangeStart, rangeEnd, mapBounds],
     enabled: locationsEnabled,
-    initialPageParam: null as number | null,
+    initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({
@@ -96,7 +96,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         minLon: String(mapBounds!.minLon),
         maxLon: String(mapBounds!.maxLon),
       });
-      if (pageParam !== null) params.set("cursor", String(pageParam));
+      if (typeof pageParam === "string") params.set("cursor", pageParam);
       const res = await fetch(`/api/locations?${params}`);
       if (!res.ok) throw new Error(`locations ${res.status}`);
       return res.json();

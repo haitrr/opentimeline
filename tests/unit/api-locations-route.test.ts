@@ -61,7 +61,7 @@ describe("GET /api/locations", () => {
     expect(body.decimated).toBe(false);
     expect(body.total).toBe(5000);
     expect(body.points).toHaveLength(2);
-    expect(body.nextCursor).toBe(102);
+    expect(body.nextCursor).toBe("2:102");
     expect(body.points[0].recordedAt).toBe("2026-04-12T01:00:00.000Z");
   });
 
@@ -109,11 +109,12 @@ describe("GET /api/locations", () => {
       .mockResolvedValueOnce([{ total: BigInt(100) }])
       .mockResolvedValueOnce([]);
 
-    await GET(req({ ...BOUNDS, cursor: "500" }));
+    await GET(req({ ...BOUNDS, cursor: "42:500" }));
 
     const pageCallArgs = queryRaw.mock.calls[1];
     const text = JSON.stringify(pageCallArgs);
     expect(text).toContain("500");
+    expect(text).toContain("42");
   });
 
   it("clamps limit to MAX_PAGE_LIMIT", async () => {
