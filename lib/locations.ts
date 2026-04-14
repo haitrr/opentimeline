@@ -5,6 +5,18 @@ import { assembleStats, type StatsGlobalsRow, type StatsBucketRow } from "@/lib/
 
 export const DECIMATION_THRESHOLD = 20_000;
 
+export const haversineKmExprSql = Prisma.sql`
+  2 * 6371 * asin(sqrt(
+    power(sin(radians(lat - prev_lat) / 2), 2) +
+    cos(radians(prev_lat)) * cos(radians(lat)) *
+    power(sin(radians(lon - prev_lon) / 2), 2)
+  ))
+`;
+
+export const haversineKmSql = Prisma.sql`
+  CASE WHEN prev_lat IS NULL THEN 0 ELSE ${haversineKmExprSql} END
+`;
+
 type GlobalsRawRow = {
   total_points: bigint;
   first_tst: number | bigint | null;
@@ -47,15 +59,7 @@ export async function getStatsForRange(
       MIN(tst)                                                       AS first_tst,
       MAX(tst)                                                       AS last_tst,
       COUNT(DISTINCT date_trunc('day', "recordedAt"))::bigint        AS days_with_data,
-      COALESCE(SUM(
-        CASE WHEN prev_lat IS NULL THEN 0
-             ELSE 2 * 6371 * asin(sqrt(
-               power(sin(radians(lat - prev_lat) / 2), 2) +
-               cos(radians(prev_lat)) * cos(radians(lat)) *
-               power(sin(radians(lon - prev_lon) / 2), 2)
-             ))
-        END
-      ), 0)::double precision                                        AS total_km
+      COALESCE(SUM(${haversineKmSql}), 0)::double precision          AS total_km
     FROM ordered;
   `;
 
@@ -79,11 +83,7 @@ export async function getStatsForRange(
       COALESCE(SUM(
         CASE
           WHEN prev_lat IS NULL OR prev_bucket_key IS NULL OR prev_bucket_key <> bucket_key THEN 0
-          ELSE 2 * 6371 * asin(sqrt(
-            power(sin(radians(lat - prev_lat) / 2), 2) +
-            cos(radians(prev_lat)) * cos(radians(lat)) *
-            power(sin(radians(lon - prev_lon) / 2), 2)
-          ))
+          ELSE ${haversineKmExprSql}
         END
       ), 0)::double precision                                        AS bucket_km
     FROM ordered
