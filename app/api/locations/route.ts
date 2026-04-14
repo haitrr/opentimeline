@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { DECIMATION_THRESHOLD } from "@/lib/locations";
+import { DECIMATION_THRESHOLD, haversineKmSql } from "@/lib/locations";
 
 type PointRow = {
   id: number;
@@ -91,23 +91,69 @@ export async function GET(request: Request) {
     AND lon BETWEEN ${minLon} AND ${maxLon}
   `;
 
-  const countRows = await prisma.$queryRaw<{ total: bigint }[]>`
-    SELECT COUNT(*)::bigint AS total
-    FROM "LocationPoint"
-    WHERE ${where};
+  const countRows = await prisma.$queryRaw<{ total: bigint; total_km: number | null }[]>`
+    WITH lagged AS (
+      SELECT lat, lon,
+        LAG(lat) OVER (ORDER BY tst) AS prev_lat,
+        LAG(lon) OVER (ORDER BY tst) AS prev_lon
+      FROM "LocationPoint"
+      WHERE ${where}
+    )
+    SELECT
+      COUNT(*)::bigint AS total,
+      COALESCE(SUM(${haversineKmSql}), 0)::double precision AS total_km
+    FROM lagged;
   `;
   const total = Number(countRows[0]?.total ?? BigInt(0));
+  const totalKm = Number(countRows[0]?.total_km ?? 0);
+
+  const STATIONARY_EPSILON_KM = 0.001;
 
   if (total > DECIMATION_THRESHOLD) {
-    const stride = Math.ceil(total / DECIMATION_THRESHOLD);
+    if (totalKm < STATIONARY_EPSILON_KM) {
+      const stride = Math.ceil(total / DECIMATION_THRESHOLD);
+      const rows = await prisma.$queryRaw<PointRow[]>`
+        SELECT ${selectCols}
+        FROM (
+          SELECT ${selectCols}, ROW_NUMBER() OVER (ORDER BY tst) AS rn
+          FROM "LocationPoint"
+          WHERE ${where}
+        ) AS sub
+        WHERE (rn - 1) % ${stride} = 0
+        ORDER BY tst;
+      `;
+
+      return NextResponse.json({
+        points: rows.map(serializeRow),
+        decimated: true,
+        boundsIgnored: false,
+        total,
+      });
+    }
+
+    const bucketKm = totalKm / DECIMATION_THRESHOLD;
     const rows = await prisma.$queryRaw<PointRow[]>`
-      SELECT ${selectCols}
-      FROM (
-        SELECT ${selectCols}, ROW_NUMBER() OVER (ORDER BY tst) AS rn
+      WITH lagged AS (
+        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel,
+          LAG(lat) OVER (ORDER BY tst) AS prev_lat,
+          LAG(lon) OVER (ORDER BY tst) AS prev_lon
         FROM "LocationPoint"
         WHERE ${where}
-      ) AS sub
-      WHERE (rn - 1) % ${stride} = 0
+      ),
+      ordered AS (
+        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel,
+          SUM(${haversineKmSql}) OVER (ORDER BY tst) AS cum_km
+        FROM lagged
+      ),
+      bucketed AS (
+        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel,
+          floor(cum_km / ${bucketKm})::bigint AS bucket,
+          LAG(floor(cum_km / ${bucketKm})::bigint) OVER (ORDER BY tst) AS prev_bucket
+        FROM ordered
+      )
+      SELECT ${selectCols}
+      FROM bucketed
+      WHERE prev_bucket IS NULL OR bucket <> prev_bucket
       ORDER BY tst;
     `;
 
