@@ -170,4 +170,33 @@ describe("GET /api/locations", () => {
     expect(countSql).toContain("lat BETWEEN");
     expect(countSql).toContain("lon BETWEEN");
   });
+
+  it("falls back to stride sampling when trajectory is stationary", async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ total: BigInt(100000), total_km: 0 }])
+      .mockResolvedValueOnce(
+        Array.from({ length: 20000 }, (_, i) => ({
+          id: i + 1,
+          lat: 11,
+          lon: 31,
+          tst: i,
+          recordedAt: new Date("2026-04-12T01:00:00Z"),
+          acc: null,
+          batt: null,
+          tid: null,
+          alt: null,
+          vel: null,
+        })),
+      );
+
+    const res = await GET(req(BOUNDS));
+    const body = await res.json();
+
+    expect(body.decimated).toBe(true);
+    expect(body.points.length).toBeLessThanOrEqual(20000);
+
+    const sampleSql = JSON.stringify(queryRaw.mock.calls[1]);
+    expect(sampleSql).toContain("ROW_NUMBER");
+    expect(sampleSql).not.toContain("cum_km");
+  });
 });
