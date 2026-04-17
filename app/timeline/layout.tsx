@@ -79,7 +79,7 @@ function ActivityBar({
   onSettingsClick: () => void;
 }) {
   return (
-    <div className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-background py-2">
+    <div className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-muted/50 py-2">
       {TABS.map(({ id, label, Icon }) => (
         <Tooltip key={id}>
           <TooltipTrigger>
