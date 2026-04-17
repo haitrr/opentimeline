@@ -148,7 +148,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   return (
     <>
       <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DialogContent className="flex h-[90vh] max-w-4xl flex-col overflow-hidden p-0">
+        <DialogContent showCloseButton={false} className="flex h-[90vh] sm:max-w-4xl flex-col overflow-hidden p-0">
           <PlaceDetailHeader
             placeInfo={placeInfo}
             onClose={onClose}
