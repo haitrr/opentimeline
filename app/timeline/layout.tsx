@@ -79,7 +79,7 @@ function ActivityBar({
   onSettingsClick: () => void;
 }) {
   return (
-    <div className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-muted/30 py-2">
+    <div className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-background py-2">
       {TABS.map(({ id, label, Icon }) => (
         <Tooltip key={id}>
           <TooltipTrigger>
@@ -327,7 +327,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
           onSettingsClick={() => setSettingsModalOpen(true)}
         />
         {activeTab !== null && (
-          <div className="flex h-full w-80 max-w-[35vw] flex-col overflow-hidden border-r bg-background">
+          <div className="flex h-full w-120 max-w-[40vw] flex-col overflow-hidden border-r bg-background">
             <PanelContent
               activeTab={activeTab}
               rangeStart={rangeStart}
