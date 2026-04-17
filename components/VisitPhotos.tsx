@@ -6,8 +6,21 @@ import type { ImmichPhoto } from "@/lib/immich";
 import { haversineKm } from "@/lib/geo";
 import PhotoModal from "@/components/PhotoModal";
 
-const MAX_VISIBLE = 5;
+const MAX_VISIBLE_DESKTOP = 4;
+const MAX_VISIBLE_MOBILE = 3;
 const LOCATION_RADIUS_KM = 0.5;
+
+function useMaxVisible() {
+  const [max, setMax] = useState(MAX_VISIBLE_DESKTOP);
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 767px)");
+    const update = () => setMax(mql.matches ? MAX_VISIBLE_MOBILE : MAX_VISIBLE_DESKTOP);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+  return max;
+}
 
 export function VisitPhotos({
   photos,
@@ -22,6 +35,7 @@ export function VisitPhotos({
   lat?: number;
   lon?: number;
 }) {
+  const maxVisible = useMaxVisible();
   const [photoModal, setPhotoModal] = useState<{ list: ImmichPhoto[]; index: number } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const start = new Date(arrivalAt).getTime();
@@ -36,12 +50,12 @@ export function VisitPhotos({
   });
   if (matching.length === 0) return null;
 
-  const visible = matching.slice(0, MAX_VISIBLE);
-  const overflow = matching.length - MAX_VISIBLE;
+  const visible = matching.slice(0, maxVisible);
+  const overflow = matching.length - maxVisible;
 
   return (
     <>
-      <div className="mt-1.5 flex flex-nowrap gap-1 pb-0.5 pr-0.5">
+      <div className="mt-1.5 flex flex-wrap gap-1 pb-0.5 pr-0.5">
         {visible.map((p, i) => (
           <button
             key={p.id}

@@ -462,7 +462,7 @@ export default function TimelineSidebar({
   return (
     <>
       <div className="relative flex flex-1 min-h-0">
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-3">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide px-4 py-3">
         <div className="relative">
           <div className="absolute bottom-2 left-1.5 top-2 w-px bg-gray-200" />
           <ul className="space-y-4">

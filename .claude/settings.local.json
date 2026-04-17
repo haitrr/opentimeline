@@ -43,7 +43,8 @@
       "Bash(git status *)",
       "Bash(git rm *)",
       "Bash(xargs cat *)",
-      "Bash(git log *)"
+      "Bash(git log *)",
+      "Bash(gh pr create --title 'feat: shadcn/ui migration with VSCode-style sidebar' --body ' *)"
     ]
   }
 }

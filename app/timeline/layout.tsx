@@ -132,7 +132,7 @@ function PanelContent({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-1 flex-col overflow-hidden">
+    <div className="flex h-full flex-1 flex-col overflow-x-hidden overflow-y-hidden">
       {activeTab === "timeline" && (
         <>
           <AsideHeader onDetect={onDetect} detecting={detecting} />
@@ -144,7 +144,7 @@ function PanelContent({
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Places</h2>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <PlacesPanel />
           </div>
         </div>
@@ -154,7 +154,7 @@ function PanelContent({
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Visit Suggestions</h2>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <VisitSuggestionsPanel />
           </div>
         </div>
@@ -164,7 +164,7 @@ function PanelContent({
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Unknown Places</h2>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <UnknownVisitSuggestionsPanel />
           </div>
         </div>
@@ -174,7 +174,7 @@ function PanelContent({
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Settings</h2>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <div className="px-4 py-3 space-y-2">
               <ImportGpxButton />
               <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
@@ -299,7 +299,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
           <Button
             size="icon"
             onClick={() => setMobilePanelsOpen(false)}
-            className="absolute bottom-20 right-4 z-10 h-14 w-14 rounded-full bg-background text-foreground shadow-lg ring-1 ring-border active:scale-95"
+            className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-10 h-14 w-14 rounded-full bg-background text-foreground shadow-lg ring-1 ring-border active:scale-95"
             aria-label="Show map"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-6 w-6">
@@ -354,7 +354,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
         <Button
           size="icon"
           onClick={() => setMobilePanelsOpen((open) => !open)}
-          className={`absolute bottom-6 right-4 z-40 h-14 w-14 rounded-full bg-background text-foreground shadow-lg ring-1 ring-border active:scale-95 md:hidden ${mobilePanelsOpen ? "hidden" : ""}`}
+          className={`absolute bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-4 z-40 h-14 w-14 rounded-full bg-background text-foreground shadow-lg ring-1 ring-border active:scale-95 md:hidden ${mobilePanelsOpen ? "hidden" : ""}`}
           aria-label="Toggle panel"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
