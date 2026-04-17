@@ -279,7 +279,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-dvh w-full overflow-hidden bg-background md:h-screen md:w-screen md:flex-row">
       {/* Mobile full-screen overlay */}
       {mobilePanelsOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
+        <div className="fixed inset-0 z-1100 flex flex-col bg-background md:hidden">
           <PanelContent
             activeTab={mobileTab}
             rangeStart={rangeStart}
