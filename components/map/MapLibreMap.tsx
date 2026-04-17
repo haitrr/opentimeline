@@ -9,6 +9,7 @@ import type { ImmichPhoto } from "@/lib/immich";
 import { computeInitialViewState } from "@/components/map/mapUtils";
 import { FIT_BOUNDS_PADDING, FIT_BOUNDS_MAX_ZOOM, type PopupState, type Props } from "@/components/map/mapConstants";
 import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
+import { useKeyboardShortcuts } from "@/components/map/hooks/useKeyboardShortcuts";
 import { useJourneyPlayback } from "@/components/map/hooks/useJourneyPlayback";
 import { useMapGeoJSON } from "@/components/map/hooks/useMapGeoJSON";
 import FlyToHandler from "@/components/map/FlyToHandler";
@@ -48,6 +49,11 @@ export default function MapLibreMap({
 
   const internalLayerSettings = useLayerSettings();
   const layerSettings = layerSettingsProp ?? internalLayerSettings;
+
+  const shortcuts = useMemo(() => [
+    { shortcut: { key: "p", meta: true }, handler: () => layerSettings.setHidePlaces(!layerSettings.hidePlaces) },
+  ], [layerSettings]);
+  useKeyboardShortcuts(shortcuts);
 
   const hoveredPlaceId = hoveredPlace?.id ?? null;
   const { isPlaying, playPos, playProgress, playTimestamp, startPlay, stopPlay } = useJourneyPlayback(points, rangeKey);
