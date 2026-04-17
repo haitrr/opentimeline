@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Place = {
   id: number;
@@ -30,60 +33,59 @@ export default function PlacesPanel() {
   );
 
   return (
-    <div className="border-t border-gray-200">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hover:bg-gray-50"
-      >
+    <Collapsible open={open} onOpenChange={setOpen} className="border-t">
+      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted">
         <span>Places</span>
-        <span className="text-gray-400">{open ? "▲" : "▼"}</span>
-      </button>
-      {open && (
-        <div className="px-4 pb-3 max-h-[40vh] overflow-y-auto">
+        <span>{open ? "▲" : "▼"}</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="px-4 pb-3">
           {places.length === 0 ? (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Click anywhere on the map to add a place.
             </p>
           ) : (
             <>
-              <input
+              <Input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search places…"
-                className="mb-2 w-full rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 outline-none focus:border-gray-400"
+                className="mb-2 h-8 text-xs"
               />
               {filtered.length === 0 ? (
-                <p className="text-xs text-gray-400">No places match.</p>
+                <p className="text-xs text-muted-foreground">No places match.</p>
               ) : (
-                <ul className="space-y-1">
-                  {filtered.map((p) => (
-                    <li
-                      key={p.id}
-                      className="cursor-pointer rounded px-2 py-1.5 hover:bg-gray-50"
-                      onClick={() =>
-                        window.dispatchEvent(
-                          new CustomEvent("opentimeline:fly-to", {
-                            detail: { lat: p.lat, lon: p.lon },
-                          })
-                        )
-                      }
-                    >
-                      <p className="truncate text-sm font-medium text-gray-800">
-                        {p.name}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {p.radius}m · {p.confirmedVisits} visit
-                        {p.confirmedVisits !== 1 ? "s" : ""}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
+                <ScrollArea className="max-h-[40vh]">
+                  <ul className="space-y-1">
+                    {filtered.map((p) => (
+                      <li
+                        key={p.id}
+                        className="cursor-pointer rounded px-2 py-1.5 transition-colors hover:bg-muted"
+                        onClick={() =>
+                          window.dispatchEvent(
+                            new CustomEvent("opentimeline:fly-to", {
+                              detail: { lat: p.lat, lon: p.lon },
+                            })
+                          )
+                        }
+                      >
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {p.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.radius}m · {p.confirmedVisits} visit
+                          {p.confirmedVisits !== 1 ? "s" : ""}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollArea>
               )}
             </>
           )}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
