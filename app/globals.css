@@ -50,14 +50,14 @@
 }
 
 html.dark {
-  --background: #0b1020;
+  --background: #0f0f0f;
   --foreground: #e5e7eb;
-  --surface: #111827;
-  --surface-muted: #1f2937;
-  --surface-hover: #374151;
-  --line: #374151;
-  --line-strong: #4b5563;
-  --line-soft: #1f2937;
+  --surface: #171717;
+  --surface-muted: #262626;
+  --surface-hover: #333333;
+  --line: #333333;
+  --line-strong: #444444;
+  --line-soft: #262626;
   --text-primary: #f3f4f6;
   --text-secondary: #e5e7eb;
   --text-muted: #9ca3af;
