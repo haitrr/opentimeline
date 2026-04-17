@@ -348,7 +348,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
         <Button
           size="icon"
           onClick={() => setMobilePanelsOpen((open) => !open)}
-          className="absolute bottom-6 right-4 z-50 h-14 w-14 rounded-full bg-background text-foreground shadow-lg ring-1 ring-border active:scale-95 md:hidden"
+          className={`absolute bottom-6 right-4 z-40 h-14 w-14 rounded-full bg-background text-foreground shadow-lg ring-1 ring-border active:scale-95 md:hidden ${mobilePanelsOpen ? "hidden" : ""}`}
           aria-label="Toggle panel"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
