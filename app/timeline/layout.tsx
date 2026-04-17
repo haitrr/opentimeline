@@ -141,7 +141,7 @@ function PanelContent({
     <div className="flex h-full flex-1 flex-col overflow-hidden">
       {activeTab === "timeline" && (
         <>
-          <AsideHeader onClose={() => {}} onDetect={onDetect} detecting={detecting} />
+          <AsideHeader onDetect={onDetect} detecting={detecting} />
           {children}
         </>
       )}
