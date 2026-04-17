@@ -18,6 +18,7 @@ import {
   endOfYear,
 } from "date-fns";
 import type { RangeType } from "@/app/timeline/[date]/page";
+import { Button } from "@/components/ui/button";
 
 const RANGE_LABELS: Record<RangeType, string> = {
   day: "Day",
@@ -151,33 +152,31 @@ export default function DateNav({
   return (
     <div className="py-2">
       {/* Range type selector */}
-      <div className="mb-2 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-gray-200 bg-gray-200 p-px text-xs">
-        {(["day", "week", "month", "year", "custom", "all"] as RangeType[]).map(
-          (r) => (
-            <button
-              key={r}
-              onClick={() => switchRange(r)}
-              className={`rounded py-1 capitalize transition-colors ${
-                range === r
-                  ? "bg-blue-500 font-medium text-white"
-                  : "bg-white text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              {RANGE_LABELS[r]}
-            </button>
-          )
-        )}
+      <div className="mb-2 flex flex-wrap gap-1">
+        {(["day", "week", "month", "year", "custom", "all"] as RangeType[]).map((r) => (
+          <Button
+            key={r}
+            variant={range === r ? "default" : "outline"}
+            size="sm"
+            className="h-7 flex-1 text-xs capitalize"
+            onClick={() => switchRange(r)}
+          >
+            {RANGE_LABELS[r]}
+          </Button>
+        ))}
       </div>
 
       {/* Navigation row */}
       <div className="flex flex-wrap items-center justify-between gap-1 sm:flex-nowrap">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`h-8 w-8 ${range === "all" ? "invisible" : ""}`}
           onClick={goPrev}
-          className={`rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 ${range === "all" ? "invisible" : ""}`}
           aria-label="Previous period"
         >
           &#8592;
-        </button>
+        </Button>
 
         {range === "day" && (
           <input
@@ -187,7 +186,7 @@ export default function DateNav({
             onChange={(e) => {
               if (e.target.value) navigate(parseISO(e.target.value));
             }}
-            className="min-w-0 flex-1 cursor-pointer rounded border-none bg-transparent text-center text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            className="min-w-0 flex-1 cursor-pointer rounded border-none bg-transparent text-center text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus-visible:ring-ring"
           />
         )}
 
@@ -200,9 +199,9 @@ export default function DateNav({
               onChange={(e) => {
                 if (e.target.value) navigate(parseISO(e.target.value), "custom", endDate);
               }}
-              className="min-w-0 cursor-pointer rounded border border-gray-200 bg-transparent px-1 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="min-w-0 cursor-pointer rounded border bg-transparent px-1 py-0.5 text-xs text-foreground focus:outline-none focus:ring-2 focus-visible:ring-ring"
             />
-            <span className="text-xs text-gray-400">–</span>
+            <span className="text-xs text-muted-foreground">–</span>
             <input
               type="date"
               value={endDate ?? currentDate}
@@ -211,25 +210,27 @@ export default function DateNav({
               onChange={(e) => {
                 if (e.target.value) navigate(date, "custom", e.target.value);
               }}
-              className="min-w-0 cursor-pointer rounded border border-gray-200 bg-transparent px-1 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              className="min-w-0 cursor-pointer rounded border bg-transparent px-1 py-0.5 text-xs text-foreground focus:outline-none focus:ring-2 focus-visible:ring-ring"
             />
           </div>
         )}
 
         {periodLabel && (
-          <span className="text-sm font-medium text-gray-700 sm:text-center">
+          <span className="text-sm font-medium text-foreground sm:text-center">
             {periodLabel}
           </span>
         )}
 
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`h-8 w-8 ${range === "all" ? "invisible" : ""}`}
           onClick={goNext}
           disabled={isNextDisabled()}
-          className={`rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 ${range === "all" ? "invisible" : "disabled:cursor-not-allowed disabled:opacity-30"}`}
           aria-label="Next period"
         >
           &#8594;
-        </button>
+        </Button>
       </div>
     </div>
   );
