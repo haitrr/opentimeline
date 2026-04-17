@@ -12,6 +12,9 @@ import PlaceDetailHeader from "@/components/PlaceDetailHeader";
 import EditVisitModal from "@/components/EditVisitModal";
 import VisitCard, { type Visit } from "@/components/VisitCard";
 import { parseTimeMs, formatVisitSpan, gapToPx } from "@/lib/placeDetailUtils";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Props = {
   place: PlaceData;
@@ -143,86 +146,92 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const maxMs = finiteGaps.length ? Math.max(...finiteGaps) : 0;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-      <div className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
-        <PlaceDetailHeader
-          placeInfo={placeInfo}
-          onClose={onClose}
-          onPlaceUpdated={setPlaceInfo}
-          onPlaceDeleted={onClose}
-        />
+    <>
+      <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DialogContent className="flex h-[90vh] max-w-4xl flex-col overflow-hidden p-0">
+          <PlaceDetailHeader
+            placeInfo={placeInfo}
+            onClose={onClose}
+            onPlaceUpdated={setPlaceInfo}
+            onPlaceDeleted={onClose}
+          />
 
-        {/* Filter */}
-        <div className="flex flex-wrap items-center gap-1 border-b border-gray-100 px-4 py-2 sm:px-5">
-          <span className="mr-2 text-xs text-gray-500">Show:</span>
-          {(["all", "confirmed", "suggested"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
-                filter === f ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              {f === "all" ? "All" : f === "confirmed" ? "Confirmed" : "Suggested"}
-            </button>
-          ))}
-          {visitStats && <span className="ml-auto text-xs text-gray-400">{visitStats}</span>}
-        </div>
+          {/* Filter */}
+          <div className="flex flex-wrap items-center gap-1 border-b border px-4 py-2 sm:px-5">
+            <span className="mr-2 text-xs text-muted-foreground">Show:</span>
+            {(["all", "confirmed", "suggested"] as const).map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? "default" : "ghost"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setFilter(f)}
+              >
+                {f === "all" ? "All" : f === "confirmed" ? "Confirmed" : "Suggested"}
+              </Button>
+            ))}
+            {visitStats && <span className="ml-auto text-xs text-muted-foreground">{visitStats}</span>}
+          </div>
 
-        {/* Timeline */}
-        <div className="relative flex min-h-0 flex-1">
-          <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 sm:px-5">
-            {isLoading ? (
-              <p className="py-8 text-center text-xs text-gray-400">Loading…</p>
-            ) : displayed.length === 0 ? (
-              <p className="py-8 text-center text-xs text-gray-400">No visits to show.</p>
-            ) : (
-              <div className="relative">
-                <div className="absolute bottom-0 top-0 w-px bg-gray-200" style={{ left: 15 }} />
-                {scrubberSegments.length > 0 && (
-                  <div data-scrubber-segment={scrubberSegments[0].segmentKey} className="absolute top-0 left-0 h-0 w-0 overflow-hidden" aria-hidden />
-                )}
-                {displayed.map((v, i) => {
-                  const arrival = new Date(v.arrivalAt);
-                  const isLast = i === displayed.length - 1;
-                  const nextV = displayed[i + 1];
-                  const nextArrival = nextV ? new Date(nextV.arrivalAt) : null;
-                  const yearChanges = !isLast && nextArrival !== null && arrival.getFullYear() !== nextArrival.getFullYear();
-                  const monthChanges = !isLast && nextArrival !== null && (
-                    arrival.getFullYear() !== nextArrival.getFullYear() || arrival.getMonth() !== nextArrival.getMonth()
-                  );
-                  const hasDateSeparator = yearChanges || monthChanges;
-                  return (
-                    <VisitCard
-                      key={v.id}
-                      visit={v}
-                      gapPx={isLast ? 0 : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, hasDateSeparator)}
-                      gapMs={gapsMs[i] ?? NaN}
-                      hasDateSeparator={hasDateSeparator}
-                      nextYear={yearChanges && nextArrival ? nextArrival.getFullYear() : null}
-                      nextMonthLabel={monthChanges && nextArrival ? format(nextArrival, "MMM") : null}
-                      scrubberSegmentKey={monthChanges && nextArrival ? `m:${format(nextArrival, "yyyy-MM")}` : undefined}
-                      isLast={isLast}
-                      onConfirm={handleConfirm}
-                      onReject={handleReject}
-                      onEdit={setEditingVisit}
-                      onCreatePlace={openCreatePlaceForVisit}
-                      onViewDay={handleViewDay}
-                    />
-                  );
-                })}
-              </div>
+          {/* Timeline */}
+          <div className="relative flex min-h-0 flex-1">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 sm:px-5">
+              {isLoading ? (
+                <div className="space-y-3 py-8 px-4">
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-16 w-full" />
+                </div>
+              ) : displayed.length === 0 ? (
+                <p className="py-8 text-center text-xs text-muted-foreground">No visits to show.</p>
+              ) : (
+                <div className="relative">
+                  <div className="absolute bottom-0 top-0 w-px bg-border" style={{ left: 15 }} />
+                  {scrubberSegments.length > 0 && (
+                    <div data-scrubber-segment={scrubberSegments[0].segmentKey} className="absolute top-0 left-0 h-0 w-0 overflow-hidden" aria-hidden />
+                  )}
+                  {displayed.map((v, i) => {
+                    const arrival = new Date(v.arrivalAt);
+                    const isLast = i === displayed.length - 1;
+                    const nextV = displayed[i + 1];
+                    const nextArrival = nextV ? new Date(nextV.arrivalAt) : null;
+                    const yearChanges = !isLast && nextArrival !== null && arrival.getFullYear() !== nextArrival.getFullYear();
+                    const monthChanges = !isLast && nextArrival !== null && (
+                      arrival.getFullYear() !== nextArrival.getFullYear() || arrival.getMonth() !== nextArrival.getMonth()
+                    );
+                    const hasDateSeparator = yearChanges || monthChanges;
+                    return (
+                      <VisitCard
+                        key={v.id}
+                        visit={v}
+                        gapPx={isLast ? 0 : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, hasDateSeparator)}
+                        gapMs={gapsMs[i] ?? NaN}
+                        hasDateSeparator={hasDateSeparator}
+                        nextYear={yearChanges && nextArrival ? nextArrival.getFullYear() : null}
+                        nextMonthLabel={monthChanges && nextArrival ? format(nextArrival, "MMM") : null}
+                        scrubberSegmentKey={monthChanges && nextArrival ? `m:${format(nextArrival, "yyyy-MM")}` : undefined}
+                        isLast={isLast}
+                        onConfirm={handleConfirm}
+                        onReject={handleReject}
+                        onEdit={setEditingVisit}
+                        onCreatePlace={openCreatePlaceForVisit}
+                        onViewDay={handleViewDay}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {scrubberSegments.length > 0 && (
+              <DraggableScrollbar
+                segments={scrubberSegments}
+                scrollContainerRef={scrollRef}
+                className="w-10 border-l border dark:border-gray-800"
+              />
             )}
           </div>
-          {scrubberSegments.length > 0 && (
-            <DraggableScrollbar
-              segments={scrubberSegments}
-              scrollContainerRef={scrollRef}
-              className="w-10 border-l border-gray-100 dark:border-gray-800"
-            />
-          )}
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {creatingPlaceForVisit && creatingPlaceForVisitCentroid && (
         <PlaceCreationModal
@@ -241,6 +250,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
           onSaved={() => setEditingVisit(null)}
         />
       )}
-    </div>
+    </>
   );
 }
