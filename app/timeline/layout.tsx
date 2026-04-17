@@ -12,7 +12,6 @@ import ImportGpxButton from "@/components/ImportGpxButton";
 import ImportImmichButton from "@/components/ImportImmichButton";
 import SettingsModal from "@/components/SettingsModal";
 import AsideHeader from "@/components/AsideHeader";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getRangeBounds } from "@/lib/getRangeBounds";
@@ -278,12 +277,20 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-background md:h-screen md:w-screen md:flex-row">
-      {/* Mobile Sheet */}
-      <Sheet open={mobilePanelsOpen} onOpenChange={setMobilePanelsOpen}>
-        <SheetContent side="left" className="flex w-[95vw] max-w-sm flex-col overflow-hidden p-0 md:hidden">
-          <SheetTitle className="sr-only">Navigation Panel</SheetTitle>
-          {/* Mobile tab bar (horizontal) */}
-          <div className="flex shrink-0 gap-1 border-b px-2 py-1.5">
+      {/* Mobile full-screen overlay */}
+      {mobilePanelsOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
+          <PanelContent
+            activeTab={mobileTab}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onDetect={detectVisits}
+            detecting={detecting}
+          >
+            {children}
+          </PanelContent>
+          {/* Bottom tab bar */}
+          <div className="flex shrink-0 border-t bg-muted/50 px-1 pb-[env(safe-area-inset-bottom)]">
             {[...TABS, { id: "settings" as SidebarTab, label: "Settings", Icon: SettingsIcon }].map(({ id, label, Icon }) => (
               <button
                 key={id}
@@ -296,28 +303,19 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
                     handleMobileTabChange(id);
                   }
                 }}
-                className={`flex flex-1 flex-col items-center gap-0.5 rounded-md px-1 py-1.5 text-[10px] transition-colors ${
+                className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors ${
                   mobileTab === id && id !== "settings"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-foreground"
+                    : "text-muted-foreground"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-5 w-5" />
                 <span className="truncate">{label}</span>
               </button>
             ))}
           </div>
-          <PanelContent
-            activeTab={mobileTab}
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            onDetect={detectVisits}
-            detecting={detecting}
-          >
-            {children}
-          </PanelContent>
-        </SheetContent>
-      </Sheet>
+        </div>
+      )}
 
       {/* Desktop: Activity Bar + Panel */}
       <div className="hidden md:flex md:h-full md:shrink-0">
