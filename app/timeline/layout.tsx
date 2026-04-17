@@ -10,10 +10,11 @@ import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
 import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
 import ImportGpxButton from "@/components/ImportGpxButton";
 import ImportImmichButton from "@/components/ImportImmichButton";
-import SettingsModal from "@/components/SettingsModal";
+import SettingsPanel from "@/components/SettingsPanel";
 import AsideHeader from "@/components/AsideHeader";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import { getRangeBounds } from "@/lib/getRangeBounds";
 import type { RangeType } from "@/app/timeline/[date]/page";
 
@@ -179,9 +180,13 @@ function PanelContent({
           <div className="border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Settings</h2>
           </div>
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-            <ImportGpxButton />
-            <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
+          <div className="flex-1 overflow-y-auto">
+            <div className="px-4 py-3 space-y-2">
+              <ImportGpxButton />
+              <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
+            </div>
+            <Separator />
+            <SettingsPanel />
           </div>
         </div>
       )}
@@ -220,7 +225,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SidebarTab | null>("timeline");
   const [mobileTab, setMobileTab] = useState<SidebarTab>("timeline");
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [detecting, setDetecting] = useState(false);
 
   function handleTabChange(tab: SidebarTab) {
@@ -306,14 +310,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
               <button
                 key={id}
                 type="button"
-                onClick={() => {
-                  if (id === "settings") {
-                    setMobilePanelsOpen(false);
-                    setSettingsModalOpen(true);
-                  } else {
-                    handleMobileTabChange(id);
-                  }
-                }}
+                onClick={() => handleMobileTabChange(id)}
                 className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors ${
                   mobileTab === id && id !== "settings"
                     ? "text-foreground"
@@ -333,7 +330,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
         <ActivityBar
           activeTab={activeTab}
           onTabChange={handleTabChange}
-          onSettingsClick={() => setSettingsModalOpen(true)}
+          onSettingsClick={() => handleTabChange("settings")}
         />
         {activeTab !== null && (
           <div className="flex h-full w-120 max-w-[40vw] flex-col overflow-hidden border-r bg-background">
@@ -349,10 +346,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </div>
-
-      {settingsModalOpen && (
-        <SettingsModal onClose={() => setSettingsModalOpen(false)} />
-      )}
 
       <main className="relative min-h-0 flex-1">
         <MapWrapper rangeStart={rangeStart} rangeEnd={rangeEnd} shouldAutoFit={shouldAutoFit} />
