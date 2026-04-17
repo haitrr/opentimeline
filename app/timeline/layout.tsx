@@ -289,6 +289,17 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
           >
             {children}
           </PanelContent>
+          {/* Floating map button */}
+          <Button
+            size="icon"
+            onClick={() => setMobilePanelsOpen(false)}
+            className="absolute bottom-20 right-4 z-10 h-14 w-14 rounded-full bg-background text-foreground shadow-lg ring-1 ring-border active:scale-95"
+            aria-label="Show map"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-6 w-6">
+              <path fillRule="evenodd" d="M8.157 2.176a1.5 1.5 0 0 0-1.147 0l-4.084 1.69A1.5 1.5 0 0 0 2 5.25v10.877a1.5 1.5 0 0 0 2.074 1.386l3.51-1.452 4.26 1.762a1.5 1.5 0 0 0 1.147 0l4.083-1.69A1.5 1.5 0 0 0 18 14.75V3.872a1.5 1.5 0 0 0-2.073-1.386l-3.51 1.452-4.26-1.762ZM7.58 5a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0v-6.5A.75.75 0 0 1 7.58 5Zm5.59 2.75a.75.75 0 0 0-1.5 0v6.5a.75.75 0 0 0 1.5 0v-6.5Z" clipRule="evenodd" />
+            </svg>
+          </Button>
           {/* Bottom tab bar */}
           <div className="flex shrink-0 border-t bg-muted/50 px-1 pb-[env(safe-area-inset-bottom)]">
             {[...TABS, { id: "settings" as SidebarTab, label: "Settings", Icon: SettingsIcon }].map(({ id, label, Icon }) => (
