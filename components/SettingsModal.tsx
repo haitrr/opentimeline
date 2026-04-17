@@ -2,6 +2,16 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 type AppSettings = {
   sessionGapMinutes: number;
@@ -21,15 +31,51 @@ const DEFAULTS: AppSettings = {
   unknownMinDwellMinutes: 15,
 };
 
-type Tab = "visit-detection";
-
 type Props = {
   onClose: () => void;
 };
 
+function SettingsField({
+  id,
+  label,
+  hint,
+  value,
+  unit,
+  min = 1,
+  max = 120,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  value: number;
+  unit: string;
+  min?: number;
+  max?: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center gap-2">
+        <Input
+          id={id}
+          type="number"
+          value={value}
+          onChange={(e) => onChange(Math.max(min, Number(e.target.value)))}
+          min={min}
+          max={max}
+          className="w-24"
+        />
+        <span className="text-sm text-muted-foreground">{unit}</span>
+      </div>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+    </div>
+  );
+}
+
 export default function SettingsModal({ onClose }: Props) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<Tab>("visit-detection");
   const [saved, setSaved] = useState(false);
 
   const { data: settings, isLoading } = useQuery<AppSettings>({
@@ -89,71 +135,40 @@ export default function SettingsModal({ onClose }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-1000 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="flex w-full max-w-xl overflow-hidden rounded-lg bg-white shadow-xl">
-        {/* Tab sidebar */}
-        <nav className="flex w-40 shrink-0 flex-col border-r border-gray-200 bg-gray-50 p-2">
-          <p className="mb-2 px-2 pt-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Settings
-          </p>
-          <button
-            type="button"
-            onClick={() => setActiveTab("visit-detection")}
-            className={`rounded px-2 py-1.5 text-left text-sm transition-colors ${
-              activeTab === "visit-detection"
-                ? "bg-white font-medium text-gray-900 shadow-sm"
-                : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
-            }`}
-          >
-            Visit detection
-          </button>
-        </nav>
-
-        {/* Content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
-            <h2 className="text-sm font-semibold text-gray-900">Visit detection</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              aria-label="Close settings"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-5 py-4">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-xl">
+        <Tabs defaultValue="visit-detection">
+          <TabsList>
+            <TabsTrigger value="visit-detection">Visit detection</TabsTrigger>
+          </TabsList>
+          <TabsContent value="visit-detection">
             {isLoading ? (
-              <p className="text-xs text-gray-400">Loading…</p>
+              <p className="text-xs text-muted-foreground">Loading…</p>
             ) : (
-              <div className="space-y-6">
-                {/* Known visits section */}
+              <div className="space-y-6 py-2">
                 <div>
-                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Known places
-                  </h3>
+                  </p>
                   <div className="space-y-4">
-                    <Field
+                    <SettingsField
+                      id="session-gap"
                       label="Time gap to split sessions"
                       hint="A gap longer than this between location points splits a visit into two separate sessions."
                       value={currentSessionGap}
                       unit="minutes"
                       onChange={(v) => setSessionGap(v)}
                     />
-                    <Field
+                    <SettingsField
+                      id="min-dwell"
                       label="Minimum dwell time"
                       hint="Sessions shorter than this are discarded and not counted as visits."
                       value={currentMinDwell}
                       unit="minutes"
                       onChange={(v) => setMinDwell(v)}
                     />
-                    <Field
+                    <SettingsField
+                      id="post-departure"
                       label="Post-departure evidence window"
                       hint="A point outside the place radius must appear within this window after the last recorded point to confirm departure."
                       value={currentPostDeparture}
@@ -163,15 +178,15 @@ export default function SettingsModal({ onClose }: Props) {
                   </div>
                 </div>
 
-                <div className="border-t border-gray-100" />
+                <Separator />
 
-                {/* Unknown visits section */}
                 <div>
-                  <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Unknown places
-                  </h3>
+                  </p>
                   <div className="space-y-4">
-                    <Field
+                    <SettingsField
+                      id="unknown-cluster-radius"
                       label="Cluster radius"
                       hint="Location points within this radius of a cluster's center are grouped into the same cluster."
                       value={currentUnknownClusterRadius}
@@ -180,14 +195,16 @@ export default function SettingsModal({ onClose }: Props) {
                       max={500}
                       onChange={(v) => setUnknownClusterRadius(v)}
                     />
-                    <Field
+                    <SettingsField
+                      id="unknown-session-gap"
                       label="Time gap to split clusters"
                       hint="A gap longer than this between consecutive points splits a cluster into two separate visits."
                       value={currentUnknownSessionGap}
                       unit="minutes"
                       onChange={(v) => setUnknownSessionGap(v)}
                     />
-                    <Field
+                    <SettingsField
+                      id="unknown-min-dwell"
                       label="Minimum dwell time"
                       hint="Clusters shorter than this are discarded and not counted as unknown visits."
                       value={currentUnknownMinDwell}
@@ -198,72 +215,25 @@ export default function SettingsModal({ onClose }: Props) {
                 </div>
               </div>
             )}
-          </div>
+          </TabsContent>
+        </Tabs>
 
-          <div className="flex items-center justify-between border-t border-gray-200 px-5 py-3">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="text-xs text-gray-500 hover:text-gray-700"
-            >
-              Reset to defaults
-            </button>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={mutation.isPending || isLoading}
-                className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saved ? "Saved!" : mutation.isPending ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  hint,
-  value,
-  unit,
-  min = 1,
-  max = 120,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  value: number;
-  unit: string;
-  min?: number;
-  max?: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div>
-      <label className="mb-1 block text-xs font-medium text-gray-700">{label}</label>
-      <div className="flex items-center gap-2">
-        <input
-          type="number"
-          value={value}
-          onChange={(e) => onChange(Math.max(min, Number(e.target.value)))}
-          min={min}
-          max={max}
-          className="w-24 rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-        />
-        <span className="text-sm text-gray-500">{unit}</span>
-      </div>
-      <p className="mt-1 text-xs text-gray-400">{hint}</p>
-    </div>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={handleReset}>
+            Reset to defaults
+          </Button>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={mutation.isPending || isLoading}
+          >
+            {saved ? "Saved!" : mutation.isPending ? "Saving…" : "Save"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

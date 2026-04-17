@@ -5,6 +5,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
 import type { Visit } from "@/components/VisitCard";
 import { toDateTimeLocalValue } from "@/lib/placeDetailUtils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 type NearbyPlaceOption = {
   id: number;
@@ -117,44 +127,42 @@ export default function EditVisitModal({ visit, placeInfo, onClose, onSaved }: P
   }
 
   return (
-    <div className="fixed inset-0 z-1001 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-      <div className="max-h-[90vh] w-full overflow-hidden rounded-lg bg-white shadow-xl sm:max-w-md">
-        <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Edit Visit</h2>
-          <button onClick={onClose} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600" disabled={saving}>
-            ✕
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Visit</DialogTitle>
+        </DialogHeader>
 
-        <div className="space-y-3 overflow-y-auto px-5 py-4">
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Arrival</label>
-            <input
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="edit-arrival" className="text-muted-foreground">Arrival</Label>
+            <Input
+              id="edit-arrival"
               type="datetime-local"
               value={editArrivalAt}
               onChange={(e) => setEditArrivalAt(e.target.value)}
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
               disabled={saving}
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Departure</label>
-            <input
+          <div className="space-y-1">
+            <Label htmlFor="edit-departure" className="text-muted-foreground">Departure</Label>
+            <Input
+              id="edit-departure"
               type="datetime-local"
               value={editDepartureAt}
               onChange={(e) => setEditDepartureAt(e.target.value)}
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
               disabled={saving}
             />
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Place</label>
+          <div className="space-y-1">
+            <Label htmlFor="edit-place" className="text-muted-foreground">Place</Label>
             <select
+              id="edit-place"
               value={editPlaceId != null ? String(editPlaceId) : ""}
               onChange={(e) => setEditPlaceId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               disabled={saving || loadingNearbyPlaces}
             >
               {placeOptions.map((p) => (
@@ -163,15 +171,16 @@ export default function EditVisitModal({ visit, placeInfo, onClose, onSaved }: P
                 </option>
               ))}
             </select>
-            {loadingNearbyPlaces && <p className="mt-1 text-xs text-gray-400">Loading nearby places…</p>}
+            {loadingNearbyPlaces && <p className="mt-1 text-xs text-muted-foreground">Loading nearby places…</p>}
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Status</label>
+          <div className="space-y-1">
+            <Label htmlFor="edit-status" className="text-muted-foreground">Status</Label>
             <select
+              id="edit-status"
               value={editStatus}
               onChange={(e) => setEditStatus(e.target.value)}
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               disabled={saving}
             >
               <option value="suggested">Suggested</option>
@@ -180,35 +189,31 @@ export default function EditVisitModal({ visit, placeInfo, onClose, onSaved }: P
             </select>
           </div>
 
-          {editVisitError && <p className="text-xs text-red-600">{editVisitError}</p>}
+          {editVisitError && <p className="text-xs text-destructive">{editVisitError}</p>}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-5 py-3">
-          <button
+        <DialogFooter className="flex-row justify-between sm:justify-between">
+          <Button
+            variant="outline"
+            className="border-destructive text-destructive hover:bg-destructive/10"
             onClick={handleDelete}
-            className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
             disabled={saving}
           >
             Delete
-          </button>
-          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-            <button
-              onClick={onClose}
-              className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-              disabled={saving}
-            >
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleSave}
-              className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
               disabled={saving || !editArrivalAt || !editDepartureAt || editPlaceId == null}
             >
               {saving ? "Saving…" : "Save"}
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

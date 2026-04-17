@@ -11,16 +11,18 @@ import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import PlaceDetailModal from "@/components/PlaceDetailModal";
 import PhotoModal from "@/components/PhotoModal";
 import CreateVisitModal from "@/components/CreateVisitModal";
+import PlaceMoveConfirmDialog from "@/components/PlaceMoveConfirmDialog";
 import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
 import type { MapBounds } from "@/components/map/mapConstants";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-blue-400 border-t-transparent" />
-        <p className="text-sm text-gray-500">Loading map…</p>
+    <div className="flex h-full w-full items-center justify-center bg-muted">
+      <div className="space-y-3 text-center">
+        <Skeleton className="mx-auto h-8 w-8 rounded-full" />
+        <Skeleton className="mx-auto h-4 w-24" />
       </div>
     </div>
   ),
@@ -297,41 +299,19 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         />
       )}
       {pendingPlaceMove && (
-        <div className="fixed inset-0 z-900 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl">
-            <h2 className="text-base font-semibold text-gray-900">Update place location?</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Move <span className="font-medium text-gray-800">{pendingPlaceMove.place.name}</span> to this location?
-            </p>
-            <p className="mt-1 text-xs text-gray-500">
-              {pendingPlaceMove.lat.toFixed(5)}, {pendingPlaceMove.lon.toFixed(5)}
-            </p>
-            {placeMoveError && <p className="mt-2 text-xs text-red-600">{placeMoveError}</p>}
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (updatingPlaceMove) return;
-                  setPendingPlaceMove(null);
-                  setPlaceMoveError(null);
-                }}
-                className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                disabled={updatingPlaceMove}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmPlaceMove}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                disabled={updatingPlaceMove}
-              >
-                {updatingPlaceMove ? "Updating…" : "Update location"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PlaceMoveConfirmDialog
+          placeName={pendingPlaceMove.place.name}
+          lat={pendingPlaceMove.lat}
+          lon={pendingPlaceMove.lon}
+          error={placeMoveError}
+          updating={updatingPlaceMove}
+          onConfirm={handleConfirmPlaceMove}
+          onCancel={() => {
+            if (updatingPlaceMove) return;
+            setPendingPlaceMove(null);
+            setPlaceMoveError(null);
+          }}
+        />
       )}
       {createVisitCoords && (
         <CreateVisitModal

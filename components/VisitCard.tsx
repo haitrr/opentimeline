@@ -4,6 +4,8 @@ import { Fragment } from "react";
 import { format, differenceInMinutes, formatDistanceToNow } from "date-fns";
 import { FetchVisitPhotos } from "@/components/VisitPhotos";
 import { formatDuration, formatGapMs } from "@/lib/placeDetailUtils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export type Visit = {
   id: number;
@@ -31,15 +33,15 @@ export type VisitCardProps = {
 function VisitMeta({ arrival, departure, durationMin }: { arrival: Date; departure: Date; durationMin: number }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs font-semibold text-gray-800">
+      <p className="text-xs font-semibold text-foreground">
         {format(arrival, "MMM d, yyyy")}
-        <span className="ml-1.5 font-normal text-gray-400">
+        <span className="ml-1.5 font-normal text-muted-foreground">
           {formatDistanceToNow(arrival, { addSuffix: true })}
         </span>
       </p>
-      <p className="mt-0.5 text-xs text-gray-500">
+      <p className="mt-0.5 text-xs text-muted-foreground">
         {format(arrival, "HH:mm")} &rarr; {format(departure, "HH:mm")}
-        <span className="ml-1.5 text-gray-400">{formatDuration(durationMin)}</span>
+        <span className="ml-1.5 text-muted-foreground">{formatDuration(durationMin)}</span>
       </p>
     </div>
   );
@@ -59,29 +61,29 @@ function VisitActions({ visit: v, isSuggested, onConfirm, onReject, onEdit, onCr
   return (
     <div className="flex shrink-0 flex-col items-end gap-1.5">
       <div className="flex items-center gap-1">
-        <span className={`rounded-full px-2 py-0.5 text-xs font-medium leading-none ${isSuggested ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"}`}>
+        <Badge variant={isSuggested ? "warning" : "success"}>
           {isSuggested ? "Suggested" : "Confirmed"}
-        </span>
-        <button onClick={() => onViewDay(v.arrivalAt)} className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100">
+        </Badge>
+        <Button variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => onViewDay(v.arrivalAt)}>
           View Day
-        </button>
-        <button onClick={() => onEdit(v)} className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600" title="Edit visit" aria-label="Edit visit">
+        </Button>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => onEdit(v)} title="Edit visit" aria-label="Edit visit">
           ✎
-        </button>
+        </Button>
       </div>
       {isSuggested && (
         <div className="flex items-end gap-1">
           <div className="flex items-center gap-1">
-            <button onClick={() => onConfirm(v.id)} className="rounded bg-blue-600 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-blue-700">
+            <Button size="sm" className="h-6 px-2 text-xs" onClick={() => onConfirm(v.id)}>
               Confirm
-            </button>
-            <button onClick={() => onReject(v.id)} className="rounded border border-gray-300 px-2.5 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-100">
+            </Button>
+            <Button variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => onReject(v.id)}>
               Reject
-            </button>
+            </Button>
           </div>
-          <button onClick={() => onCreatePlace(v)} className="rounded bg-amber-500 px-2.5 py-0.5 text-xs font-medium text-white hover:bg-amber-600">
+          <Button size="sm" className="h-6 bg-amber-500 px-2 text-xs hover:bg-amber-600" onClick={() => onCreatePlace(v)}>
             Create Place
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -112,12 +114,12 @@ export default function VisitCard({
     <Fragment key={v.id}>
       <div className="relative flex items-start gap-3">
         <div
-          className={`relative z-10 mt-2.75 h-2.75 w-2.75 shrink-0 rounded-full border-2 border-white shadow ${
+          className={`relative z-10 mt-2.75 h-2.75 w-2.75 shrink-0 rounded-full border-2 border-background shadow ${
             isSuggested ? "bg-amber-400" : "bg-[#1a7bb5]"
           }`}
           style={{ marginLeft: 10 }}
         />
-        <div className="flex-1 rounded-lg border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+        <div className="flex-1 rounded-lg border bg-card px-3 py-2.5 shadow-sm transition-shadow hover:shadow-md">
           <div className="flex items-start justify-between gap-2">
             <VisitMeta arrival={arrival} departure={departure} durationMin={durationMin} />
             <VisitActions
@@ -144,7 +146,7 @@ export default function VisitCard({
                 </span>
               )}
               {nextMonthLabel !== null && (
-                <span className="rounded-full bg-white px-3 py-0.5 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-200">
+                <span className="rounded-full bg-background px-3 py-0.5 text-xs font-semibold text-muted-foreground shadow-sm ring-1 ring-border">
                   {nextMonthLabel}
                 </span>
               )}
@@ -152,7 +154,7 @@ export default function VisitCard({
           )}
           {formatGapMs(gapMs) && (
             <span
-              className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white px-2 py-0.5 text-[10px] text-gray-400 ring-1 ring-gray-200"
+              className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background px-2 py-0.5 text-[10px] text-muted-foreground ring-1 ring-border"
               style={{ left: 15, top: "50%" }}
             >
               {formatGapMs(gapMs)}

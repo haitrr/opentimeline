@@ -7,6 +7,9 @@ import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import { FetchVisitPhotos } from "@/components/VisitPhotos";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type Visit = {
   id: number;
@@ -19,7 +22,6 @@ type Visit = {
 export default function VisitSuggestionsPanel() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<Visit | null>(null);
   const [creatingPlaceForVisitCentroid, setCreatingPlaceForVisitCentroid] = useState<{ lat: number; lon: number } | null>(null);
 
@@ -58,68 +60,66 @@ export default function VisitSuggestionsPanel() {
   }
 
   return (
-    <div className="border-t border-gray-200">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 hover:bg-gray-50"
-      >
-        <span className="flex items-center gap-2">
-          Visit Suggestions
-          {visits.length > 0 && (
-            <span className="rounded-full bg-blue-500 px-1.5 py-0.5 text-xs font-medium text-white leading-none">
-              {visits.length}
-            </span>
-          )}
-        </span>
-        <span className="text-gray-400">{open ? "▲" : "▼"}</span>
-      </button>
-      {open && (
-        <div className="max-h-80 overflow-y-auto px-4 pb-3">
-          {visits.length === 0 ? (
-            <p className="text-xs text-gray-400">No pending suggestions.</p>
-          ) : (
-            <ul className="space-y-2">
-              {visits.map((v) => (
-                <li
-                  key={v.id}
-                  className="cursor-pointer rounded border border-gray-100 bg-gray-50 p-2 hover:bg-gray-100"
-                  onClick={() => {
-                    router.push(`/timeline/${format(new Date(v.arrivalAt), "yyyy-MM-dd")}`);
-                    window.dispatchEvent(new CustomEvent("opentimeline:fly-to", { detail: { lat: v.place.lat, lon: v.place.lon } }));
-                  }}
-                >
-                  <p className="text-sm font-medium text-gray-800">{v.place.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {format(new Date(v.arrivalAt), "MMM d, HH:mm")} –{" "}
-                    {format(new Date(v.departureAt), "HH:mm")}
-                  </p>
-                  <FetchVisitPhotos arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
-                  <div className="mt-1.5 flex gap-1.5">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); openCreatePlaceForVisit(v); }}
-                      className="flex-1 rounded bg-amber-500 px-2 py-1 text-xs font-medium text-white hover:bg-amber-600"
-                    >
-                      Create Place
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleAction(v.id, "confirmed"); }}
-                      className="flex-1 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleAction(v.id, "rejected"); }}
-                      className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+    <>
+      <div className="flex h-full flex-col">
+        {visits.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2">
+            <Badge className="h-5 px-1.5">{visits.length}</Badge>
+            <span className="text-xs text-muted-foreground">pending</span>
+          </div>
+        )}
+        <ScrollArea className="flex-1">
+          <div className="px-4 pb-3">
+            {visits.length === 0 ? (
+              <p className="py-4 text-center text-xs text-muted-foreground">No pending suggestions.</p>
+            ) : (
+              <ul className="space-y-2">
+                {visits.map((v) => (
+                  <li
+                    key={v.id}
+                    className="cursor-pointer rounded-lg border bg-muted/50 p-2 transition-colors hover:bg-muted"
+                    onClick={() => {
+                      router.push(`/timeline/${format(new Date(v.arrivalAt), "yyyy-MM-dd")}`);
+                      window.dispatchEvent(new CustomEvent("opentimeline:fly-to", { detail: { lat: v.place.lat, lon: v.place.lon } }));
+                    }}
+                  >
+                    <p className="text-sm font-medium text-foreground">{v.place.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(v.arrivalAt), "MMM d, HH:mm")} –{" "}
+                      {format(new Date(v.departureAt), "HH:mm")}
+                    </p>
+                    <FetchVisitPhotos arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
+                    <div className="mt-1.5 flex gap-1.5">
+                      <Button
+                        size="sm"
+                        className="h-7 flex-1 bg-amber-500 text-xs hover:bg-amber-600"
+                        onClick={(e) => { e.stopPropagation(); openCreatePlaceForVisit(v); }}
+                      >
+                        Create Place
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-7 flex-1 text-xs"
+                        onClick={(e) => { e.stopPropagation(); handleAction(v.id, "confirmed"); }}
+                      >
+                        Confirm
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 flex-1 text-xs"
+                        onClick={(e) => { e.stopPropagation(); handleAction(v.id, "rejected"); }}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
 
       {creatingPlaceForVisit && creatingPlaceForVisitCentroid && (
         <PlaceCreationModal
@@ -130,6 +130,6 @@ export default function VisitSuggestionsPanel() {
           onCreated={handlePlaceCreatedForVisit}
         />
       )}
-    </div>
+    </>
   );
 }

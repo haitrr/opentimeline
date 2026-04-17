@@ -6,6 +6,18 @@ import type { PlaceData } from "@/lib/detectVisits";
 import { haversineKm } from "@/lib/geo";
 import NewPlaceOption from "./NewPlaceOption";
 import CustomPeriodOption from "./CustomPeriodOption";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 
 const DEFAULT_SCAN_RADIUS_M = 50;
 
@@ -33,20 +45,25 @@ type Props = {
   onCreated: () => void;
 };
 
-
 function TimePeriodHeader({ scanRadius, onScanRadiusChange }: { scanRadius: number; onScanRadiusChange: (v: number) => void }) {
   return (
     <div className="mb-1.5 flex items-center justify-between gap-3">
-      <p className="text-xs font-medium text-gray-700">Time period</p>
+      <Label>Time period</Label>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-400">Scan radius</span>
-        <input type="range" min={20} max={500} step={10} value={scanRadius} onChange={(e) => onScanRadiusChange(Number(e.target.value))} className="w-24 accent-blue-500" />
-        <span className="w-12 text-right text-xs tabular-nums text-gray-500">{scanRadius}m</span>
+        <span className="text-xs text-muted-foreground">Scan radius</span>
+        <Slider
+          min={20}
+          max={500}
+          step={10}
+          value={[scanRadius]}
+          onValueChange={(v) => onScanRadiusChange(v as number)}
+          className="w-24"
+        />
+        <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">{scanRadius}m</span>
       </div>
     </div>
   );
 }
-
 
 export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEnd, onClose, onCreated }: Props) {
   const [scanRadius, setScanRadius] = useState(() => {
@@ -106,6 +123,7 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
       .catch(() => setDetectedPeriods([]))
       .finally(() => setPeriodsLoading(false));
   }, [lat, lon, selectedPlaceId, debouncedRadius, rangeStart, rangeEnd]);
+
   const [newPlaceName, setNewPlaceName] = useState("");
   const [newPlaceRadius, setNewPlaceRadius] = useState(50);
   const [periodIndex, setPeriodIndex] = useState<number>(-1);
@@ -186,115 +204,110 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
   }
 
   return (
-    <div className="fixed inset-0 z-1000 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-          <h2 className="mb-0.5 text-sm font-semibold text-gray-900">Create Visit</h2>
-          <p className="mb-4 text-xs text-gray-500">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create Visit</DialogTitle>
+          <DialogDescription>
             {lat.toFixed(5)}, {lon.toFixed(5)}
-          </p>
+          </DialogDescription>
+        </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Place */}
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-gray-700">Place</p>
-              <div className="max-h-62.5 overflow-y-auto rounded border border-gray-200">
-                {sortedPlaces.map((p) => (
-                  <label
-                    key={p.id}
-                    className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-gray-50"
-                  >
-                    <input
-                      type="radio"
-                      name="place"
-                      checked={!isNewPlace && selectedPlaceId === p.id}
-                      onChange={() => { setSelectedPlaceId(p.id); setIsNewPlace(false); setScanRadius(p.radius); }}
-                      className="shrink-0"
-                    />
-                    <span className="flex-1 text-sm text-gray-800">{p.name}</span>
-                    <span className="text-xs text-gray-400">
-                      {p.distM < 1000
-                        ? `${Math.round(p.distM)}m`
-                        : `${(p.distM / 1000).toFixed(1)}km`}
-                    </span>
-                  </label>
-                ))}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Place */}
+          <div>
+            <Label className="mb-1.5 block">Place</Label>
+            <div className="max-h-62.5 overflow-y-auto rounded-md border">
+              {sortedPlaces.map((p) => (
+                <label
+                  key={p.id}
+                  className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-muted transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="place"
+                    checked={!isNewPlace && selectedPlaceId === p.id}
+                    onChange={() => { setSelectedPlaceId(p.id); setIsNewPlace(false); setScanRadius(p.radius); }}
+                    className="shrink-0"
+                  />
+                  <span className="flex-1 text-sm">{p.name}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {p.distM < 1000
+                      ? `${Math.round(p.distM)}m`
+                      : `${(p.distM / 1000).toFixed(1)}km`}
+                  </span>
+                </label>
+              ))}
 
-                <NewPlaceOption
-                  isNewPlace={isNewPlace}
-                  setIsNewPlace={setIsNewPlace}
-                  newPlaceName={newPlaceName}
-                  setNewPlaceName={setNewPlaceName}
-                  newPlaceRadius={newPlaceRadius}
-                  setNewPlaceRadius={setNewPlaceRadius}
-                />
-              </div>
+              <NewPlaceOption
+                isNewPlace={isNewPlace}
+                setIsNewPlace={setIsNewPlace}
+                newPlaceName={newPlaceName}
+                setNewPlaceName={setNewPlaceName}
+                newPlaceRadius={newPlaceRadius}
+                setNewPlaceRadius={setNewPlaceRadius}
+              />
             </div>
+          </div>
 
-            {/* Time period */}
-            <div>
-              <TimePeriodHeader scanRadius={scanRadius} onScanRadiusChange={setScanRadius} />
-              <div className="rounded border border-gray-200">
-                {periodsLoading ? (
-                  <p className="px-2.5 py-3 text-xs text-gray-400">Detecting periods…</p>
-                ) : (
-                  detectedPeriods.map((period, i) => {
-                    const mins = differenceInMinutes(period.departureAt, period.arrivalAt);
-                    return (
-                      <label
-                        key={i}
-                        className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-gray-50"
-                      >
-                        <input
-                          type="radio"
-                          name="period"
-                          checked={periodIndex === i}
-                          onChange={() => setPeriodIndex(i)}
-                          className="shrink-0"
-                        />
-                        <span className="flex-1 text-sm text-gray-800">
-                          {format(period.arrivalAt, "MMM d, HH:mm")} –{" "}
-                          {format(period.departureAt, "HH:mm")}
-                        </span>
-                        <span className="shrink-0 text-xs text-gray-400">
-                          {formatDuration(mins)} · {period.pointCount} pts
-                        </span>
-                      </label>
-                    );
-                  })
-                )}
+          <Separator />
 
-                <CustomPeriodOption
-                  periodIndex={periodIndex}
-                  setPeriodIndex={setPeriodIndex}
-                  customStart={customStart}
-                  setCustomStart={setCustomStart}
-                  customEnd={customEnd}
-                  setCustomEnd={setCustomEnd}
-                />
-              </div>
+          {/* Time period */}
+          <div>
+            <TimePeriodHeader scanRadius={scanRadius} onScanRadiusChange={setScanRadius} />
+            <div className="rounded-md border">
+              {periodsLoading ? (
+                <p className="px-2.5 py-3 text-xs text-muted-foreground">Detecting periods…</p>
+              ) : (
+                detectedPeriods.map((period, i) => {
+                  const mins = differenceInMinutes(period.departureAt, period.arrivalAt);
+                  return (
+                    <label
+                      key={i}
+                      className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-muted transition-colors"
+                    >
+                      <input
+                        type="radio"
+                        name="period"
+                        checked={periodIndex === i}
+                        onChange={() => setPeriodIndex(i)}
+                        className="shrink-0"
+                      />
+                      <span className="flex-1 text-sm">
+                        {format(period.arrivalAt, "MMM d, HH:mm")} –{" "}
+                        {format(period.departureAt, "HH:mm")}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatDuration(mins)} · {period.pointCount} pts
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+
+              <CustomPeriodOption
+                periodIndex={periodIndex}
+                setPeriodIndex={setPeriodIndex}
+                customStart={customStart}
+                setCustomStart={setCustomStart}
+                customEnd={customEnd}
+                setCustomEnd={setCustomEnd}
+              />
             </div>
+          </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
 
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isSubmitting}
-                className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || !canSubmit}
-                className="flex-1 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isSubmitting ? "Creating…" : isNewPlace ? "Create Place & Visit" : "Create Visit"}
-              </button>
-            </div>
-          </form>
-      </div>
-    </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting || !canSubmit}>
+              {isSubmitting ? "Creating…" : isNewPlace ? "Create Place & Visit" : "Create Visit"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
