@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -226,6 +226,14 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<SidebarTab | null>("timeline");
   const [mobileTab, setMobileTab] = useState<SidebarTab>("timeline");
   const [detecting, setDetecting] = useState(false);
+
+  useEffect(() => {
+    function handleFlyTo() {
+      setMobilePanelsOpen(false);
+    }
+    window.addEventListener("opentimeline:fly-to", handleFlyTo);
+    return () => window.removeEventListener("opentimeline:fly-to", handleFlyTo);
+  }, []);
 
   function handleTabChange(tab: SidebarTab) {
     setActiveTab((prev) => (prev === tab ? null : tab));
