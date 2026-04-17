@@ -39,7 +39,11 @@
       "Bash(git push:*)",
       "Bash(gh pr create --title 'feat\\(locations\\): distance-based downsampling' --body ':*)",
       "Bash(wc -l /Users/haitran/code/opentimeline/components/*.tsx)",
-      "Bash(pnpm dlx *)"
+      "Bash(pnpm dlx *)",
+      "Bash(git status *)",
+      "Bash(git rm *)",
+      "Bash(xargs cat *)",
+      "Bash(git log *)"
     ]
   }
 }

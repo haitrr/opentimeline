@@ -14,15 +14,15 @@ import SettingsModal from "@/components/SettingsModal";
 import AsideHeader from "@/components/AsideHeader";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Separator } from "@/components/ui/separator";
 import { getRangeBounds } from "@/lib/getRangeBounds";
 import type { RangeType } from "@/app/timeline/[date]/page";
 
 const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
 
-function SettingsIcon() {
+function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
       <path fillRule="evenodd" d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.223 1.164a6.98 6.98 0 0 1 1.48.85l1.08-.54a1 1 0 0 1 1.232.236l1.668 1.668a1 1 0 0 1 .236 1.232l-.54 1.08c.332.46.616.958.85 1.48l1.164.223a1 1 0 0 1 .804.98v2.36a1 1 0 0 1-.804.98l-1.164.223a6.98 6.98 0 0 1-.85 1.48l.54 1.08a1 1 0 0 1-.236 1.232l-1.668 1.668a1 1 0 0 1-1.232.236l-1.08-.54a6.98 6.98 0 0 1-1.48.85l-.223 1.164a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.223-1.164a6.98 6.98 0 0 1-1.48-.85l-1.08.54a1 1 0 0 1-1.232-.236L2.157 16.61a1 1 0 0 1-.236-1.232l.54-1.08a6.98 6.98 0 0 1-.85-1.48l-1.164-.223A1 1 0 0 1 .643 11.615v-2.36a1 1 0 0 1 .804-.98l1.164-.223a6.98 6.98 0 0 1 .85-1.48l-.54-1.08a1 1 0 0 1 .236-1.232L4.825 2.592a1 1 0 0 1 1.232-.236l1.08.54c.46-.332.958-.616 1.48-.85l.223-1.164ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clipRule="evenodd" />
     </svg>
   );
@@ -34,8 +34,6 @@ function SidebarContent({
   detecting,
   rangeStart,
   rangeEnd,
-  settingsOpen,
-  setSettingsOpen,
   setSettingsModalOpen,
   children,
 }: {
@@ -44,8 +42,6 @@ function SidebarContent({
   detecting: boolean;
   rangeStart?: string;
   rangeEnd?: string;
-  settingsOpen: boolean;
-  setSettingsOpen: (open: boolean) => void;
   setSettingsModalOpen: (open: boolean) => void;
   children: React.ReactNode;
 }) {
@@ -56,39 +52,21 @@ function SidebarContent({
       <PlacesPanel />
       <VisitSuggestionsPanel />
       <UnknownVisitSuggestionsPanel />
-      <div className="absolute bottom-4 left-4 z-10">
-        {settingsOpen && (
-          <div className="absolute bottom-full left-0 mb-2 w-56 rounded-md border bg-background p-2 shadow-lg">
-            <ImportGpxButton />
-            <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
-            <div className="my-1 border-t" />
-            <button
-              type="button"
-              onClick={() => { setSettingsOpen(false); setSettingsModalOpen(true); }}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground hover:bg-muted"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0">
-                <path fillRule="evenodd" d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.223 1.164a6.98 6.98 0 0 1 1.48.85l1.08-.54a1 1 0 0 1 1.232.236l1.668 1.668a1 1 0 0 1 .236 1.232l-.54 1.08c.332.46.616.958.85 1.48l1.164.223a1 1 0 0 1 .804.98v2.36a1 1 0 0 1-.804.98l-1.164.223a6.98 6.98 0 0 1-.85 1.48l.54 1.08a1 1 0 0 1-.236 1.232l-1.668 1.668a1 1 0 0 1-1.232.236l-1.08-.54a6.98 6.98 0 0 1-1.48.85l-.223 1.164a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.223-1.164a6.98 6.98 0 0 1-1.48-.85l-1.08.54a1 1 0 0 1-1.232-.236L2.157 16.61a1 1 0 0 1-.236-1.232l.54-1.08a6.98 6.98 0 0 1-.85-1.48l-1.164-.223A1 1 0 0 1 .643 11.615v-2.36a1 1 0 0 1 .804-.98l1.164-.223a6.98 6.98 0 0 1 .85-1.48l-.54-1.08a1 1 0 0 1 .236-1.232L4.825 2.592a1 1 0 0 1 1.232-.236l1.08.54c.46-.332.958-.616 1.48-.85l.223-1.164ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clipRule="evenodd" />
-              </svg>
-              Settings
-            </button>
-          </div>
-        )}
-        <Tooltip>
-          <TooltipTrigger>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setSettingsOpen(!settingsOpen)}
-              aria-expanded={settingsOpen}
-              aria-label="Open settings"
-              className="rounded-full shadow-md"
-            >
-              <SettingsIcon />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Settings</TooltipContent>
-        </Tooltip>
+
+      {/* Sidebar footer */}
+      <div className="mt-auto border-t px-3 py-2.5 space-y-1.5">
+        <ImportGpxButton />
+        <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
+        <Separator />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-muted-foreground"
+          onClick={() => setSettingsModalOpen(true)}
+        >
+          <SettingsIcon className="h-4 w-4" />
+          Settings
+        </Button>
       </div>
     </>
   );
@@ -123,7 +101,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   }, [date, range, endDate]);
 
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [detecting, setDetecting] = useState(false);
 
@@ -163,7 +140,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
       }
     } finally {
       setDetecting(false);
-      setSettingsOpen(false);
       toast(
         total === 0
           ? "No new visit suggestions found"
@@ -177,8 +153,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
     detecting,
     rangeStart,
     rangeEnd,
-    settingsOpen,
-    setSettingsOpen,
     setSettingsModalOpen,
   };
 
