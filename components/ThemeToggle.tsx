@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 export default function ThemeToggle() {
   function toggleTheme() {
     const next = !document.documentElement.classList.contains("dark");
@@ -8,14 +10,15 @@ export default function ThemeToggle() {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       onClick={toggleTheme}
-      className="rounded border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
       aria-label="Toggle theme"
       title="Toggle theme"
     >
       Theme
-    </button>
+    </Button>
   );
 }
