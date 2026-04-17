@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useMemo, Suspense } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import MapWrapper from "@/components/map/MapWrapper";
 import PlacesPanel from "@/components/PlacesPanel";
 import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
@@ -49,14 +50,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [detecting, setDetecting] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function showToast(message: string) {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast(message);
-    toastTimer.current = setTimeout(() => setToast(null), 4000);
-  }
 
   async function detectVisits() {
     setDetecting(true);
@@ -95,7 +88,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
     } finally {
       setDetecting(false);
       setSettingsOpen(false);
-      showToast(
+      toast(
         total === 0
           ? "No new visit suggestions found"
           : `${total} new visit suggestion${total === 1 ? "" : "s"} detected`
@@ -166,11 +159,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
 
       <main className="relative min-h-0 flex-1">
         <MapWrapper rangeStart={rangeStart} rangeEnd={rangeEnd} shouldAutoFit={shouldAutoFit} />
-{toast && (
-          <div className="absolute top-4 left-1/2 z-900 -translate-x-1/2 rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-lg">
-            {toast}
-          </div>
-        )}
         <button
           type="button"
           onClick={() => setMobilePanelsOpen((open) => !open)}
