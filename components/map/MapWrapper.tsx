@@ -14,14 +14,15 @@ import CreateVisitModal from "@/components/CreateVisitModal";
 import PlaceMoveConfirmDialog from "@/components/PlaceMoveConfirmDialog";
 import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
 import type { MapBounds } from "@/components/map/mapConstants";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-full w-full items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-blue-400 border-t-transparent" />
-        <p className="text-sm text-gray-500">Loading map…</p>
+    <div className="flex h-full w-full items-center justify-center bg-muted">
+      <div className="space-y-3 text-center">
+        <Skeleton className="mx-auto h-8 w-8 rounded-full" />
+        <Skeleton className="mx-auto h-4 w-24" />
       </div>
     </div>
   ),
