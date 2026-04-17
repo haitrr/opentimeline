@@ -96,7 +96,7 @@ function ActivityBar({
               {activeTab === id && (
                 <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
               )}
-              <Icon className="h-4.5 w-4.5" />
+              <Icon className="h-5.5 w-5.5" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">{label}</TooltipContent>
@@ -112,7 +112,7 @@ function ActivityBar({
               className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
               aria-label="Settings"
             >
-              <SettingsIcon className="h-4.5 w-4.5" />
+              <SettingsIcon className="h-5.5 w-5.5" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>
