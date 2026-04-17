@@ -277,7 +277,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden bg-muted md:h-screen md:w-screen md:flex-row">
+    <div className="flex h-dvh w-full overflow-hidden bg-background md:h-screen md:w-screen md:flex-row">
       {/* Mobile Sheet */}
       <Sheet open={mobilePanelsOpen} onOpenChange={setMobilePanelsOpen}>
         <SheetContent side="left" className="flex w-[95vw] max-w-sm flex-col overflow-hidden p-0 md:hidden">
@@ -298,7 +298,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
                 }}
                 className={`flex flex-1 flex-col items-center gap-0.5 rounded-md px-1 py-1.5 text-[10px] transition-colors ${
                   mobileTab === id && id !== "settings"
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
