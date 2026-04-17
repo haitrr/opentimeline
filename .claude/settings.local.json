@@ -35,7 +35,11 @@
       "Bash(curl -sS 'http://localhost:3000/api/location-centroid?start=2026-03-01T00:00:00Z&end=2026-03-01T23:59:59Z')",
       "Bash(pnpm prisma:*)",
       "Bash(psql \"postgresql://postgres:postgres@localhost:54231/opentimeline\" -c \"SELECT indexname FROM pg_indexes WHERE tablename IN \\('LocationPoint','Place'\\) ORDER BY tablename, indexname;\")",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create --title 'feat\\(locations\\): distance-based downsampling' --body ':*)",
+      "Bash(wc -l /Users/haitran/code/opentimeline/components/*.tsx)",
+      "Bash(pnpm dlx *)"
     ]
   }
 }
