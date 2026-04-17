@@ -7,7 +7,6 @@ import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import { FetchVisitPhotos } from "@/components/VisitPhotos";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,7 +22,6 @@ type Visit = {
 export default function VisitSuggestionsPanel() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<Visit | null>(null);
   const [creatingPlaceForVisitCentroid, setCreatingPlaceForVisitCentroid] = useState<{ lat: number; lon: number } | null>(null);
 
@@ -62,21 +60,18 @@ export default function VisitSuggestionsPanel() {
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="border-t">
-      <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted">
-        <span className="flex items-center gap-2">
-          Visit Suggestions
-          {visits.length > 0 && (
+    <>
+      <div className="flex h-full flex-col">
+        {visits.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2">
             <Badge className="h-5 px-1.5">{visits.length}</Badge>
-          )}
-        </span>
-        <span>{open ? "▲" : "▼"}</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <ScrollArea className="max-h-80">
+            <span className="text-xs text-muted-foreground">pending</span>
+          </div>
+        )}
+        <ScrollArea className="flex-1">
           <div className="px-4 pb-3">
             {visits.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No pending suggestions.</p>
+              <p className="py-4 text-center text-xs text-muted-foreground">No pending suggestions.</p>
             ) : (
               <ul className="space-y-2">
                 {visits.map((v) => (
@@ -124,7 +119,7 @@ export default function VisitSuggestionsPanel() {
             )}
           </div>
         </ScrollArea>
-      </CollapsibleContent>
+      </div>
 
       {creatingPlaceForVisit && creatingPlaceForVisitCentroid && (
         <PlaceCreationModal
@@ -135,6 +130,6 @@ export default function VisitSuggestionsPanel() {
           onCreated={handlePlaceCreatedForVisit}
         />
       )}
-    </Collapsible>
+    </>
   );
 }

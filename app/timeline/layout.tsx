@@ -14,11 +14,45 @@ import SettingsModal from "@/components/SettingsModal";
 import AsideHeader from "@/components/AsideHeader";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getRangeBounds } from "@/lib/getRangeBounds";
 import type { RangeType } from "@/app/timeline/[date]/page";
 
 const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
+
+type SidebarTab = "timeline" | "places" | "suggestions" | "unknown" | "settings";
+
+function TimelineIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 0 0 0-1.5h-3.25V5Z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function PlacesIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="m9.69 18.933.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 0 0 .281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C14.925 15.337 16.5 13.09 16.5 10c0-3.584-2.916-6.5-6.5-6.5S3.5 6.416 3.5 10c0 3.09 1.575 5.337 2.854 6.584.83.8 1.654 1.381 2.274 1.765.311.193.571.337.757.433a5.68 5.68 0 0 0 .281.14l.018.008.006.003ZM10 11.25a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function SuggestionsIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M10 2a.75.75 0 0 1 .75.75v.258a33.186 33.186 0 0 1 6.668.83.75.75 0 0 1-.336 1.461 31.28 31.28 0 0 0-1.103-.232l1.702 7.545a.75.75 0 0 1-.387.832A4.981 4.981 0 0 1 15 14c-.825 0-1.606-.2-2.294-.556a.75.75 0 0 1-.387-.832l1.77-7.849a31.743 31.743 0 0 0-3.339-.364v11.851H13a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1 0-1.5h2.25V4.399a31.712 31.712 0 0 0-3.339.364l1.77 7.849a.75.75 0 0 1-.387.832A4.981 4.981 0 0 1 5 14c-.825 0-1.606-.2-2.294-.556a.75.75 0 0 1-.387-.832l1.702-7.545c-.372.06-.742.126-1.103.232a.75.75 0 0 1-.336-1.461 33.186 33.186 0 0 1 6.668-.83V2.75A.75.75 0 0 1 10 2ZM5 12.938l-1.318-5.84a28.07 28.07 0 0 0-1.39.399L3.609 12.5 5 12.938Zm6.318-5.84L10 12.938l1.391-.439 1.318-5.003a28.1 28.1 0 0 0-1.39-.399Z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function UnknownIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0ZM8.94 6.94a.75.75 0 1 1-1.061-1.061 3 3 0 1 1 2.871 5.026v.345a.75.75 0 0 1-1.5 0v-.5c0-.72.57-1.172 1.081-1.287A1.5 1.5 0 1 0 8.94 6.94ZM10 15a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clipRule="evenodd" />
+    </svg>
+  );
+}
 
 function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -28,47 +62,131 @@ function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-function SidebarContent({
-  onClose,
-  onDetect,
-  detecting,
+const TABS: { id: SidebarTab; label: string; Icon: React.FC<{ className?: string }> }[] = [
+  { id: "timeline", label: "Timeline", Icon: TimelineIcon },
+  { id: "places", label: "Places", Icon: PlacesIcon },
+  { id: "suggestions", label: "Suggestions", Icon: SuggestionsIcon },
+  { id: "unknown", label: "Unknown Places", Icon: UnknownIcon },
+];
+
+function ActivityBar({
+  activeTab,
+  onTabChange,
+  onSettingsClick,
+}: {
+  activeTab: SidebarTab | null;
+  onTabChange: (tab: SidebarTab) => void;
+  onSettingsClick: () => void;
+}) {
+  return (
+    <div className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-muted/30 py-2">
+      {TABS.map(({ id, label, Icon }) => (
+        <Tooltip key={id}>
+          <TooltipTrigger>
+            <button
+              type="button"
+              onClick={() => onTabChange(id)}
+              className={`relative flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+                activeTab === id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+              }`}
+              aria-label={label}
+            >
+              {activeTab === id && (
+                <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
+              )}
+              <Icon className="h-4.5 w-4.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{label}</TooltipContent>
+        </Tooltip>
+      ))}
+
+      <div className="mt-auto">
+        <Tooltip>
+          <TooltipTrigger>
+            <button
+              type="button"
+              onClick={onSettingsClick}
+              className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
+              aria-label="Settings"
+            >
+              <SettingsIcon className="h-4.5 w-4.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Settings</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
+}
+
+function PanelContent({
+  activeTab,
   rangeStart,
   rangeEnd,
-  setSettingsModalOpen,
+  onDetect,
+  detecting,
   children,
 }: {
-  onClose: () => void;
-  onDetect: () => void;
-  detecting: boolean;
+  activeTab: SidebarTab;
   rangeStart?: string;
   rangeEnd?: string;
-  setSettingsModalOpen: (open: boolean) => void;
+  onDetect: () => void;
+  detecting: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <>
-      <AsideHeader onClose={onClose} onDetect={onDetect} detecting={detecting} />
-      {children}
-      <PlacesPanel />
-      <VisitSuggestionsPanel />
-      <UnknownVisitSuggestionsPanel />
-
-      {/* Sidebar footer */}
-      <div className="mt-auto border-t px-3 py-2.5 space-y-1.5">
-        <ImportGpxButton />
-        <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
-        <Separator />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start gap-2 text-muted-foreground"
-          onClick={() => setSettingsModalOpen(true)}
-        >
-          <SettingsIcon className="h-4 w-4" />
-          Settings
-        </Button>
-      </div>
-    </>
+    <div className="flex h-full flex-1 flex-col overflow-hidden">
+      {activeTab === "timeline" && (
+        <>
+          <AsideHeader onClose={() => {}} onDetect={onDetect} detecting={detecting} />
+          {children}
+        </>
+      )}
+      {activeTab === "places" && (
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Places</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <PlacesPanel />
+          </div>
+        </div>
+      )}
+      {activeTab === "suggestions" && (
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Visit Suggestions</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <VisitSuggestionsPanel />
+          </div>
+        </div>
+      )}
+      {activeTab === "unknown" && (
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Unknown Places</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <UnknownVisitSuggestionsPanel />
+          </div>
+        </div>
+      )}
+      {activeTab === "settings" && (
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Settings</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+            <ImportGpxButton />
+            <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -101,8 +219,18 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   }, [date, range, endDate]);
 
   const [mobilePanelsOpen, setMobilePanelsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<SidebarTab | null>("timeline");
+  const [mobileTab, setMobileTab] = useState<SidebarTab>("timeline");
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [detecting, setDetecting] = useState(false);
+
+  function handleTabChange(tab: SidebarTab) {
+    setActiveTab((prev) => (prev === tab ? null : tab));
+  }
+
+  function handleMobileTabChange(tab: SidebarTab) {
+    setMobileTab(tab);
+  }
 
   async function detectVisits() {
     setDetecting(true);
@@ -148,32 +276,70 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const sidebarProps = {
-    onDetect: detectVisits,
-    detecting,
-    rangeStart,
-    rangeEnd,
-    setSettingsModalOpen,
-  };
-
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-muted md:h-screen md:w-screen md:flex-row">
       {/* Mobile Sheet */}
       <Sheet open={mobilePanelsOpen} onOpenChange={setMobilePanelsOpen}>
         <SheetContent side="left" className="flex w-[95vw] max-w-sm flex-col overflow-hidden p-0 md:hidden">
           <SheetTitle className="sr-only">Navigation Panel</SheetTitle>
-          <SidebarContent {...sidebarProps} onClose={() => setMobilePanelsOpen(false)}>
+          {/* Mobile tab bar (horizontal) */}
+          <div className="flex shrink-0 gap-1 border-b px-2 py-1.5">
+            {[...TABS, { id: "settings" as SidebarTab, label: "Settings", Icon: SettingsIcon }].map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  if (id === "settings") {
+                    setMobilePanelsOpen(false);
+                    setSettingsModalOpen(true);
+                  } else {
+                    handleMobileTabChange(id);
+                  }
+                }}
+                className={`flex flex-1 flex-col items-center gap-0.5 rounded-md px-1 py-1.5 text-[10px] transition-colors ${
+                  mobileTab === id && id !== "settings"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="truncate">{label}</span>
+              </button>
+            ))}
+          </div>
+          <PanelContent
+            activeTab={mobileTab}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onDetect={detectVisits}
+            detecting={detecting}
+          >
             {children}
-          </SidebarContent>
+          </PanelContent>
         </SheetContent>
       </Sheet>
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex md:h-full md:w-120 md:max-w-[40vw] md:shrink-0 md:flex-col md:overflow-hidden md:border-r md:border md:bg-background md:shadow-none relative">
-        <SidebarContent {...sidebarProps} onClose={() => {}}>
-          {children}
-        </SidebarContent>
-      </aside>
+      {/* Desktop: Activity Bar + Panel */}
+      <div className="hidden md:flex md:h-full md:shrink-0">
+        <ActivityBar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onSettingsClick={() => setSettingsModalOpen(true)}
+        />
+        {activeTab !== null && (
+          <div className="flex h-full w-80 max-w-[35vw] flex-col overflow-hidden border-r bg-background">
+            <PanelContent
+              activeTab={activeTab}
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+              onDetect={detectVisits}
+              detecting={detecting}
+            >
+              {children}
+            </PanelContent>
+          </div>
+        )}
+      </div>
 
       {settingsModalOpen && (
         <SettingsModal onClose={() => setSettingsModalOpen(false)} />
@@ -184,7 +350,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
         <Button
           size="icon"
           onClick={() => setMobilePanelsOpen((open) => !open)}
-          className="absolute bottom-6 right-4 z-900 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
+          className="absolute bottom-6 right-4 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 md:hidden"
           aria-label="Toggle panel"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">

@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import { FetchVisitPhotos } from "@/components/VisitPhotos";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +31,6 @@ function toDatetimeLocal(iso: string) {
 export default function UnknownVisitSuggestionsPanel() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<UnknownVisit | null>(null);
   const [editing, setEditing] = useState<{ id: number; arrivalAt: string; departureAt: string } | null>(null);
 
@@ -89,126 +87,119 @@ export default function UnknownVisitSuggestionsPanel() {
 
   return (
     <>
-      <Collapsible open={open} onOpenChange={setOpen} className="border-t">
-        <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted">
-          <span className="flex items-center gap-2">
-            Unknown Places
-            {suggestions.length > 0 && (
-              <Badge variant="warning" className="h-5 px-1.5">
-                {suggestions.length}
-              </Badge>
-            )}
-          </span>
-          <span>{open ? "▲" : "▼"}</span>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <ScrollArea className="max-h-80">
-            <div className="px-4 pb-3">
-              {suggestions.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No unknown place visits detected.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {suggestions.map((s) => (
-                    <li
-                      key={s.id}
-                      className="cursor-pointer rounded border border-amber-100 bg-amber-50 p-2 transition-colors hover:bg-amber-100 dark:border-amber-900/30 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
-                      onClick={() => {
-                        router.push(`/timeline/${format(new Date(s.arrivalAt), "yyyy-MM-dd")}`);
-                        window.dispatchEvent(new CustomEvent("opentimeline:fly-to", { detail: { lat: s.lat, lon: s.lon } }));
-                      }}
-                    >
-                      <p className="text-xs font-medium text-foreground">
-                        {s.lat.toFixed(5)}, {s.lon.toFixed(5)}
-                      </p>
-                      {editing?.id === s.id ? (
-                        <div className="mt-1 space-y-1">
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Arrival</Label>
-                            <Input
-                              type="datetime-local"
-                              value={editing.arrivalAt}
-                              onChange={(e) => setEditing({ ...editing, arrivalAt: e.target.value })}
-                              className="mt-0.5 h-8 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Departure</Label>
-                            <Input
-                              type="datetime-local"
-                              value={editing.departureAt}
-                              onChange={(e) => setEditing({ ...editing, departureAt: e.target.value })}
-                              className="mt-0.5 h-8 text-xs"
-                            />
-                          </div>
-                          <div className="flex gap-1.5 pt-0.5">
-                            <Button
-                              size="sm"
-                              className="h-7 flex-1 bg-amber-500 text-xs hover:bg-amber-600"
-                              onClick={(e) => { e.stopPropagation(); handleEditSave(s.id); }}
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 flex-1 text-xs"
-                              onClick={(e) => { e.stopPropagation(); setEditing(null); }}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
+      <div className="flex h-full flex-col">
+        {suggestions.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2">
+            <Badge variant="warning" className="h-5 px-1.5">{suggestions.length}</Badge>
+            <span className="text-xs text-muted-foreground">detected</span>
+          </div>
+        )}
+        <ScrollArea className="flex-1">
+          <div className="px-4 pb-3">
+            {suggestions.length === 0 ? (
+              <p className="py-4 text-center text-xs text-muted-foreground">No unknown place visits detected.</p>
+            ) : (
+              <ul className="space-y-2">
+                {suggestions.map((s) => (
+                  <li
+                    key={s.id}
+                    className="cursor-pointer rounded-lg border border-amber-200 bg-amber-50 p-2 transition-colors hover:bg-amber-100 dark:border-amber-900/30 dark:bg-amber-900/20 dark:hover:bg-amber-900/30"
+                    onClick={() => {
+                      router.push(`/timeline/${format(new Date(s.arrivalAt), "yyyy-MM-dd")}`);
+                      window.dispatchEvent(new CustomEvent("opentimeline:fly-to", { detail: { lat: s.lat, lon: s.lon } }));
+                    }}
+                  >
+                    <p className="text-xs font-medium text-foreground">
+                      {s.lat.toFixed(5)}, {s.lon.toFixed(5)}
+                    </p>
+                    {editing?.id === s.id ? (
+                      <div className="mt-1 space-y-1">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Arrival</Label>
+                          <Input
+                            type="datetime-local"
+                            value={editing.arrivalAt}
+                            onChange={(e) => setEditing({ ...editing, arrivalAt: e.target.value })}
+                            className="mt-0.5 h-8 text-xs"
+                          />
                         </div>
-                      ) : (
-                        <>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(s.arrivalAt), "MMM d, HH:mm")} –{" "}
-                            {format(new Date(s.departureAt), "HH:mm")}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{s.pointCount} points</p>
-                          <FetchVisitPhotos arrivalAt={s.arrivalAt} departureAt={s.departureAt} lat={s.lat} lon={s.lon} />
-                          <div className="mt-1.5 flex gap-1.5">
-                            <Button
-                              size="sm"
-                              className="h-7 flex-1 bg-amber-500 text-xs hover:bg-amber-600"
-                              onClick={(e) => { e.stopPropagation(); setConfirming(s); }}
-                            >
-                              Create Place
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 flex-1 text-xs"
-                              onClick={(e) => { e.stopPropagation(); setEditing({ id: s.id, arrivalAt: toDatetimeLocal(s.arrivalAt), departureAt: toDatetimeLocal(s.departureAt) }); }}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 flex-1 text-xs"
-                              onClick={(e) => { e.stopPropagation(); handleReject(s.id); }}
-                            >
-                              Dismiss
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 border-destructive text-xs text-destructive hover:bg-destructive/10"
-                              onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </ScrollArea>
-        </CollapsibleContent>
-      </Collapsible>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Departure</Label>
+                          <Input
+                            type="datetime-local"
+                            value={editing.departureAt}
+                            onChange={(e) => setEditing({ ...editing, departureAt: e.target.value })}
+                            className="mt-0.5 h-8 text-xs"
+                          />
+                        </div>
+                        <div className="flex gap-1.5 pt-0.5">
+                          <Button
+                            size="sm"
+                            className="h-7 flex-1 bg-amber-500 text-xs hover:bg-amber-600"
+                            onClick={(e) => { e.stopPropagation(); handleEditSave(s.id); }}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 flex-1 text-xs"
+                            onClick={(e) => { e.stopPropagation(); setEditing(null); }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(s.arrivalAt), "MMM d, HH:mm")} –{" "}
+                          {format(new Date(s.departureAt), "HH:mm")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{s.pointCount} points</p>
+                        <FetchVisitPhotos arrivalAt={s.arrivalAt} departureAt={s.departureAt} lat={s.lat} lon={s.lon} />
+                        <div className="mt-1.5 flex gap-1.5">
+                          <Button
+                            size="sm"
+                            className="h-7 flex-1 bg-amber-500 text-xs hover:bg-amber-600"
+                            onClick={(e) => { e.stopPropagation(); setConfirming(s); }}
+                          >
+                            Create Place
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 flex-1 text-xs"
+                            onClick={(e) => { e.stopPropagation(); setEditing({ id: s.id, arrivalAt: toDatetimeLocal(s.arrivalAt), departureAt: toDatetimeLocal(s.departureAt) }); }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 flex-1 text-xs"
+                            onClick={(e) => { e.stopPropagation(); handleReject(s.id); }}
+                          >
+                            Dismiss
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 border-destructive text-xs text-destructive hover:bg-destructive/10"
+                            onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
 
       {confirming && (
         <PlaceCreationModal
