@@ -82,22 +82,19 @@ function ActivityBar({
     <div className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-muted/50 py-2">
       {TABS.map(({ id, label, Icon }) => (
         <Tooltip key={id}>
-          <TooltipTrigger>
-            <button
-              type="button"
-              onClick={() => onTabChange(id)}
-              className={`relative flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
-                activeTab === id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
-              }`}
-              aria-label={label}
-            >
-              {activeTab === id && (
-                <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
-              )}
-              <Icon className="h-5.5 w-5.5" />
-            </button>
+          <TooltipTrigger
+            onClick={() => onTabChange(id)}
+            className={`relative flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+              activeTab === id
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+            }`}
+            aria-label={label}
+          >
+            {activeTab === id && (
+              <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
+            )}
+            <Icon className="h-5.5 w-5.5" />
           </TooltipTrigger>
           <TooltipContent side="right">{label}</TooltipContent>
         </Tooltip>
@@ -105,15 +102,12 @@ function ActivityBar({
 
       <div className="mt-auto">
         <Tooltip>
-          <TooltipTrigger>
-            <button
-              type="button"
-              onClick={onSettingsClick}
-              className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
-              aria-label="Settings"
-            >
-              <SettingsIcon className="h-5.5 w-5.5" />
-            </button>
+          <TooltipTrigger
+            onClick={onSettingsClick}
+            className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
+            aria-label="Settings"
+          >
+            <SettingsIcon className="h-5.5 w-5.5" />
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>
         </Tooltip>
