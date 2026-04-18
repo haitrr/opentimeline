@@ -12,10 +12,12 @@ import ImportGpxButton from "@/components/ImportGpxButton";
 import ImportImmichButton from "@/components/ImportImmichButton";
 import SettingsPanel from "@/components/SettingsPanel";
 import AsideHeader from "@/components/AsideHeader";
+import IconBadge from "@/components/IconBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { getRangeBounds } from "@/lib/getRangeBounds";
+import { useSuggestionCounts } from "@/hooks/useSuggestionCounts";
 import type { RangeType } from "@/app/timeline/[date]/page";
 
 const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
@@ -41,7 +43,7 @@ function PlacesIcon({ className = "h-5 w-5" }: { className?: string }) {
 function SuggestionsIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M10 2a.75.75 0 0 1 .75.75v.258a33.186 33.186 0 0 1 6.668.83.75.75 0 0 1-.336 1.461 31.28 31.28 0 0 0-1.103-.232l1.702 7.545a.75.75 0 0 1-.387.832A4.981 4.981 0 0 1 15 14c-.825 0-1.606-.2-2.294-.556a.75.75 0 0 1-.387-.832l1.77-7.849a31.743 31.743 0 0 0-3.339-.364v11.851H13a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1 0-1.5h2.25V4.399a31.712 31.712 0 0 0-3.339.364l1.77 7.849a.75.75 0 0 1-.387.832A4.981 4.981 0 0 1 5 14c-.825 0-1.606-.2-2.294-.556a.75.75 0 0 1-.387-.832l1.702-7.545c-.372.06-.742.126-1.103.232a.75.75 0 0 1-.336-1.461 33.186 33.186 0 0 1 6.668-.83V2.75A.75.75 0 0 1 10 2ZM5 12.938l-1.318-5.84a28.07 28.07 0 0 0-1.39.399L3.609 12.5 5 12.938Zm6.318-5.84L10 12.938l1.391-.439 1.318-5.003a28.1 28.1 0 0 0-1.39-.399Z" clipRule="evenodd" />
+      <path d="M10 1a6 6 0 0 0-3.815 10.631C7.237 12.5 8 13.443 8 14.456v.644a.75.75 0 0 0 .572.729 6.016 6.016 0 0 0 2.856 0A.75.75 0 0 0 12 15.1v-.644c0-1.013.762-1.957 1.815-2.825A6 6 0 0 0 10 1ZM8.863 17.414a.75.75 0 0 0-.226 1.483 9.066 9.066 0 0 0 2.726 0 .75.75 0 0 0-.226-1.483 7.553 7.553 0 0 1-2.274 0Z" />
     </svg>
   );
 }
@@ -73,10 +75,14 @@ function ActivityBar({
   activeTab,
   onTabChange,
   onSettingsClick,
+  suggestionsCount,
+  unknownCount,
 }: {
   activeTab: SidebarTab | null;
   onTabChange: (tab: SidebarTab) => void;
   onSettingsClick: () => void;
+  suggestionsCount: number;
+  unknownCount: number;
 }) {
   return (
     <div className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-muted/50 py-2">
@@ -95,6 +101,8 @@ function ActivityBar({
               <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
             )}
             <Icon className="h-5.5 w-5.5" />
+            {id === "suggestions" && <IconBadge count={suggestionsCount} />}
+            {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
           </TooltipTrigger>
           <TooltipContent side="right">{label}</TooltipContent>
         </Tooltip>
@@ -220,6 +228,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<SidebarTab | null>("timeline");
   const [mobileTab, setMobileTab] = useState<SidebarTab>("timeline");
   const [detecting, setDetecting] = useState(false);
+  const { suggestions: suggestionsCount, unknown: unknownCount } = useSuggestionCounts();
 
   useEffect(() => {
     function handleFlyTo() {
@@ -319,7 +328,11 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
                     : "text-muted-foreground"
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <span className="relative inline-flex">
+                  <Icon className="h-5 w-5" />
+                  {id === "suggestions" && <IconBadge count={suggestionsCount} />}
+                  {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
+                </span>
                 <span className="truncate">{label}</span>
               </button>
             ))}
@@ -333,6 +346,8 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           onSettingsClick={() => handleTabChange("settings")}
+          suggestionsCount={suggestionsCount}
+          unknownCount={unknownCount}
         />
         {activeTab !== null && (
           <div className="flex h-full w-120 max-w-[40vw] flex-col overflow-hidden border-r bg-background">
