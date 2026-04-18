@@ -12,10 +12,12 @@ import ImportGpxButton from "@/components/ImportGpxButton";
 import ImportImmichButton from "@/components/ImportImmichButton";
 import SettingsPanel from "@/components/SettingsPanel";
 import AsideHeader from "@/components/AsideHeader";
+import IconBadge from "@/components/IconBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { getRangeBounds } from "@/lib/getRangeBounds";
+import { useSuggestionCounts } from "@/hooks/useSuggestionCounts";
 import type { RangeType } from "@/app/timeline/[date]/page";
 
 const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
@@ -73,10 +75,14 @@ function ActivityBar({
   activeTab,
   onTabChange,
   onSettingsClick,
+  suggestionsCount,
+  unknownCount,
 }: {
   activeTab: SidebarTab | null;
   onTabChange: (tab: SidebarTab) => void;
   onSettingsClick: () => void;
+  suggestionsCount: number;
+  unknownCount: number;
 }) {
   return (
     <div className="flex h-full w-12 shrink-0 flex-col items-center border-r bg-muted/50 py-2">
@@ -95,6 +101,8 @@ function ActivityBar({
               <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
             )}
             <Icon className="h-5.5 w-5.5" />
+            {id === "suggestions" && <IconBadge count={suggestionsCount} />}
+            {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
           </TooltipTrigger>
           <TooltipContent side="right">{label}</TooltipContent>
         </Tooltip>
@@ -220,6 +228,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTab] = useState<SidebarTab | null>("timeline");
   const [mobileTab, setMobileTab] = useState<SidebarTab>("timeline");
   const [detecting, setDetecting] = useState(false);
+  const { suggestions: suggestionsCount, unknown: unknownCount } = useSuggestionCounts();
 
   useEffect(() => {
     function handleFlyTo() {
@@ -333,6 +342,8 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
           activeTab={activeTab}
           onTabChange={handleTabChange}
           onSettingsClick={() => handleTabChange("settings")}
+          suggestionsCount={suggestionsCount}
+          unknownCount={unknownCount}
         />
         {activeTab !== null && (
           <div className="flex h-full w-120 max-w-[40vw] flex-col overflow-hidden border-r bg-background">
