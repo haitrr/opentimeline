@@ -44,7 +44,16 @@
       "Bash(git rm *)",
       "Bash(xargs cat *)",
       "Bash(git log *)",
-      "Bash(gh pr create --title 'feat: shadcn/ui migration with VSCode-style sidebar' --body ' *)"
+      "Bash(gh pr create --title 'feat: shadcn/ui migration with VSCode-style sidebar' --body ' *)",
+      "Bash(/Users/haitran/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir /Users/haitran/code/opentimeline)",
+      "Bash(xargs /usr/bin/grep -l \"PlaceDetailModal\\\\|PlacesPanel\")",
+      "Bash(/Users/haitran/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/stop-server.sh /Users/haitran/code/opentimeline/.superpowers/brainstorm/23669-1776482582)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('devDependencies',{}\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('dependencies',{}\\), indent=2\\)\\)\")",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -50 {}')",
+      "Bash(pnpm tsc *)",
+      "Bash(curl -sfI http://localhost:3000 -o /dev/null)",
+      "Bash(pnpm test:e2e places-panel)"
     ]
   }
 }

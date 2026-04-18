@@ -4,8 +4,9 @@ import React from "react";
 import { format } from "date-fns";
 import type { MapRef } from "react-map-gl/maplibre";
 import type { LayerSettings } from "@/components/map/hooks/useLayerSettings";
-import { DEFAULT_MAP_LAYER_SETTINGS, FIT_BOUNDS_PADDING, FIT_BOUNDS_MAX_ZOOM, MAP_LAYER_SETTINGS_KEY, type MapBounds } from "@/components/map/mapConstants";
+import { FIT_BOUNDS_PADDING, FIT_BOUNDS_MAX_ZOOM, type MapBounds } from "@/components/map/mapConstants";
 import type { SerializedPoint } from "@/lib/groupByHour";
+import LayerToggleColumn from "@/components/map/LayerToggleColumn";
 
 type ContextMenu = { x: number; y: number; lat: number; lon: number } | null;
 
@@ -14,8 +15,6 @@ type Props = {
   points: SerializedPoint[];
   pointsEnvelope?: MapBounds | null;
   layerSettings: LayerSettings;
-  layersMenuOpen: boolean;
-  setLayersMenuOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
   isPlaying: boolean;
   startPlay: () => void;
   stopPlay: () => void;
@@ -33,8 +32,6 @@ export default function MapControls({
   points,
   pointsEnvelope = null,
   layerSettings,
-  layersMenuOpen,
-  setLayersMenuOpen,
   isPlaying,
   startPlay,
   stopPlay,
@@ -46,15 +43,6 @@ export default function MapControls({
   onCreateVisit,
   onMapClick,
 }: Props) {
-  const {
-    showHeatmap, setShowHeatmap,
-    showLine, setShowLine,
-    showVisitedPlaces, setShowVisitedPlaces,
-    hidePoints, setHidePoints,
-    hidePlaces, setHidePlaces,
-    hidePhotos, setHidePhotos,
-  } = layerSettings;
-
   return (
     <>
       {/* Right-click context menu */}
@@ -110,7 +98,7 @@ export default function MapControls({
 
       {/* Fit all points + Play journey buttons */}
       {(pointsEnvelope || points.length > 0) && (
-        <div className="pointer-events-none absolute bottom-4 left-16 z-900 flex gap-2">
+        <div className="pointer-events-none absolute bottom-4 left-4 z-900 flex gap-2">
           <button
             type="button"
             onClick={() => {
@@ -159,68 +147,7 @@ export default function MapControls({
         </div>
       )}
 
-      {/* Layer settings menu */}
-      <div className="pointer-events-none absolute bottom-4 left-4 z-900">
-        {layersMenuOpen && (
-          <div className="pointer-events-auto absolute bottom-full left-0 mb-2 w-56 rounded-md border border-gray-200 bg-white p-2 shadow-lg">
-            <p className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Map layers
-            </p>
-            {([
-              { label: "Heatmap", checked: showHeatmap, onChange: (v: boolean) => setShowHeatmap(v) },
-              { label: "Path line", checked: showLine, onChange: (v: boolean) => setShowLine(v) },
-              { label: "Visited places", checked: showVisitedPlaces, onChange: (v: boolean) => setShowVisitedPlaces(v) },
-              { label: "Points", checked: !hidePoints, onChange: (v: boolean) => setHidePoints(!v) },
-              { label: "Places", checked: !hidePlaces, onChange: (v: boolean) => setHidePlaces(!v) },
-              { label: "Photos", checked: !hidePhotos, onChange: (v: boolean) => setHidePhotos(!v) },
-            ] as const).map(({ label, checked, onChange }, idx) => (
-              <label key={label} className={`${idx > 0 ? "mt-1 " : ""}flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-100`}>
-                <span>{label}</span>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(e) => onChange(e.target.checked)}
-                  className="h-4 w-4"
-                />
-              </label>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                setShowHeatmap(DEFAULT_MAP_LAYER_SETTINGS.showHeatmap);
-                setShowLine(DEFAULT_MAP_LAYER_SETTINGS.showLine);
-                setShowVisitedPlaces(DEFAULT_MAP_LAYER_SETTINGS.showVisitedPlaces);
-                setHidePoints(DEFAULT_MAP_LAYER_SETTINGS.hidePoints);
-                setHidePlaces(DEFAULT_MAP_LAYER_SETTINGS.hidePlaces);
-                setHidePhotos(DEFAULT_MAP_LAYER_SETTINGS.hidePhotos);
-                try {
-                  window.localStorage.removeItem(MAP_LAYER_SETTINGS_KEY);
-                } catch {
-                  // ignore local storage errors
-                }
-              }}
-              className="mt-2 w-full rounded border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100"
-            >
-              Reset map settings
-            </button>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => setLayersMenuOpen((open) => !open)}
-          className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 shadow-md hover:bg-gray-50 hover:text-gray-800"
-          aria-expanded={layersMenuOpen}
-          aria-label="Open map layer settings"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
-            <path
-              fillRule="evenodd"
-              d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.223 1.164a6.98 6.98 0 0 1 1.48.85l1.08-.54a1 1 0 0 1 1.232.236l1.668 1.668a1 1 0 0 1 .236 1.232l-.54 1.08c.332.46.616.958.85 1.48l1.164.223a1 1 0 0 1 .804.98v2.36a1 1 0 0 1-.804.98l-1.164.223a6.98 6.98 0 0 1-.85 1.48l.54 1.08a1 1 0 0 1-.236 1.232l-1.668 1.668a1 1 0 0 1-1.232.236l-1.08-.54a6.98 6.98 0 0 1-1.48.85l-.223 1.164a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.223-1.164a6.98 6.98 0 0 1-1.48-.85l-1.08.54a1 1 0 0 1-1.232-.236L2.157 16.61a1 1 0 0 1-.236-1.232l.54-1.08a6.98 6.98 0 0 1-.85-1.48l-1.164-.223A1 1 0 0 1 .643 11.615v-2.36a1 1 0 0 1 .804-.98l1.164-.223a6.98 6.98 0 0 1 .85-1.48l-.54-1.08a1 1 0 0 1 .236-1.232L4.825 2.592a1 1 0 0 1 1.232-.236l1.08.54c.46-.332.958-.616 1.48-.85l.223-1.164ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </button>
-      </div>
+      <LayerToggleColumn layerSettings={layerSettings} />
     </>
   );
 }

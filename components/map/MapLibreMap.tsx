@@ -40,7 +40,6 @@ export default function MapLibreMap({
 
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
-  const [layersMenuOpen, setLayersMenuOpen] = useState(false);
   const [popup, setPopup] = useState<PopupState>(null);
   const [hoveredPlace, setHoveredPlace] = useState<{ id: number; x: number; y: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lat: number; lon: number } | null>(null);
@@ -342,8 +341,6 @@ export default function MapLibreMap({
         points={points}
         pointsEnvelope={pointsEnvelope}
         layerSettings={layerSettings}
-        layersMenuOpen={layersMenuOpen}
-        setLayersMenuOpen={setLayersMenuOpen}
         isPlaying={isPlaying}
         startPlay={startPlay}
         stopPlay={stopPlay}

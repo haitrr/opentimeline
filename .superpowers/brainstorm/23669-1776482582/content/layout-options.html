@@ -1,0 +1,190 @@
+<h2>Which row layout feels right?</h2>
+<p class="subtitle">Both include icons, sort, empty state, and hover actions. They differ on density and visible metadata. The panel is a narrow sidebar (~260–300 px).</p>
+
+<style>
+  .sidebar-mock {
+    width: 280px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13px;
+    margin: 0 auto;
+  }
+  .sidebar-mock .sb-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+  }
+  .sidebar-mock .sb-header h4 { margin: 0; font-size: 13px; font-weight: 600; }
+  .sidebar-mock .sb-count { font-size: 11px; color: var(--muted); }
+  .sidebar-mock .sb-toolbar {
+    display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--border);
+  }
+  .sidebar-mock .sb-search {
+    flex: 1; height: 28px; border: 1px solid var(--border); border-radius: 6px;
+    padding: 0 8px 0 26px; font-size: 12px; background: transparent;
+    background-image: radial-gradient(circle at 10px 50%, var(--muted) 2px, transparent 3px);
+  }
+  .sidebar-mock .sb-sort {
+    height: 28px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 11px; background: transparent; color: var(--muted);
+  }
+  .sidebar-mock .sb-list { padding: 4px 6px; }
+
+  /* Compact variant */
+  .row-compact {
+    display: grid; grid-template-columns: 28px 1fr auto; gap: 8px;
+    align-items: center; padding: 8px; border-radius: 6px; cursor: pointer;
+  }
+  .row-compact:hover { background: var(--hover); }
+  .row-compact .pin {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    display: flex; align-items: center; justify-content: center; color: var(--accent);
+    font-size: 14px;
+  }
+  .row-compact .name { font-weight: 500; font-size: 13px; }
+  .row-compact .meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .row-compact .visits {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    background: var(--chip); padding: 2px 6px; border-radius: 999px;
+    min-width: 22px; text-align: center;
+  }
+
+  /* Card variant */
+  .row-card {
+    padding: 10px; border-radius: 8px; cursor: pointer; margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+  .row-card:hover { background: var(--hover); border-color: var(--border); }
+  .row-card .top { display: flex; align-items: flex-start; gap: 10px; }
+  .row-card .pin {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    display: flex; align-items: center; justify-content: center; color: var(--accent);
+    flex-shrink: 0;
+  }
+  .row-card .name { font-weight: 600; font-size: 13px; line-height: 1.2; }
+  .row-card .last { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .row-card .stats {
+    display: flex; gap: 8px; margin-top: 8px; padding-left: 42px;
+    font-size: 11px; color: var(--muted);
+  }
+  .row-card .stat b { color: var(--fg); font-weight: 600; }
+  .row-card .actions {
+    margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s;
+  }
+  .row-card:hover .actions { opacity: 1; }
+  .row-card .act-btn {
+    width: 24px; height: 24px; border-radius: 4px; border: none; background: transparent;
+    color: var(--muted); font-size: 12px; cursor: pointer;
+  }
+  .row-card .act-btn:hover { background: var(--chip); color: var(--fg); }
+
+  :root {
+    --bg: #fff; --fg: #111; --muted: #6b7280; --border: #e5e7eb;
+    --hover: #f3f4f6; --chip: #f1f5f9; --accent: #2563eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111; --fg: #f3f4f6; --muted: #9ca3af; --border: #262626;
+      --hover: #1f2937; --chip: #1e293b; --accent: #60a5fa;
+    }
+  }
+</style>
+
+<div class="cards">
+  <div class="card" data-choice="compact" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="sidebar-mock">
+        <div class="sb-header"><h4>Places</h4><span class="sb-count">24</span></div>
+        <div class="sb-toolbar">
+          <input class="sb-search" placeholder="Search places" />
+          <button class="sb-sort">Visits ↓</button>
+        </div>
+        <div class="sb-list">
+          <div class="row-compact">
+            <div class="pin">◉</div>
+            <div><div class="name">Home</div><div class="meta">2d ago · 50m radius</div></div>
+            <div class="visits">128</div>
+          </div>
+          <div class="row-compact">
+            <div class="pin">◉</div>
+            <div><div class="name">Oxy Office</div><div class="meta">Yesterday · 80m</div></div>
+            <div class="visits">62</div>
+          </div>
+          <div class="row-compact">
+            <div class="pin">◉</div>
+            <div><div class="name">The Coffee House</div><div class="meta">Last week · 40m</div></div>
+            <div class="visits">14</div>
+          </div>
+          <div class="row-compact">
+            <div class="pin">◉</div>
+            <div><div class="name">Tân Sơn Nhất Airport</div><div class="meta">Mar 12 · 200m</div></div>
+            <div class="visits">3</div>
+          </div>
+          <div class="row-compact">
+            <div class="pin">◉</div>
+            <div><div class="name">Mom's</div><div class="meta">Never · 60m</div></div>
+            <div class="visits">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Compact row</h3>
+      <p>Dense list. Pin icon · name · last-visit + radius · visit-count chip. Row is clickable; actions in a context menu (⋯). Best for long lists.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="card" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="sidebar-mock">
+        <div class="sb-header"><h4>Places</h4><span class="sb-count">24</span></div>
+        <div class="sb-toolbar">
+          <input class="sb-search" placeholder="Search places" />
+          <button class="sb-sort">Recent ↓</button>
+        </div>
+        <div class="sb-list">
+          <div class="row-card">
+            <div class="top">
+              <div class="pin">◉</div>
+              <div style="flex:1; min-width:0">
+                <div class="name">Home</div>
+                <div class="last">Last visited 2d ago</div>
+              </div>
+              <div class="actions"><button class="act-btn">✎</button><button class="act-btn">⋯</button></div>
+            </div>
+            <div class="stats"><span class="stat"><b>128</b> visits</span><span class="stat">50m radius</span></div>
+          </div>
+          <div class="row-card">
+            <div class="top">
+              <div class="pin">◉</div>
+              <div style="flex:1; min-width:0">
+                <div class="name">Oxy Office</div>
+                <div class="last">Yesterday</div>
+              </div>
+            </div>
+            <div class="stats"><span class="stat"><b>62</b> visits</span><span class="stat">80m radius</span></div>
+          </div>
+          <div class="row-card">
+            <div class="top">
+              <div class="pin">◉</div>
+              <div style="flex:1; min-width:0">
+                <div class="name">The Coffee House</div>
+                <div class="last">Last week</div>
+              </div>
+            </div>
+            <div class="stats"><span class="stat"><b>14</b> visits</span><span class="stat">40m radius</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Card with inline actions</h3>
+      <p>Roomier. Same info but last-visit prominent and stats on their own line. Edit/menu appear on hover. Better for shorter lists and richer browsing.</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 24px">Both options include: count badge in header, search, sort dropdown (recent / visits / name), icon per row, better empty/loading states, and edit/delete from the panel (via <code>PlaceDetailModal</code> — already exists in the codebase).</p>

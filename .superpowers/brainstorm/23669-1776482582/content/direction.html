@@ -1,0 +1,40 @@
+<h2>Which direction matters most for PlacesPanel?</h2>
+<p class="subtitle">The current panel is a searchable list. Pick the direction that matters most — I'll focus the design there. You can multi-select.</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="visual" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Visual polish & hierarchy</h3>
+      <p>Better typography, spacing, icons, visit-count emphasis, empty/loading states. No new features — just make the existing list look and feel better.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="discovery" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Discovery & scannability</h3>
+      <p>Sort options (name / visits / recent), grouping, visit-count badge, "no results" affordance. Helps users find a place in a long list.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="actions" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Actions from the panel</h3>
+      <p>Edit/rename/delete a place directly from the list (currently requires clicking on the map). Context menu or hover actions.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="context" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>More context per item</h3>
+      <p>Last-visited date, mini breakdown, visual map dot matching panel color. Makes each row more informative at a glance.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="empty" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>Empty & edge states</h3>
+      <p>Better empty state (onboarding illustration / CTA), loading skeleton, "no search matches" suggestion. Currently one-line grey text.</p>
+    </div>
+  </div>
+</div>
