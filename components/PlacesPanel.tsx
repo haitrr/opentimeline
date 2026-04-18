@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import {
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import PlaceListItem, {
@@ -16,6 +18,8 @@ import PlacesEmptyState from "@/components/places/PlacesEmptyState";
 import PlaceDetailModal from "@/components/PlaceDetailModal";
 
 const SORT_KEY = "places.sort";
+const PAGE_SIZE = 50;
+const SEARCH_DEBOUNCE_MS = 300;
 
 function readSort(): PlacesSort {
   if (typeof window === "undefined") return "recent";
@@ -24,27 +28,19 @@ function readSort(): PlacesSort {
   return "recent";
 }
 
-function sortPlaces(list: PlacePanelItem[], sort: PlacesSort): PlacePanelItem[] {
-  const copy = [...list];
-  if (sort === "name") {
-    copy.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (sort === "visits") {
-    copy.sort((a, b) => b.confirmedVisits - a.confirmedVisits);
-  } else {
-    copy.sort((a, b) => {
-      const ta = a.lastVisitAt ? new Date(a.lastVisitAt).getTime() : -Infinity;
-      const tb = b.lastVisitAt ? new Date(b.lastVisitAt).getTime() : -Infinity;
-      return tb - ta;
-    });
-  }
-  return copy;
-}
+type PlacesPage = {
+  places: PlacePanelItem[];
+  nextOffset: number | null;
+};
 
 export default function PlacesPanel() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sort, setSort] = useState<PlacesSort>(() => readSort());
   const [editingPlace, setEditingPlace] = useState<PlacePanelItem | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -52,22 +48,49 @@ export default function PlacesPanel() {
     }
   }, [sort]);
 
-  const { data: places = [], isLoading } = useQuery<PlacePanelItem[]>({
-    queryKey: ["places"],
-    queryFn: async () => {
-      const res = await fetch("/api/places");
-      if (!res.ok) return [];
-      return res.json();
-    },
-  });
+  useEffect(() => {
+    const t = setTimeout(
+      () => setDebouncedQuery(query.trim()),
+      SEARCH_DEBOUNCE_MS
+    );
+    return () => clearTimeout(t);
+  }, [query]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const base = q
-      ? places.filter((p) => p.name.toLowerCase().includes(q))
-      : places;
-    return sortPlaces(base, sort);
-  }, [places, query, sort]);
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
+    useInfiniteQuery<PlacesPage>({
+      queryKey: ["places", "paged", debouncedQuery, sort],
+      initialPageParam: 0,
+      getNextPageParam: (lastPage) => lastPage.nextOffset,
+      queryFn: async ({ pageParam }) => {
+        const params = new URLSearchParams();
+        params.set("limit", String(PAGE_SIZE));
+        params.set("offset", String(pageParam));
+        params.set("sort", sort);
+        if (debouncedQuery) params.set("q", debouncedQuery);
+        const res = await fetch(`/api/places?${params}`);
+        if (!res.ok) return { places: [], nextOffset: null };
+        return res.json();
+      },
+    });
+
+  const places = data?.pages.flatMap((p) => p.places) ?? [];
+  const hasQuery = debouncedQuery.length > 0;
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const root = scrollRef.current;
+    if (!sentinel || !root || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { root, rootMargin: "200px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, places.length]);
 
   async function handleDelete(place: PlacePanelItem) {
     try {
@@ -83,7 +106,7 @@ export default function PlacesPanel() {
     }
   }
 
-  if (isLoading && places.length === 0) {
+  if (isLoading) {
     return (
       <div className="flex h-full flex-col">
         <div className="flex flex-col gap-2 border-b px-3 py-2">
@@ -108,7 +131,7 @@ export default function PlacesPanel() {
     );
   }
 
-  if (places.length === 0) {
+  if (places.length === 0 && !hasQuery) {
     return <PlacesEmptyState />;
   }
 
@@ -119,21 +142,21 @@ export default function PlacesPanel() {
         onQueryChange={setQuery}
         sort={sort}
         onSortChange={setSort}
-        count={filtered.length}
+        count={places.length}
       />
-      {filtered.length === 0 ? (
+      {places.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
           <p className="text-xs text-muted-foreground">
-            No places match &quot;{query}&quot;
+            No places match &quot;{debouncedQuery}&quot;
           </p>
           <Button variant="ghost" size="sm" onClick={() => setQuery("")}>
             Clear search
           </Button>
         </div>
       ) : (
-        <ScrollArea className="flex-1">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto">
           <ul className="space-y-0.5 p-2">
-            {filtered.map((p) => (
+            {places.map((p) => (
               <li key={p.id}>
                 <PlaceListItem
                   place={p}
@@ -143,7 +166,21 @@ export default function PlacesPanel() {
               </li>
             ))}
           </ul>
-        </ScrollArea>
+          <div ref={sentinelRef} aria-hidden="true" className="h-4" />
+          {isFetchingNextPage && (
+            <div className="space-y-1 px-2 pb-3">
+              {[0, 1].map((i) => (
+                <div key={i} className="flex items-start gap-2.5 p-2">
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3 w-3/5" />
+                    <Skeleton className="h-3 w-2/5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {editingPlace && (

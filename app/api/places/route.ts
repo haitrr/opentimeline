@@ -1,103 +1,158 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { haversineKm } from "@/lib/geo";
 
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 10000;
+const VALID_SORTS = ["recent", "visits", "name"] as const;
+type Sort = (typeof VALID_SORTS)[number];
+
+type PlaceRow = {
+  id: number;
+  name: string;
+  lat: number;
+  lon: number;
+  radius: number;
+  isActive: boolean;
+  createdAt: Date;
+  lastVisitAt: Date | null;
+  confirmedVisits: bigint | number;
+  totalVisits: bigint | number;
+};
+
 export async function GET(request: NextRequest) {
-  const startParam = request.nextUrl.searchParams.get("start");
-  const endParam = request.nextUrl.searchParams.get("end");
-  const minLat = request.nextUrl.searchParams.get("minLat");
-  const maxLat = request.nextUrl.searchParams.get("maxLat");
-  const minLon = request.nextUrl.searchParams.get("minLon");
-  const maxLon = request.nextUrl.searchParams.get("maxLon");
+  const sp = request.nextUrl.searchParams;
+  const startParam = sp.get("start");
+  const endParam = sp.get("end");
+  const minLat = sp.get("minLat");
+  const maxLat = sp.get("maxLat");
+  const minLon = sp.get("minLon");
+  const maxLon = sp.get("maxLon");
+  const q = sp.get("q")?.trim() || null;
+  const sortRaw = sp.get("sort");
+  const sort: Sort = VALID_SORTS.includes(sortRaw as Sort)
+    ? (sortRaw as Sort)
+    : "recent";
+
+  const limitRaw = sp.get("limit");
+  const offsetRaw = sp.get("offset");
+  const limit = Math.max(
+    1,
+    Math.min(MAX_LIMIT, limitRaw ? Number.parseInt(limitRaw, 10) || DEFAULT_LIMIT : DEFAULT_LIMIT)
+  );
+  const offset = Math.max(0, offsetRaw ? Number.parseInt(offsetRaw, 10) || 0 : 0);
 
   const start = startParam ? new Date(startParam) : null;
   const end = endParam ? new Date(endParam) : null;
-
   const hasValidRange =
     start != null &&
     end != null &&
     !Number.isNaN(start.getTime()) &&
     !Number.isNaN(end.getTime());
 
-  const hasBounds =
-    minLat != null && maxLat != null && minLon != null && maxLon != null;
+  const conditions: Prisma.Sql[] = [];
+  if (minLat != null && maxLat != null && minLon != null && maxLon != null) {
+    conditions.push(
+      Prisma.sql`p.lat BETWEEN ${Number.parseFloat(minLat)} AND ${Number.parseFloat(maxLat)}`
+    );
+    conditions.push(
+      Prisma.sql`p.lon BETWEEN ${Number.parseFloat(minLon)} AND ${Number.parseFloat(maxLon)}`
+    );
+  }
+  if (q) {
+    conditions.push(Prisma.sql`LOWER(p.name) LIKE ${"%" + q.toLowerCase() + "%"}`);
+  }
+  const whereClause = conditions.length
+    ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+    : Prisma.empty;
 
-  const boundsWhere = hasBounds
-    ? {
-        lat: { gte: parseFloat(minLat!), lte: parseFloat(maxLat!) },
-        lon: { gte: parseFloat(minLon!), lte: parseFloat(maxLon!) },
-      }
-    : {};
+  let orderBy: Prisma.Sql;
+  if (sort === "name") {
+    orderBy = Prisma.sql`p.name ASC, p.id DESC`;
+  } else if (sort === "visits") {
+    orderBy = Prisma.sql`v_counts.confirmed DESC NULLS LAST, p.id DESC`;
+  } else {
+    orderBy = Prisma.sql`last_confirmed.last_at DESC NULLS LAST, p.id DESC`;
+  }
 
-  const visitsWhere = hasValidRange
-    ? {
+  const rows = await prisma.$queryRaw<PlaceRow[]>`
+    SELECT
+      p.id,
+      p.name,
+      p.lat,
+      p.lon,
+      p.radius,
+      p."isActive",
+      p."createdAt",
+      last_confirmed.last_at AS "lastVisitAt",
+      COALESCE(v_counts.confirmed, 0) AS "confirmedVisits",
+      COALESCE(v_counts.total, 0) AS "totalVisits"
+    FROM "Place" p
+    LEFT JOIN (
+      SELECT "placeId", MAX("departureAt") AS last_at
+      FROM "Visit"
+      WHERE status = 'confirmed'
+      GROUP BY "placeId"
+    ) last_confirmed ON last_confirmed."placeId" = p.id
+    LEFT JOIN (
+      SELECT
+        "placeId",
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE status = 'confirmed') AS confirmed
+      FROM "Visit"
+      GROUP BY "placeId"
+    ) v_counts ON v_counts."placeId" = p.id
+    ${whereClause}
+    ORDER BY ${orderBy}
+    LIMIT ${limit + 1} OFFSET ${offset}
+  `;
+
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const nextOffset = hasMore ? offset + limit : null;
+
+  const placeIds = pageRows.map((r) => r.id);
+  const inRangeMap = new Map<number, { confirmed: number; suggested: number }>();
+  if (hasValidRange && placeIds.length > 0) {
+    const grouped = await prisma.visit.groupBy({
+      by: ["placeId", "status"],
+      where: {
+        placeId: { in: placeIds },
         status: { in: ["confirmed", "suggested"] },
         arrivalAt: { lte: end! },
         departureAt: { gte: start! },
-      }
-    : { status: { in: ["confirmed", "suggested"] } };
-
-  const places = await prisma.place.findMany({
-    where: boundsWhere,
-    include: {
-      _count: { select: { visits: true } },
-      visits: {
-        where: visitsWhere,
-        select: { status: true },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      _count: { _all: true },
+    });
+    for (const row of grouped) {
+      const entry = inRangeMap.get(row.placeId) ?? { confirmed: 0, suggested: 0 };
+      if (row.status === "confirmed") entry.confirmed = row._count._all;
+      else if (row.status === "suggested") entry.suggested = row._count._all;
+      inRangeMap.set(row.placeId, entry);
+    }
+  }
 
-  // Get last confirmed visit date per place in a single query
-  const placeIds = places.map((p: (typeof places)[number]) => p.id);
-  const lastVisits =
-    placeIds.length > 0
-      ? await prisma.visit.groupBy({
-          by: ["placeId"],
-          where: {
-            placeId: { in: placeIds },
-            status: "confirmed",
-          },
-          _max: { departureAt: true },
-        })
-      : [];
-
-  const lastVisitMap = new Map(
-    lastVisits.map((lv: (typeof lastVisits)[number]) => [
-      lv.placeId,
-      lv._max.departureAt,
-    ])
-  );
-
-  const result = places.map((p: (typeof places)[number]) => {
-    const confirmedVisitsInRange = p.visits.filter(
-      (visit: (typeof p.visits)[number]) => visit.status === "confirmed"
-    ).length;
-    const suggestedVisitsInRange = p.visits.filter(
-      (visit: (typeof p.visits)[number]) => visit.status === "suggested"
-    ).length;
-
-    const lastVisitDate = lastVisitMap.get(p.id);
-
+  const places = pageRows.map((r) => {
+    const inR = inRangeMap.get(r.id) ?? { confirmed: 0, suggested: 0 };
     return {
-      id: p.id,
-      name: p.name,
-      lat: p.lat,
-      lon: p.lon,
-      radius: p.radius,
-      isActive: p.isActive,
-      createdAt: p.createdAt,
-      totalVisits: p._count.visits,
-      confirmedVisits: confirmedVisitsInRange,
-      visitsInRange: confirmedVisitsInRange + suggestedVisitsInRange,
-      confirmedVisitsInRange,
-      suggestedVisitsInRange,
-      lastVisitAt: lastVisitDate ? lastVisitDate.toISOString() : null,
+      id: r.id,
+      name: r.name,
+      lat: r.lat,
+      lon: r.lon,
+      radius: r.radius,
+      isActive: r.isActive,
+      createdAt: r.createdAt.toISOString(),
+      totalVisits: Number(r.totalVisits),
+      confirmedVisits: Number(r.confirmedVisits),
+      visitsInRange: inR.confirmed + inR.suggested,
+      confirmedVisitsInRange: inR.confirmed,
+      suggestedVisitsInRange: inR.suggested,
+      lastVisitAt: r.lastVisitAt ? r.lastVisitAt.toISOString() : null,
     };
   });
 
-  return NextResponse.json(result);
+  return NextResponse.json({ places, nextOffset });
 }
 
 export async function POST(request: NextRequest) {
