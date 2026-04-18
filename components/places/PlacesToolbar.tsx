@@ -39,7 +39,7 @@ export default function PlacesToolbar({
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder="Search places…"
-        className="h-8 w-full text-xs"
+        className="h-9 w-full text-base md:h-8 md:text-xs"
         aria-label="Search places"
       />
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
