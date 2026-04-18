@@ -134,4 +134,16 @@ describe("PlaceListItem", () => {
     expect(screen.getByText(/42 visits/)).toBeInTheDocument();
     expect(screen.queryByText(/500 visits/)).not.toBeInTheDocument();
   });
+
+  it("surfaces clipboard failures via a toast instead of throwing", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error("denied")) },
+    });
+    render(<PlaceListItem place={BASE} onEdit={noop} onDelete={noop} />);
+    await expect(
+      user.click(screen.getByRole("button", { name: /copy coordinates/i }))
+    ).resolves.not.toThrow();
+  });
 });

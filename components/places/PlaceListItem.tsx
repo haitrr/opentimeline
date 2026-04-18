@@ -2,6 +2,7 @@
 
 import { MapPin, Pencil, Copy, Trash2 } from "lucide-react";
 import { formatRelative } from "@/lib/relativeTime";
+import { toast } from "sonner";
 
 export type PlacePanelItem = {
   id: number;
@@ -41,7 +42,11 @@ export default function PlaceListItem({ place, onEdit, onDelete }: Props) {
 
   async function handleCopyCoords(e: React.MouseEvent) {
     e.stopPropagation();
-    await navigator.clipboard.writeText(`${place.lat}, ${place.lon}`);
+    try {
+      await navigator.clipboard.writeText(`${place.lat}, ${place.lon}`);
+    } catch {
+      toast.error("Couldn't copy coordinates");
+    }
   }
 
   function handleDelete(e: React.MouseEvent) {

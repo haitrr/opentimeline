@@ -93,12 +93,31 @@ describe("PlacesPanel", () => {
   });
 
   it("persists sort choice to localStorage", async () => {
+    // Override the fetch mock for this test only so the 'visits' order differs from 'recent'.
+    (global.fetch as ReturnType<typeof vi.fn>).mockReset();
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async (url: string | URL | Request) => {
+      const u = String(url);
+      if (u.endsWith("/api/places")) {
+        return new Response(
+          JSON.stringify([
+            { ...FIXTURES[0], confirmedVisits: 5 }, // Home: least-visited, newest lastVisitAt
+            { ...FIXTURES[1], confirmedVisits: 50 }, // Office: mid
+            { ...FIXTURES[2], confirmedVisits: 100 }, // Airport: most-visited, null lastVisitAt
+          ]),
+          { status: 200 }
+        );
+      }
+      return new Response("not found", { status: 404 });
+    });
+
     localStorage.setItem("places.sort", "visits");
     renderPanel();
     await screen.findByText("Home");
     const names = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"));
     const placeOrder = names.filter((n): n is string => !!n && ["Home", "Office", "Airport"].includes(n));
-    expect(placeOrder).toEqual(["Home", "Office", "Airport"]);
+    // Under 'visits': Airport (100) > Office (50) > Home (5).
+    // Under 'recent' this would be Home > Office > Airport. So this order ONLY matches 'visits'.
+    expect(placeOrder).toEqual(["Airport", "Office", "Home"]);
   });
 
   it("writes the selected sort to localStorage", async () => {
