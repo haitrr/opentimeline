@@ -85,7 +85,7 @@ function ActivityBar({
   unknownCount: number;
 }) {
   return (
-    <div className="flex h-full w-14 shrink-0 flex-col items-center border-r bg-muted/50 py-2">
+    <div className="flex h-full w-14 shrink-0 flex-col items-center gap-1 border-r bg-muted/50 py-2">
       {TABS.map(({ id, label, Icon }) => (
         <Tooltip key={id}>
           <TooltipTrigger
