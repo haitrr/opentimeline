@@ -328,7 +328,11 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
                     : "text-muted-foreground"
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <span className="relative inline-flex">
+                  <Icon className="h-5 w-5" />
+                  {id === "suggestions" && <IconBadge count={suggestionsCount} />}
+                  {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
+                </span>
                 <span className="truncate">{label}</span>
               </button>
             ))}
