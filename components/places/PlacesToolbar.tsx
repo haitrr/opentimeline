@@ -34,15 +34,18 @@ export default function PlacesToolbar({
 }: Props) {
   return (
     <div className="flex flex-col gap-2 border-b px-3 py-2">
-      <div className="flex items-center gap-2">
-        <Input
-          type="text"
-          value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search places…"
-          className="h-8 flex-1 text-xs"
-          aria-label="Search places"
-        />
+      <Input
+        type="text"
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+        placeholder="Search places…"
+        className="h-8 w-full text-xs md:flex-1"
+        aria-label="Search places"
+      />
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] text-muted-foreground">
+          {count} {count === 1 ? "place" : "places"}
+        </p>
         <Select
           value={sort}
           onValueChange={(v) => onSortChange(v as PlacesSort)}
@@ -57,9 +60,6 @@ export default function PlacesToolbar({
           </SelectContent>
         </Select>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        {count} {count === 1 ? "place" : "places"}
-      </p>
     </div>
   );
 }
