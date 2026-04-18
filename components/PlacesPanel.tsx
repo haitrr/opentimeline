@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,10 +70,16 @@ export default function PlacesPanel() {
   }, [places, query, sort]);
 
   async function handleDelete(place: PlacePanelItem) {
-    const res = await fetch(`/api/places/${place.id}`, { method: "DELETE" });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/places/${place.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error("Failed to delete place");
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["places"] });
       queryClient.invalidateQueries({ queryKey: ["visits"] });
+    } catch {
+      toast.error("Failed to delete place");
     }
   }
 
@@ -80,7 +87,11 @@ export default function PlacesPanel() {
     return (
       <div className="flex h-full flex-col">
         <div className="flex flex-col gap-2 border-b px-3 py-2">
-          <Skeleton className="h-8 w-full" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 flex-1" />
+            <Skeleton className="h-8 w-24" />
+          </div>
+          <Skeleton className="h-3 w-16" />
         </div>
         <div className="space-y-1 p-2">
           {[0, 1, 2].map((i) => (

@@ -100,4 +100,32 @@ describe("PlacesPanel", () => {
     const placeOrder = names.filter((n): n is string => !!n && ["Home", "Office", "Airport"].includes(n));
     expect(placeOrder).toEqual(["Home", "Office", "Airport"]);
   });
+
+  it("writes the selected sort to localStorage", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Home");
+    await user.click(screen.getByLabelText("Sort places"));
+    await user.click(await screen.findByRole("option", { name: "Name A–Z" }));
+    expect(localStorage.getItem("places.sort")).toBe("name");
+  });
+
+  it("deletes via DELETE /api/places/:id", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderPanel();
+    await screen.findByText("Home");
+
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      new Response(JSON.stringify({ deleted: true }), { status: 200 })
+    );
+
+    const deleteButtons = screen.getAllByRole("button", { name: /delete place/i });
+    await user.click(deleteButtons[0]);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/places/1",
+      expect.objectContaining({ method: "DELETE" })
+    );
+  });
 });
