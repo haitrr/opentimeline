@@ -39,27 +39,29 @@ export default function PlacesToolbar({
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder="Search places…"
-        className="h-8 w-full text-xs md:flex-1"
+        className="h-8 w-full text-xs"
         aria-label="Search places"
       />
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] text-muted-foreground">
-          {count} {count === 1 ? "place" : "places"}
-        </p>
-        <Select
-          value={sort}
-          onValueChange={(v) => onSortChange(v as PlacesSort)}
+      <Select
+        value={sort}
+        onValueChange={(v) => onSortChange(v as PlacesSort)}
+      >
+        <SelectTrigger
+          size="sm"
+          className="h-8 w-full justify-between text-xs"
+          aria-label="Sort places"
         >
-          <SelectTrigger size="sm" className="h-8 text-xs" aria-label="Sort places">
-            <SelectValue>{SORT_LABELS[sort]}</SelectValue>
-          </SelectTrigger>
-          <SelectContent align="end" alignItemWithTrigger={false} sideOffset={4}>
-            <SelectItem value="recent">Recent activity</SelectItem>
-            <SelectItem value="visits">Most visits</SelectItem>
-            <SelectItem value="name">Name A–Z</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+          <SelectValue>{SORT_LABELS[sort]}</SelectValue>
+        </SelectTrigger>
+        <SelectContent alignItemWithTrigger={false} sideOffset={4}>
+          <SelectItem value="recent">Recent activity</SelectItem>
+          <SelectItem value="visits">Most visits</SelectItem>
+          <SelectItem value="name">Name A–Z</SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="text-[11px] text-muted-foreground">
+        {count} {count === 1 ? "place" : "places"}
+      </p>
     </div>
   );
 }
