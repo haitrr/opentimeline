@@ -42,26 +42,28 @@ export default function PlacesToolbar({
         className="h-8 w-full text-xs"
         aria-label="Search places"
       />
-      <Select
-        value={sort}
-        onValueChange={(v) => onSortChange(v as PlacesSort)}
-      >
-        <SelectTrigger
-          size="sm"
-          className="h-8 w-full justify-between text-xs"
-          aria-label="Sort places"
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <p className="order-last text-[11px] text-muted-foreground md:order-0">
+          {count} {count === 1 ? "place" : "places"}
+        </p>
+        <Select
+          value={sort}
+          onValueChange={(v) => onSortChange(v as PlacesSort)}
         >
-          <SelectValue>{SORT_LABELS[sort]}</SelectValue>
-        </SelectTrigger>
-        <SelectContent alignItemWithTrigger={false} sideOffset={4}>
-          <SelectItem value="recent">Recent activity</SelectItem>
-          <SelectItem value="visits">Most visits</SelectItem>
-          <SelectItem value="name">Name A–Z</SelectItem>
-        </SelectContent>
-      </Select>
-      <p className="text-[11px] text-muted-foreground">
-        {count} {count === 1 ? "place" : "places"}
-      </p>
+          <SelectTrigger
+            size="sm"
+            className="h-8 w-full justify-between text-xs md:w-fit"
+            aria-label="Sort places"
+          >
+            <SelectValue>{SORT_LABELS[sort]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent alignItemWithTrigger={false} sideOffset={4}>
+            <SelectItem value="recent">Recent activity</SelectItem>
+            <SelectItem value="visits">Most visits</SelectItem>
+            <SelectItem value="name">Name A–Z</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
