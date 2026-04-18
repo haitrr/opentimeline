@@ -11,6 +11,12 @@ import {
 
 export type PlacesSort = "recent" | "visits" | "name";
 
+const SORT_LABELS: Record<PlacesSort, string> = {
+  recent: "Recent activity",
+  visits: "Most visits",
+  name: "Name A–Z",
+};
+
 type Props = {
   query: string;
   onQueryChange: (next: string) => void;
@@ -42,7 +48,7 @@ export default function PlacesToolbar({
           onValueChange={(v) => onSortChange(v as PlacesSort)}
         >
           <SelectTrigger size="sm" className="h-8 text-xs" aria-label="Sort places">
-            <SelectValue />
+            <SelectValue>{SORT_LABELS[sort]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="recent">Recent activity</SelectItem>
