@@ -53,7 +53,7 @@ export default function PlacesToolbar({
           <SelectTrigger size="sm" className="h-8 text-xs" aria-label="Sort places">
             <SelectValue>{SORT_LABELS[sort]}</SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent align="end" alignItemWithTrigger={false} sideOffset={4}>
             <SelectItem value="recent">Recent activity</SelectItem>
             <SelectItem value="visits">Most visits</SelectItem>
             <SelectItem value="name">Name A–Z</SelectItem>
