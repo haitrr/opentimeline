@@ -133,6 +133,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const params = new URLSearchParams();
+      params.set("limit", "10000");
       if (rangeStart && rangeEnd) {
         params.set("start", rangeStart);
         params.set("end", rangeEnd);
@@ -143,10 +144,10 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         params.set("minLon", String(mapBounds.minLon));
         params.set("maxLon", String(mapBounds.maxLon));
       }
-      const url = params.toString() ? `/api/places?${params}` : "/api/places";
-      const res = await fetch(url);
+      const res = await fetch(`/api/places?${params}`);
       if (!res.ok) return [];
-      return res.json();
+      const data = await res.json();
+      return Array.isArray(data?.places) ? data.places : [];
     },
     enabled: layerSettings.settingsLoaded && mapBounds !== null,
   });
