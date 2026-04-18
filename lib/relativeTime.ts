@@ -16,7 +16,7 @@ export function formatRelative(iso: string | null): string {
     date.getMonth() === new Date(now).getMonth() &&
     date.getDate() === new Date(now).getDate();
   const diffHour = Math.floor(diffMs / 3_600_000);
-  if (sameDay && diffHour < 24) return `${diffHour}h ago`;
+  if (sameDay) return `${diffHour}h ago`;
 
   if (isYesterday(date)) return "Yesterday";
 

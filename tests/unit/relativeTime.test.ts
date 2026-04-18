@@ -35,6 +35,11 @@ describe("formatRelative", () => {
     expect(formatRelative(new Date("2026-04-17T00:05:00").toISOString())).toBe("Yesterday");
   });
 
+  it("prefers 'Yesterday' over '{h}h ago' when crossing midnight within 24h", () => {
+    // NOW is 2026-04-18T12:00. 23 hours earlier is 2026-04-17T13:00 — calendar-yesterday.
+    expect(formatRelative(new Date("2026-04-17T13:00:00").toISOString())).toBe("Yesterday");
+  });
+
   it("returns '{d}d ago' under 7 days (not yesterday)", () => {
     expect(formatRelative(new Date("2026-04-15T10:00:00").toISOString())).toBe("3d ago");
     expect(formatRelative(new Date("2026-04-12T10:00:00").toISOString())).toBe("6d ago");
