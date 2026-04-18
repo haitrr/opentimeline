@@ -74,6 +74,13 @@ describe("PlaceListItem", () => {
     expect(flyHandler).toHaveBeenCalledTimes(1);
   });
 
+  it("dispatches fly-to on Space key", () => {
+    render(<PlaceListItem place={BASE} onEdit={noop} onDelete={noop} />);
+    const row = screen.getByRole("button", { name: "Home" });
+    fireEvent.keyDown(row, { key: " " });
+    expect(flyHandler).toHaveBeenCalledTimes(1);
+  });
+
   it("edit button calls onEdit and does NOT dispatch fly-to", async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();
@@ -114,5 +121,17 @@ describe("PlaceListItem", () => {
     render(<PlaceListItem place={BASE} onEdit={noop} onDelete={onDelete} />);
     await user.click(screen.getByRole("button", { name: /delete place/i }));
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("renders confirmedVisits in the stats, not totalVisits", () => {
+    render(
+      <PlaceListItem
+        place={{ ...BASE, totalVisits: 500, confirmedVisits: 42 }}
+        onEdit={noop}
+        onDelete={noop}
+      />
+    );
+    expect(screen.getByText(/42 visits/)).toBeInTheDocument();
+    expect(screen.queryByText(/500 visits/)).not.toBeInTheDocument();
   });
 });

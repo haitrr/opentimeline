@@ -65,7 +65,7 @@ export default function PlaceListItem({ place, onEdit, onDelete }: Props) {
           flyTo();
         }
       }}
-      className="group relative flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 pr-20 transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+      className="group relative flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 pr-20 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
     >
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
         <MapPin className="h-4 w-4" />
