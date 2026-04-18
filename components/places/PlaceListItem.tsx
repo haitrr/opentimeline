@@ -44,6 +44,7 @@ export default function PlaceListItem({ place, onEdit, onDelete }: Props) {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(`${place.lat}, ${place.lon}`);
+      toast.success("Coordinates copied");
     } catch {
       toast.error("Couldn't copy coordinates");
     }

@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import PlaceListItem, { type PlacePanelItem } from "@/components/places/PlaceListItem";
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 const BASE: PlacePanelItem = {
   id: 1,
@@ -90,7 +98,7 @@ describe("PlaceListItem", () => {
     expect(flyHandler).not.toHaveBeenCalled();
   });
 
-  it("copy-coords button writes '{lat}, {lon}' to the clipboard", async () => {
+  it("copy-coords writes to clipboard and shows a success toast", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
@@ -100,6 +108,7 @@ describe("PlaceListItem", () => {
     render(<PlaceListItem place={BASE} onEdit={noop} onDelete={noop} />);
     await user.click(screen.getByRole("button", { name: /copy coordinates/i }));
     expect(writeText).toHaveBeenCalledWith(`${BASE.lat}, ${BASE.lon}`);
+    expect(toast.success).toHaveBeenCalledWith("Coordinates copied");
     expect(flyHandler).not.toHaveBeenCalled();
   });
 
