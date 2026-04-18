@@ -100,7 +100,7 @@ function ActivityBar({
             {activeTab === id && (
               <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-primary" />
             )}
-            <Icon className="h-5.5 w-5.5" />
+            <Icon className="h-6 w-6" />
             {id === "suggestions" && <IconBadge count={suggestionsCount} />}
             {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
           </TooltipTrigger>
@@ -115,7 +115,7 @@ function ActivityBar({
             className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground"
             aria-label="Settings"
           >
-            <SettingsIcon className="h-5.5 w-5.5" />
+            <SettingsIcon className="h-6 w-6" />
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>
         </Tooltip>
@@ -329,7 +329,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
                 }`}
               >
                 <span className="relative inline-flex">
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-6 w-6" />
                   {id === "suggestions" && <IconBadge count={suggestionsCount} />}
                   {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
                 </span>
