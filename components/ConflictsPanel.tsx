@@ -3,12 +3,20 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { useDeviceFilters } from "@/components/DeviceFilterProvider";
+import type { SerializedDeviceFilter } from "@/components/DeviceFilterProvider";
 import ConflictResolutionDialog from "@/components/ConflictResolutionDialog";
+import EditFilterDialog from "@/components/EditFilterDialog";
 import type { ConflictRange } from "@/lib/conflict-detection";
 
 export default function ConflictsPanel() {
   const { filters, conflicts, deleteFilter } = useDeviceFilters();
   const [resolvingConflict, setResolvingConflict] = useState<ConflictRange | null>(null);
+  const [editingFilter, setEditingFilter] = useState<SerializedDeviceFilter | null>(null);
+
+  const allDeviceIds = [...new Set([
+    ...conflicts.flatMap((c) => c.deviceIds),
+    ...filters.flatMap((f) => f.deviceIds),
+  ])];
 
   const unresolvedConflicts = conflicts.filter(
     (conflict) =>
@@ -70,12 +78,20 @@ export default function ConflictsPanel() {
                 <p className="mt-0.5 text-xs text-gray-500">
                   Showing: {filter.deviceIds.join(", ")}
                 </p>
-                <button
-                  onClick={() => deleteFilter(filter.id)}
-                  className="mt-2 rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                >
-                  Remove
-                </button>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => setEditingFilter(filter)}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => deleteFilter(filter.id)}
+                    className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -86,6 +102,14 @@ export default function ConflictsPanel() {
         <ConflictResolutionDialog
           conflict={resolvingConflict}
           onClose={() => setResolvingConflict(null)}
+        />
+      )}
+
+      {editingFilter && (
+        <EditFilterDialog
+          filter={editingFilter}
+          allDeviceIds={allDeviceIds}
+          onClose={() => setEditingFilter(null)}
         />
       )}
     </div>

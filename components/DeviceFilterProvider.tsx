@@ -13,16 +13,14 @@ export type SerializedDeviceFilter = {
   createdAt: string;
 };
 
+type FilterPayload = { fromTime: string; toTime: string; deviceIds: string[]; label?: string };
+
 type DeviceFilterContextValue = {
   filters: SerializedDeviceFilter[];
   conflicts: ConflictRange[];
   setConflicts: (conflicts: ConflictRange[]) => void;
-  createFilter: (filter: {
-    fromTime: string;
-    toTime: string;
-    deviceIds: string[];
-    label?: string;
-  }) => Promise<void>;
+  createFilter: (filter: FilterPayload) => Promise<void>;
+  updateFilter: (id: string, filter: FilterPayload) => Promise<void>;
   deleteFilter: (id: string) => Promise<void>;
 };
 
@@ -54,6 +52,19 @@ export function DeviceFilterProvider({ children }: { children: React.ReactNode }
     [queryClient]
   );
 
+  const updateFilter = useCallback(
+    async (id: string, filter: FilterPayload) => {
+      await fetch(`/api/device-filters/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(filter),
+      });
+      queryClient.invalidateQueries({ queryKey: ["device-filters"] });
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+    },
+    [queryClient]
+  );
+
   const deleteFilter = useCallback(
     async (id: string) => {
       await fetch(`/api/device-filters/${id}`, { method: "DELETE" });
@@ -65,7 +76,7 @@ export function DeviceFilterProvider({ children }: { children: React.ReactNode }
 
   return (
     <DeviceFilterContext.Provider
-      value={{ filters, conflicts, setConflicts, createFilter, deleteFilter }}
+      value={{ filters, conflicts, setConflicts, createFilter, updateFilter, deleteFilter }}
     >
       {children}
     </DeviceFilterContext.Provider>

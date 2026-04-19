@@ -42,13 +42,14 @@ type DeviceFilter = { fromTime: Date; toTime: Date; deviceIds: string[] };
 
 function buildDeviceFilterSql(filters: DeviceFilter[]): Prisma.Sql {
   if (filters.length === 0) return Prisma.sql`TRUE`;
-  const clauses = filters.map(
-    (f) => Prisma.sql`(
+  const clauses = filters.map((f) => {
+    const ids = Prisma.join(f.deviceIds.map((id) => Prisma.sql`${id}`));
+    return Prisma.sql`(
       "recordedAt" NOT BETWEEN ${f.fromTime} AND ${f.toTime}
       OR "deviceId" IS NULL
-      OR "deviceId" = ANY(${f.deviceIds})
-    )`
-  );
+      OR "deviceId" IN (${ids})
+    )`;
+  });
   return clauses.reduce((acc, c) => Prisma.sql`${acc} AND ${c}`);
 }
 
