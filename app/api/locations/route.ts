@@ -39,20 +39,6 @@ function parseBool(raw: string | null): boolean {
   return raw === "true" || raw === "1";
 }
 
-type DeviceFilter = { fromTime: Date; toTime: Date; deviceIds: string[] };
-
-function buildDeviceFilterSql(filters: DeviceFilter[]): Prisma.Sql {
-  if (filters.length === 0) return Prisma.sql`TRUE`;
-  const clauses = filters.map((f) => {
-    const ids = Prisma.join(f.deviceIds.map((id) => Prisma.sql`${id}`));
-    return Prisma.sql`(
-      "recordedAt" NOT BETWEEN ${f.fromTime} AND ${f.toTime}
-      OR "deviceId" IS NULL
-      OR "deviceId" IN (${ids})
-    )`;
-  });
-  return clauses.reduce((acc, c) => Prisma.sql`${acc} AND ${c}`);
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
