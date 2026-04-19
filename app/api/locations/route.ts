@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { DECIMATION_THRESHOLD, haversineKmSql } from "@/lib/locations";
+import { applyDeviceFilters } from "@/lib/device-filters";
 
 type PointRow = {
   id: number;
@@ -14,6 +15,7 @@ type PointRow = {
   tid: string | null;
   alt: number | null;
   vel: number | null;
+  deviceId: string | null;
 };
 
 function parseRequired(searchParams: URLSearchParams, key: string): string | null {
@@ -56,7 +58,9 @@ export async function GET(request: Request) {
 
   const skipBoundsIfSmall = parseBool(searchParams.get("skipBoundsIfSmall"));
 
-  const selectCols = Prisma.sql`id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel`;
+  const deviceFilters = await prisma.deviceFilter.findMany();
+
+  const selectCols = Prisma.sql`id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel, "deviceId"`;
 
   if (skipBoundsIfSmall) {
     const timeWhere = Prisma.sql`"recordedAt" BETWEEN ${start} AND ${end}`;
@@ -77,7 +81,7 @@ export async function GET(request: Request) {
       `;
 
       return NextResponse.json({
-        points: rows.map(serializeRow),
+        points: applyDeviceFilters(rows.map(serializeRow), deviceFilters),
         decimated: false,
         boundsIgnored: true,
         total: timeTotal,
@@ -124,7 +128,7 @@ export async function GET(request: Request) {
       `;
 
       return NextResponse.json({
-        points: rows.map(serializeRow),
+        points: applyDeviceFilters(rows.map(serializeRow), deviceFilters),
         decimated: true,
         boundsIgnored: false,
         total,
@@ -134,19 +138,19 @@ export async function GET(request: Request) {
     const bucketKm = totalKm / DECIMATION_THRESHOLD;
     const rows = await prisma.$queryRaw<PointRow[]>`
       WITH lagged AS (
-        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel,
+        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel, "deviceId",
           LAG(lat) OVER (ORDER BY tst) AS prev_lat,
           LAG(lon) OVER (ORDER BY tst) AS prev_lon
         FROM "LocationPoint"
         WHERE ${where}
       ),
       ordered AS (
-        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel,
+        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel, "deviceId",
           SUM(${haversineKmSql}) OVER (ORDER BY tst) AS cum_km
         FROM lagged
       ),
       bucketed AS (
-        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel,
+        SELECT id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel, "deviceId",
           floor(cum_km / ${bucketKm})::bigint AS bucket,
           LAG(floor(cum_km / ${bucketKm})::bigint) OVER (ORDER BY tst) AS prev_bucket
         FROM ordered
@@ -158,7 +162,7 @@ export async function GET(request: Request) {
     `;
 
     return NextResponse.json({
-      points: rows.map(serializeRow),
+      points: applyDeviceFilters(rows.map(serializeRow), deviceFilters),
       decimated: true,
       boundsIgnored: false,
       total,
@@ -173,7 +177,7 @@ export async function GET(request: Request) {
   `;
 
   return NextResponse.json({
-    points: rows.map(serializeRow),
+    points: applyDeviceFilters(rows.map(serializeRow), deviceFilters),
     decimated: false,
     boundsIgnored: false,
     total,
@@ -192,5 +196,6 @@ function serializeRow(r: PointRow) {
     tid: r.tid,
     alt: r.alt,
     vel: r.vel,
+    deviceId: r.deviceId,
   };
 }
