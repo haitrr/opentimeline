@@ -90,12 +90,6 @@ export function useMapGeoJSON(
     points.forEach((p, i) => {
       const isFirst = i === 0;
       const isLast = i === points.length - 1;
-      const shouldRender =
-        isFirst ||
-        isLast ||
-        points.length <= 200 ||
-        i % Math.ceil(points.length / 200) === 0;
-      if (!shouldRender) return;
       features.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [p.lon, p.lat] },
