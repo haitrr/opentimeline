@@ -8,14 +8,11 @@ import MapWrapper from "@/components/map/MapWrapper";
 import PlacesPanel from "@/components/PlacesPanel";
 import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
 import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
-import ImportGpxButton from "@/components/ImportGpxButton";
-import ImportImmichButton from "@/components/ImportImmichButton";
 import SettingsPanel from "@/components/SettingsPanel";
 import AsideHeader from "@/components/AsideHeader";
 import IconBadge from "@/components/IconBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 import { getRangeBounds } from "@/lib/getRangeBounds";
 import { useSuggestionCounts } from "@/hooks/useSuggestionCounts";
 import type { RangeType } from "@/app/timeline/[date]/page";
@@ -143,7 +140,7 @@ function PanelContent({
     <div className="flex h-full flex-1 flex-col overflow-x-hidden overflow-y-hidden">
       {activeTab === "timeline" && (
         <>
-          <AsideHeader onDetect={onDetect} detecting={detecting} />
+          <AsideHeader onDetect={onDetect} detecting={detecting} rangeStart={rangeStart} rangeEnd={rangeEnd} />
           {children}
         </>
       )}
@@ -183,11 +180,6 @@ function PanelContent({
             <h2 className="text-sm font-semibold">Settings</h2>
           </div>
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="px-4 py-3 space-y-2">
-              <ImportGpxButton />
-              <ImportImmichButton rangeStart={rangeStart} rangeEnd={rangeEnd} />
-            </div>
-            <Separator />
             <SettingsPanel />
           </div>
         </div>
