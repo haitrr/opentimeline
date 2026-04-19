@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { DECIMATION_THRESHOLD, haversineKmSql } from "@/lib/locations";
-import { applyDeviceFilters } from "@/lib/device-filters";
 
 type PointRow = {
   id: number;
@@ -39,6 +38,20 @@ function parseBool(raw: string | null): boolean {
   return raw === "true" || raw === "1";
 }
 
+type DeviceFilter = { fromTime: Date; toTime: Date; deviceIds: string[] };
+
+function buildDeviceFilterSql(filters: DeviceFilter[]): Prisma.Sql {
+  if (filters.length === 0) return Prisma.sql`TRUE`;
+  const clauses = filters.map(
+    (f) => Prisma.sql`(
+      "recordedAt" NOT BETWEEN ${f.fromTime} AND ${f.toTime}
+      OR "deviceId" IS NULL
+      OR "deviceId" = ANY(${f.deviceIds})
+    )`
+  );
+  return clauses.reduce((acc, c) => Prisma.sql`${acc} AND ${c}`);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -59,11 +72,12 @@ export async function GET(request: Request) {
   const skipBoundsIfSmall = parseBool(searchParams.get("skipBoundsIfSmall"));
 
   const deviceFilters = await prisma.deviceFilter.findMany();
+  const deviceFilterSql = buildDeviceFilterSql(deviceFilters);
 
   const selectCols = Prisma.sql`id, lat, lon, tst, "recordedAt", acc, batt, tid, alt, vel, "deviceId"`;
 
   if (skipBoundsIfSmall) {
-    const timeWhere = Prisma.sql`"recordedAt" BETWEEN ${start} AND ${end}`;
+    const timeWhere = Prisma.sql`"recordedAt" BETWEEN ${start} AND ${end} AND ${deviceFilterSql}`;
 
     const timeCountRows = await prisma.$queryRaw<{ total: bigint }[]>`
       SELECT COUNT(*)::bigint AS total
@@ -81,7 +95,7 @@ export async function GET(request: Request) {
       `;
 
       return NextResponse.json({
-        points: applyDeviceFilters(rows.map(serializeRow), deviceFilters),
+        points: rows.map(serializeRow),
         decimated: false,
         boundsIgnored: true,
         total: timeTotal,
@@ -93,6 +107,7 @@ export async function GET(request: Request) {
     "recordedAt" BETWEEN ${start} AND ${end}
     AND lat BETWEEN ${minLat} AND ${maxLat}
     AND lon BETWEEN ${minLon} AND ${maxLon}
+    AND ${deviceFilterSql}
   `;
 
   const countRows = await prisma.$queryRaw<{ total: bigint; total_km: number | null }[]>`
@@ -128,7 +143,7 @@ export async function GET(request: Request) {
       `;
 
       return NextResponse.json({
-        points: applyDeviceFilters(rows.map(serializeRow), deviceFilters),
+        points: rows.map(serializeRow),
         decimated: true,
         boundsIgnored: false,
         total,

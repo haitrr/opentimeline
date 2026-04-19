@@ -85,7 +85,7 @@ export function useMapGeoJSON(
     const features: Array<{
       type: "Feature";
       geometry: { type: "Point"; coordinates: [number, number] };
-      properties: { id: number; isFirst: boolean; isLast: boolean; batt: number | null; recordedAt: string; acc: number | null; vel: number | null };
+      properties: { id: number; isFirst: boolean; isLast: boolean; batt: number | null; recordedAt: string; acc: number | null; vel: number | null; deviceId: string | null };
     }> = [];
     points.forEach((p, i) => {
       const isFirst = i === 0;
@@ -99,7 +99,7 @@ export function useMapGeoJSON(
       features.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [p.lon, p.lat] },
-        properties: { id: p.id, isFirst, isLast, batt: p.batt, recordedAt: p.recordedAt, acc: p.acc, vel: p.vel },
+        properties: { id: p.id, isFirst, isLast, batt: p.batt, recordedAt: p.recordedAt, acc: p.acc, vel: p.vel, deviceId: p.deviceId ?? null },
       });
     });
     return { type: "FeatureCollection" as const, features };
