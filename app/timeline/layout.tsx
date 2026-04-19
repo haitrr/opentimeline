@@ -150,7 +150,7 @@ function PanelContent({
               {children}
             </div>
             <div className="shrink-0 border-t overflow-y-auto max-h-64">
-              <ConflictsPanel />
+              <ConflictsPanel rangeStart={rangeStart} rangeEnd={rangeEnd} />
             </div>
           </div>
         </>

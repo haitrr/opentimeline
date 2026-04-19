@@ -8,20 +8,25 @@ import ConflictResolutionDialog from "@/components/ConflictResolutionDialog";
 import EditFilterDialog from "@/components/EditFilterDialog";
 import type { ConflictRange } from "@/lib/conflict-detection";
 
-export default function ConflictsPanel() {
+export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: string; rangeEnd?: string }) {
   const { filters, conflicts, deleteFilter } = useDeviceFilters();
+
+  const visibleFilters = filters.filter((f) => {
+    if (!rangeStart || !rangeEnd) return true;
+    return new Date(f.toTime) >= new Date(rangeStart) && new Date(f.fromTime) <= new Date(rangeEnd);
+  });
   const [resolvingConflict, setResolvingConflict] = useState<ConflictRange | null>(null);
   const [editingFilter, setEditingFilter] = useState<SerializedDeviceFilter | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const allDeviceIds = [...new Set([
     ...conflicts.flatMap((c) => c.deviceIds),
-    ...filters.flatMap((f) => f.deviceIds),
+    ...visibleFilters.flatMap((f) => f.deviceIds),
   ])];
 
   const unresolvedConflicts = conflicts.filter(
     (conflict) =>
-      !filters.some(
+      !visibleFilters.some(
         (f) =>
           new Date(f.fromTime) <= conflict.fromTime &&
           new Date(f.toTime) >= conflict.toTime
@@ -63,11 +68,11 @@ export default function ConflictsPanel() {
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
           Active Filters
         </h3>
-        {filters.length === 0 ? (
+        {visibleFilters.length === 0 ? (
           <p className="text-xs text-gray-400">No filters saved.</p>
         ) : (
           <ul className="space-y-2">
-            {filters.map((filter) => (
+            {visibleFilters.map((filter) => (
               <li key={filter.id} className="rounded border border-gray-200 bg-gray-50 p-3">
                 {filter.label && (
                   <p className="mb-0.5 text-xs font-medium text-gray-800">{filter.label}</p>
