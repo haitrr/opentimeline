@@ -48,6 +48,7 @@ export function DeviceFilterProvider({ children }: { children: React.ReactNode }
       });
       queryClient.invalidateQueries({ queryKey: ["device-filters"] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: ["locations-bounds"] });
     },
     [queryClient]
   );
@@ -61,6 +62,7 @@ export function DeviceFilterProvider({ children }: { children: React.ReactNode }
       });
       queryClient.invalidateQueries({ queryKey: ["device-filters"] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: ["locations-bounds"] });
     },
     [queryClient]
   );
@@ -70,6 +72,7 @@ export function DeviceFilterProvider({ children }: { children: React.ReactNode }
       await fetch(`/api/device-filters/${id}`, { method: "DELETE" });
       queryClient.invalidateQueries({ queryKey: ["device-filters"] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
+      queryClient.invalidateQueries({ queryKey: ["locations-bounds"] });
     },
     [queryClient]
   );
