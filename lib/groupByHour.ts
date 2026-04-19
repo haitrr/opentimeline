@@ -9,6 +9,7 @@ export type SerializedPoint = {
   tid: string | null;
   alt: number | null;
   vel: number | null;
+  deviceId: string | null;
 };
 
 export type TimeGroup = {

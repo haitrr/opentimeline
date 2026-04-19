@@ -10,6 +10,8 @@ import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
 import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
 import SettingsPanel from "@/components/SettingsPanel";
 import AsideHeader from "@/components/AsideHeader";
+import ConflictsPanel from "@/components/ConflictsPanel";
+import { DeviceFilterProvider } from "@/components/DeviceFilterProvider";
 import IconBadge from "@/components/IconBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -53,6 +55,7 @@ function UnknownIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+
 function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
@@ -67,6 +70,7 @@ const TABS: { id: SidebarTab; label: string; Icon: React.FC<{ className?: string
   { id: "suggestions", label: "Suggestions", Icon: SuggestionsIcon },
   { id: "unknown", label: "Unknown Places", Icon: UnknownIcon },
 ];
+
 
 function ActivityBar({
   activeTab,
@@ -141,7 +145,14 @@ function PanelContent({
       {activeTab === "timeline" && (
         <>
           <AsideHeader onDetect={onDetect} detecting={detecting} rangeStart={rangeStart} rangeEnd={rangeEnd} />
-          {children}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+              {children}
+            </div>
+            <div className="shrink-0 overflow-y-auto max-h-64">
+              <ConflictsPanel rangeStart={rangeStart} rangeEnd={rangeEnd} />
+            </div>
+          </div>
         </>
       )}
       {activeTab === "places" && (
@@ -283,6 +294,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <DeviceFilterProvider>
     <div className="flex h-dvh w-full overflow-hidden bg-background md:h-screen md:w-screen md:flex-row">
       {/* Mobile full-screen overlay */}
       {mobilePanelsOpen && (
@@ -370,6 +382,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
         </Button>
       </main>
     </div>
+    </DeviceFilterProvider>
   );
 }
 

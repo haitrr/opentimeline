@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { buildDeviceFilterSql } from "@/lib/device-filters";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,6 +14,9 @@ export async function GET(request: Request) {
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return NextResponse.json({ error: "Invalid date" }, { status: 400 });
   }
+
+  const deviceFilters = await prisma.deviceFilter.findMany();
+  const deviceFilterSql = buildDeviceFilterSql(deviceFilters);
 
   const rows = await prisma.$queryRaw<
     {
@@ -28,7 +32,8 @@ export async function GET(request: Request) {
       MIN(lon)::double precision AS "minLon",
       MAX(lon)::double precision AS "maxLon"
     FROM "LocationPoint"
-    WHERE "recordedAt" BETWEEN ${start} AND ${end};
+    WHERE "recordedAt" BETWEEN ${start} AND ${end}
+      AND ${deviceFilterSql};
   `;
 
   const row = rows[0];
