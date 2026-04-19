@@ -82,3 +82,14 @@ model AppSettings {
   unknownSessionGapMinutes Int @default(15)
   unknownMinDwellMinutes  Int @default(15)
 }
+
+model DeviceFilter {
+  id        String   @id @default(cuid())
+  fromTime  DateTime
+  toTime    DateTime
+  deviceIds String[]
+  label     String?
+  createdAt DateTime @default(now())
+
+  @@index([fromTime, toTime])
+}
