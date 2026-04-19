@@ -64,6 +64,26 @@ describe("detectConflicts", () => {
     expect(detectConflicts(points)).toHaveLength(2);
   });
 
+  it("does not conflict when two devices move together at different reporting rates", () => {
+    // Simulates pixel4a (1Hz) and iphone17pro (~0.03Hz) carried by the same person.
+    // In a 5-min bucket the median positions would differ because the fast device has
+    // many more points early in the journey — but nearest-timestamp matching should
+    // show they were always at the same location.
+    const base = new Date("2026-04-01T08:00:00Z").getTime();
+    const points: ReturnType<typeof pt>[] = [];
+    // pixel4a: 300 points every second, moving north at ~10m/s
+    for (let s = 0; s < 300; s++) {
+      const lat = 10 + (s * 10) / 111000; // ~10 m/s northward
+      points.push(pt({ deviceId: "pixel4a", lat, lon: 10, recordedAt: new Date(base + s * 1000).toISOString() }));
+    }
+    // iphone17pro: 1 point every 30 seconds, at the same position as pixel4a
+    for (let s = 0; s < 300; s += 30) {
+      const lat = 10 + (s * 10) / 111000;
+      points.push(pt({ deviceId: "iphone17pro", lat, lon: 10, recordedAt: new Date(base + s * 1000).toISOString() }));
+    }
+    expect(detectConflicts(points)).toEqual([]);
+  });
+
   it("ignores points with null deviceId", () => {
     const points = [
       pt({ deviceId: null, lat: 10, lon: 10, recordedAt: "2026-04-01T08:00:00Z" }),

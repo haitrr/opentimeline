@@ -18,11 +18,40 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function medianPosition(points: SerializedPoint[]): { lat: number; lon: number } {
-  const lats = [...points.map((p) => p.lat)].sort((a, b) => a - b);
-  const lons = [...points.map((p) => p.lon)].sort((a, b) => a - b);
-  const mid = Math.floor(lats.length / 2);
-  return { lat: lats[mid], lon: lons[mid] };
+// Returns the average distance between nearest-in-time matched point pairs across two devices.
+// Using nearest-timestamp matching (rather than median positions) correctly handles devices
+// that move together but report at different frequencies: at any given moment both devices
+// are at the same location, so their nearest-time counterparts will also be close.
+function nearestMatchedAvgDistance(
+  pointsA: SerializedPoint[],
+  pointsB: SerializedPoint[],
+  maxTimeDiffMs = 2 * 60 * 1000
+): number | null {
+  const [ref, other] = pointsA.length <= pointsB.length ? [pointsA, pointsB] : [pointsB, pointsA];
+  const otherSorted = other
+    .map((p) => ({ t: new Date(p.recordedAt).getTime(), lat: p.lat, lon: p.lon }))
+    .sort((a, b) => a.t - b.t);
+
+  const distances: number[] = [];
+
+  for (const refPoint of ref) {
+    const refTime = new Date(refPoint.recordedAt).getTime();
+    let lo = 0, hi = otherSorted.length - 1, bestIdx = -1, bestDiff = Infinity;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const diff = Math.abs(otherSorted[mid].t - refTime);
+      if (diff < bestDiff) { bestDiff = diff; bestIdx = mid; }
+      if (otherSorted[mid].t < refTime) lo = mid + 1;
+      else hi = mid - 1;
+    }
+    if (bestIdx >= 0 && bestDiff <= maxTimeDiffMs) {
+      const o = otherSorted[bestIdx];
+      distances.push(haversineMeters(refPoint.lat, refPoint.lon, o.lat, o.lon));
+    }
+  }
+
+  if (distances.length === 0) return null;
+  return distances.reduce((s, d) => s + d, 0) / distances.length;
 }
 
 export function detectConflicts(
@@ -58,9 +87,8 @@ export function detectConflicts(
 
     for (let i = 0; i < entries.length; i++) {
       for (let j = i + 1; j < entries.length; j++) {
-        const pos1 = medianPosition(entries[i][1]);
-        const pos2 = medianPosition(entries[j][1]);
-        if (haversineMeters(pos1.lat, pos1.lon, pos2.lat, pos2.lon) > distanceThresholdMeters) {
+        const avgDist = nearestMatchedAvgDistance(entries[i][1], entries[j][1]);
+        if (avgDist !== null && avgDist > distanceThresholdMeters) {
           if (!involved.includes(entries[i][0])) involved.push(entries[i][0]);
           if (!involved.includes(entries[j][0])) involved.push(entries[j][0]);
         }
