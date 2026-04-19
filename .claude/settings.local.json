@@ -56,7 +56,19 @@
       "Bash(pnpm test:e2e places-panel)",
       "Bash(pnpm dev *)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/timeline/2026-04-19)",
-      "Bash(gh pr create --title 'feat: move import actions into 3-dot dropdown menu' --body ' *)"
+      "Bash(gh pr create --title 'feat: move import actions into 3-dot dropdown menu' --body ' *)",
+      "Bash(git check-ignore *)",
+      "Bash(ln -s /Users/haitran/code/opentimeline/node_modules /Users/haitran/code/opentimeline/.worktrees/feat/multi-device-conflicts/node_modules)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:54231/opentimeline\" pnpm prisma migrate dev --name add-device-filter)",
+      "Bash(pnpm test:e2e tests/e2e/device-filters.spec.ts)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/api/device-filters)",
+      "Bash(curl -s http://localhost:3000/api/device-filters)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3003/api/device-filters)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(curl -s http://localhost:3003/api/device-filters)",
+      "Bash(PORT=3003 TURBOPACK=0 pnpm dev)",
+      "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3003 pnpm test:e2e tests/e2e/device-filters.spec.ts)",
+      "Bash(npx tsx *)"
     ]
   }
 }
