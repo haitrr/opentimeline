@@ -11,7 +11,7 @@ import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPa
 import SettingsPanel from "@/components/SettingsPanel";
 import AsideHeader from "@/components/AsideHeader";
 import ConflictsPanel from "@/components/ConflictsPanel";
-import { DeviceFilterProvider, useDeviceFilters } from "@/components/DeviceFilterProvider";
+import { DeviceFilterProvider } from "@/components/DeviceFilterProvider";
 import IconBadge from "@/components/IconBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -21,7 +21,7 @@ import type { RangeType } from "@/app/timeline/[date]/page";
 
 const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
 
-type SidebarTab = "timeline" | "places" | "suggestions" | "unknown" | "settings" | "devices";
+type SidebarTab = "timeline" | "places" | "suggestions" | "unknown" | "settings";
 
 function TimelineIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -55,13 +55,6 @@ function UnknownIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-function DevicesIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
-      <path fillRule="evenodd" d="M2 4.25A2.25 2.25 0 0 1 4.25 2h11.5A2.25 2.25 0 0 1 18 4.25v8.5A2.25 2.25 0 0 1 15.75 15h-3.105a3.501 3.501 0 0 0 1.1 1.677A.75.75 0 0 1 13.26 18H6.74a.75.75 0 0 1-.484-1.323A3.501 3.501 0 0 0 7.355 15H4.25A2.25 2.25 0 0 1 2 12.75v-8.5Zm1.5 0a.75.75 0 0 1 .75-.75h11.5a.75.75 0 0 1 .75.75v7.5a.75.75 0 0 1-.75.75H4.25a.75.75 0 0 1-.75-.75v-7.5Z" clipRule="evenodd" />
-    </svg>
-  );
-}
 
 function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -76,16 +69,8 @@ const TABS: { id: SidebarTab; label: string; Icon: React.FC<{ className?: string
   { id: "places", label: "Places", Icon: PlacesIcon },
   { id: "suggestions", label: "Suggestions", Icon: SuggestionsIcon },
   { id: "unknown", label: "Unknown Places", Icon: UnknownIcon },
-  { id: "devices", label: "Device Filters", Icon: DevicesIcon },
 ];
 
-function DevicesTabBadge() {
-  const { conflicts, filters } = useDeviceFilters();
-  const count = conflicts.filter(
-    (c) => !filters.some((f) => new Date(f.fromTime) <= c.fromTime && new Date(f.toTime) >= c.toTime)
-  ).length;
-  return <IconBadge count={count} variant="warning" />;
-}
 
 function ActivityBar({
   activeTab,
@@ -119,7 +104,6 @@ function ActivityBar({
             <Icon className="h-7 w-7" />
             {id === "suggestions" && <IconBadge count={suggestionsCount} />}
             {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
-            {id === "devices" && <DevicesTabBadge />}
           </TooltipTrigger>
           <TooltipContent side="right">{label}</TooltipContent>
         </Tooltip>
@@ -161,7 +145,14 @@ function PanelContent({
       {activeTab === "timeline" && (
         <>
           <AsideHeader onDetect={onDetect} detecting={detecting} rangeStart={rangeStart} rangeEnd={rangeEnd} />
-          {children}
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+              {children}
+            </div>
+            <div className="shrink-0 border-t overflow-y-auto max-h-64">
+              <ConflictsPanel />
+            </div>
+          </div>
         </>
       )}
       {activeTab === "places" && (
@@ -201,16 +192,6 @@ function PanelContent({
           </div>
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <SettingsPanel />
-          </div>
-        </div>
-      )}
-      {activeTab === "devices" && (
-        <div className="flex h-full flex-col overflow-hidden">
-          <div className="border-b px-4 py-3">
-            <h2 className="text-sm font-semibold">Device Filters</h2>
-          </div>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden">
-            <ConflictsPanel />
           </div>
         </div>
       )}
@@ -355,7 +336,6 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
                   <Icon className="h-7 w-7" />
                   {id === "suggestions" && <IconBadge count={suggestionsCount} />}
                   {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
-                  {id === "devices" && <DevicesTabBadge />}
                 </span>
                 <span className="truncate">{label}</span>
               </button>
