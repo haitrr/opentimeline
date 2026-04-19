@@ -86,6 +86,9 @@ export default function MapPopups({
             {popup.point.vel != null && popup.point.vel > 0 && (
               <p className="text-gray-500">{Math.round(popup.point.vel)} km/h</p>
             )}
+            {popup.point.deviceId != null && (
+              <p className="text-gray-500">Device: {popup.point.deviceId}</p>
+            )}
             <p className="mt-1 text-gray-400">
               {popup.lat.toFixed(5)}, {popup.lon.toFixed(5)}
             </p>

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { $queryRaw: vi.fn() },
+  prisma: { $queryRaw: vi.fn(), deviceFilter: { findMany: vi.fn() } },
 }));
 
 import { GET } from "@/app/api/locations/route";
@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 
 type MockFn = ReturnType<typeof vi.fn>;
 const queryRaw = prisma.$queryRaw as unknown as MockFn;
+const filterFindMany = prisma.deviceFilter.findMany as unknown as MockFn;
 
 function req(params: Record<string, string>) {
   const usp = new URLSearchParams(params);
@@ -27,6 +28,7 @@ const BOUNDS = {
 describe("GET /api/locations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    filterFindMany.mockResolvedValue([]);
   });
 
   it("returns 400 when start is missing", async () => {

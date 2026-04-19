@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SerializedPoint } from "@/lib/groupByHour";
 import type { PlaceData } from "@/lib/detectVisits";
@@ -15,6 +15,8 @@ import PlaceMoveConfirmDialog from "@/components/PlaceMoveConfirmDialog";
 import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
 import type { MapBounds } from "@/components/map/mapConstants";
 import { Skeleton } from "@/components/ui/skeleton";
+import { detectConflicts } from "@/lib/conflict-detection";
+import { useDeviceFilters } from "@/components/DeviceFilterProvider";
 
 const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
   ssr: false,
@@ -116,6 +118,12 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
 
   const points = locationsData?.points ?? EMPTY_POINTS;
   boundsIgnoredRef.current = locationsData?.boundsIgnored ?? false;
+
+  const { setConflicts, filters: activeFilters } = useDeviceFilters();
+
+  useEffect(() => {
+    setConflicts(detectConflicts(points));
+  }, [points, setConflicts]);
 
   const { data: pointsEnvelope = null } = useQuery<MapBounds | null>({
     queryKey: ["locations-bounds", rangeStart, rangeEnd],
@@ -252,7 +260,12 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   }
 
   return (
-    <div className="h-full w-full">
+    <div className="relative h-full w-full">
+      {activeFilters.length > 0 && (
+        <div className="absolute left-1/2 top-4 z-10 -translate-x-1/2 rounded-full bg-orange-500/90 px-3 py-1 text-xs font-medium text-white shadow">
+          {activeFilters.length} device filter{activeFilters.length !== 1 ? "s" : ""} active
+        </div>
+      )}
       <MapLibreMap
         points={points}
         pointsEnvelope={pointsEnvelope}
