@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
 import { Marker, Popup } from "react-map-gl/maplibre";
 import { format } from "date-fns";
 import type { ImmichPhoto } from "@/lib/immich";
@@ -150,8 +149,8 @@ export default function MapPopups({
 
       {/* Photo popup */}
       {popup?.kind === "photo" && (
-        <Popup latitude={popup.lat} longitude={popup.lon} onClose={onClosePopup} closeButton anchor="bottom">
-          <div className="text-xs" style={{ minWidth: 120 }}>
+        <Popup latitude={popup.lat} longitude={popup.lon} onClose={onClosePopup} closeButton anchor="bottom" maxWidth="none">
+          <div className="text-xs" style={{ minWidth: 240 }}>
             <button
               onClick={() => {
                 onPhotoClick?.(popup.photo, allPhotos);
@@ -159,11 +158,12 @@ export default function MapPopups({
               }}
               style={{ display: "block", padding: 0, border: "none", background: "none", cursor: "pointer" }}
             >
-              <Image
-                src={`/api/immich/thumbnail?id=${popup.photo.id}`}
+              <img
+                src={`/api/immich/thumbnail?id=${popup.photo.id}&size=preview`}
                 alt=""
-                width={128}
-                height={96}
+                width={240}
+                height={180}
+                loading="lazy"
                 style={{ objectFit: "cover", borderRadius: 4, marginBottom: 4 }}
               />
             </button>
