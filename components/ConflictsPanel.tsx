@@ -12,6 +12,7 @@ export default function ConflictsPanel() {
   const { filters, conflicts, deleteFilter } = useDeviceFilters();
   const [resolvingConflict, setResolvingConflict] = useState<ConflictRange | null>(null);
   const [editingFilter, setEditingFilter] = useState<SerializedDeviceFilter | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const allDeviceIds = [...new Set([
     ...conflicts.flatMap((c) => c.deviceIds),
@@ -86,7 +87,7 @@ export default function ConflictsPanel() {
                     Edit
                   </button>
                   <button
-                    onClick={() => deleteFilter(filter.id)}
+                    onClick={() => setConfirmDeleteId(filter.id)}
                     className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
                   >
                     Remove
@@ -103,6 +104,31 @@ export default function ConflictsPanel() {
           conflict={resolvingConflict}
           onClose={() => setResolvingConflict(null)}
         />
+      )}
+
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-xl">
+            <h2 className="text-sm font-semibold text-gray-900">Remove filter?</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              This will remove the filter and restore all hidden device data for that time range.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { deleteFilter(confirmDeleteId); setConfirmDeleteId(null); }}
+                className="rounded bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {editingFilter && (
