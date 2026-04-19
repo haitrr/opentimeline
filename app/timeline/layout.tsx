@@ -146,7 +146,7 @@ function PanelContent({
         <>
           <AsideHeader onDetect={onDetect} detecting={detecting} rangeStart={rangeStart} rangeEnd={rangeEnd} />
           <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
               {children}
             </div>
             <div className="shrink-0 border-t overflow-y-auto max-h-64">
