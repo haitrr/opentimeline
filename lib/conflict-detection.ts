@@ -83,7 +83,7 @@ export function detectConflicts(
 
   for (let i = 1; i < conflictBuckets.length; i++) {
     const b = conflictBuckets[i];
-    if (b === rangeEnd + 1) {
+    if (b <= rangeEnd + 2) {
       rangeEnd = b;
       conflictDevicesMap.get(b)!.forEach((d) => rangeDevices.add(d));
     } else {

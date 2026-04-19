@@ -11,7 +11,7 @@ import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPa
 import SettingsPanel from "@/components/SettingsPanel";
 import AsideHeader from "@/components/AsideHeader";
 import ConflictsPanel from "@/components/ConflictsPanel";
-import { DeviceFilterProvider } from "@/components/DeviceFilterProvider";
+import { DeviceFilterProvider, useDeviceFilters } from "@/components/DeviceFilterProvider";
 import IconBadge from "@/components/IconBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -79,6 +79,14 @@ const TABS: { id: SidebarTab; label: string; Icon: React.FC<{ className?: string
   { id: "devices", label: "Device Filters", Icon: DevicesIcon },
 ];
 
+function DevicesTabBadge() {
+  const { conflicts, filters } = useDeviceFilters();
+  const count = conflicts.filter(
+    (c) => !filters.some((f) => new Date(f.fromTime) <= c.fromTime && new Date(f.toTime) >= c.toTime)
+  ).length;
+  return <IconBadge count={count} variant="warning" />;
+}
+
 function ActivityBar({
   activeTab,
   onTabChange,
@@ -111,6 +119,7 @@ function ActivityBar({
             <Icon className="h-7 w-7" />
             {id === "suggestions" && <IconBadge count={suggestionsCount} />}
             {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
+            {id === "devices" && <DevicesTabBadge />}
           </TooltipTrigger>
           <TooltipContent side="right">{label}</TooltipContent>
         </Tooltip>
@@ -346,6 +355,7 @@ function TimelineShell({ children }: { children: React.ReactNode }) {
                   <Icon className="h-7 w-7" />
                   {id === "suggestions" && <IconBadge count={suggestionsCount} />}
                   {id === "unknown" && <IconBadge count={unknownCount} variant="warning" />}
+                  {id === "devices" && <DevicesTabBadge />}
                 </span>
                 <span className="truncate">{label}</span>
               </button>
