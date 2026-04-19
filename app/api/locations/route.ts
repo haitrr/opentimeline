@@ -165,7 +165,7 @@ export async function GET(request: Request) {
     `;
 
     return NextResponse.json({
-      points: applyDeviceFilters(rows.map(serializeRow), deviceFilters),
+      points: rows.map(serializeRow),
       decimated: true,
       boundsIgnored: false,
       total,
@@ -180,7 +180,7 @@ export async function GET(request: Request) {
   `;
 
   return NextResponse.json({
-    points: applyDeviceFilters(rows.map(serializeRow), deviceFilters),
+    points: rows.map(serializeRow),
     decimated: false,
     boundsIgnored: false,
     total,
