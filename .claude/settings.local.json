@@ -53,7 +53,10 @@
       "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -50 {}')",
       "Bash(pnpm tsc *)",
       "Bash(curl -sfI http://localhost:3000 -o /dev/null)",
-      "Bash(pnpm test:e2e places-panel)"
+      "Bash(pnpm test:e2e places-panel)",
+      "Bash(pnpm dev *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/timeline/2026-04-19)",
+      "Bash(gh pr create --title 'feat: move import actions into 3-dot dropdown menu' --body ' *)"
     ]
   }
 }

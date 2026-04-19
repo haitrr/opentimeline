@@ -35,8 +35,10 @@ export async function POST(request: NextRequest) {
 
   const newPoints = points.filter((p) => !existingTsts.has(p.tst));
 
+  const skipped = points.length - newPoints.length;
+
   if (newPoints.length === 0) {
-    return NextResponse.json({ imported: 0 });
+    return NextResponse.json({ imported: 0, skipped });
   }
 
   await prisma.locationPoint.createMany({
@@ -57,5 +59,5 @@ export async function POST(request: NextRequest) {
     })),
   });
 
-  return NextResponse.json({ imported: newPoints.length });
+  return NextResponse.json({ imported: newPoints.length, skipped });
 }

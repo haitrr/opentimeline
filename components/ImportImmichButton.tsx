@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -26,26 +26,30 @@ export default function ImportImmichDialog({ rangeStart, rangeEnd, open, onOpenC
   const [importing, setImporting] = useState(false);
   const queryClient = useQueryClient();
 
-  async function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) {
+  useEffect(() => {
+    if (!open) {
       setPendingPhotos([]);
       setFetching(false);
       setImporting(false);
-      onOpenChange(false);
       return;
     }
-    if (rangeStart && rangeEnd) {
-      setFetching(true);
-      onOpenChange(true);
+    if (!rangeStart || !rangeEnd) return;
+
+    let cancelled = false;
+    setFetching(true);
+
+    (async () => {
       try {
         const res = await fetch(
           `/api/immich?start=${encodeURIComponent(rangeStart)}&end=${encodeURIComponent(rangeEnd)}`
         );
+        if (cancelled) return;
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error ?? `Server error ${res.status}`);
         }
         const photos: ImmichPhoto[] = await res.json();
+        if (cancelled) return;
         const withLocation = photos.filter((p) => p.lat !== null && p.lon !== null);
         if (photos.length === 0) {
           toast.error("No photos found in this time range");
@@ -59,13 +63,19 @@ export default function ImportImmichDialog({ rangeStart, rangeEnd, open, onOpenC
         }
         setPendingPhotos(withLocation);
       } catch (err) {
+        if (cancelled) return;
         toast.error(err instanceof Error ? err.message : "Failed to fetch photos");
         onOpenChange(false);
-        return;
       } finally {
-        setFetching(false);
+        if (!cancelled) setFetching(false);
       }
-    }
+    })();
+
+    return () => { cancelled = true; };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) onOpenChange(false);
   }
 
   async function handleImport() {
@@ -90,9 +100,12 @@ export default function ImportImmichDialog({ rangeStart, rangeEnd, open, onOpenC
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Server error ${res.status}`);
       }
-      const { imported } = await res.json();
+      const { imported, skipped } = await res.json();
+      const skippedMsg = skipped > 0 ? `, ${skipped} skipped (already imported)` : "";
       toast.success(
-        imported === 0 ? "All points already imported" : `Imported ${imported} point${imported === 1 ? "" : "s"}`
+        imported === 0
+          ? `No new points — ${skipped} already imported`
+          : `Imported ${imported} point${imported === 1 ? "" : "s"}${skippedMsg}`
       );
       if (imported > 0) queryClient.invalidateQueries({ queryKey: ["locations"] });
     } catch (err) {
