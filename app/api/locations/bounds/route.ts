@@ -1,21 +1,6 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-
-type DeviceFilter = { fromTime: Date; toTime: Date; deviceIds: string[] };
-
-function buildDeviceFilterSql(filters: DeviceFilter[]): Prisma.Sql {
-  if (filters.length === 0) return Prisma.sql`TRUE`;
-  const clauses = filters.map((f) => {
-    const ids = Prisma.join(f.deviceIds.map((id) => Prisma.sql`${id}`));
-    return Prisma.sql`(
-      "recordedAt" NOT BETWEEN ${f.fromTime} AND ${f.toTime}
-      OR "deviceId" IS NULL
-      OR "deviceId" IN (${ids})
-    )`;
-  });
-  return clauses.reduce((acc, c) => Prisma.sql`${acc} AND ${c}`);
-}
+import { buildDeviceFilterSql } from "@/lib/device-filters";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

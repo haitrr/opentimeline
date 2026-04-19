@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { DECIMATION_THRESHOLD, haversineKmSql } from "@/lib/locations";
+import { buildDeviceFilterSql } from "@/lib/device-filters";
 
 type PointRow = {
   id: number;
