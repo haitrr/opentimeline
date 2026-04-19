@@ -35,12 +35,12 @@ function ImportMenu({ onImmichOpen, immichEnabled }: { onImmichOpen: () => void;
           <path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM15.5 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
         </svg>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={triggerGpxInput}>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={triggerGpxInput}>
           <GpxIcon />
           Import GPX
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={onImmichOpen} disabled={!immichEnabled}>
+        <DropdownMenuItem onClick={onImmichOpen} disabled={!immichEnabled}>
           <ImmichIcon />
           Import from Immich
         </DropdownMenuItem>
