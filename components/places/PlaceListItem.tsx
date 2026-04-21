@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Pencil, Copy, Trash2 } from "lucide-react";
+import { MapPin, Navigation, Copy, Trash2 } from "lucide-react";
 import { formatRelative } from "@/lib/relativeTime";
 import { toast } from "sonner";
 
@@ -64,11 +64,11 @@ export default function PlaceListItem({ place, onEdit, onDelete }: Props) {
       tabIndex={0}
       aria-label={place.name}
       title={place.name}
-      onClick={flyTo}
+      onClick={() => onEdit(place)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          flyTo();
+          onEdit(place);
         }
       }}
       className="group relative flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 pr-28 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:pr-20"
@@ -90,14 +90,14 @@ export default function PlaceListItem({ place, onEdit, onDelete }: Props) {
       <div className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-60">
         <button
           type="button"
-          aria-label="Edit place"
+          aria-label="Fly to place"
           onClick={(e) => {
             e.stopPropagation();
-            onEdit(place);
+            flyTo();
           }}
           className="rounded p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground md:p-1"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <Navigation className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
