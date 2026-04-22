@@ -6,14 +6,14 @@ export const NULL_DEVICE_COLOR: DeviceColor = {
 };
 
 export const DEVICE_COLOR_PALETTE: DeviceColor[] = [
-  { color: "#f97316", strokeColor: "#ea580c" },
-  { color: "#a855f7", strokeColor: "#9333ea" },
   { color: "#06b6d4", strokeColor: "#0891b2" },
+  { color: "#a855f7", strokeColor: "#9333ea" },
   { color: "#f59e0b", strokeColor: "#d97706" },
   { color: "#10b981", strokeColor: "#059669" },
   { color: "#ec4899", strokeColor: "#db2777" },
   { color: "#84cc16", strokeColor: "#65a30d" },
   { color: "#6366f1", strokeColor: "#4f46e5" },
+  { color: "#f97316", strokeColor: "#ea580c" },
 ];
 
 export function buildDeviceColorMap(
