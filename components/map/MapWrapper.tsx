@@ -16,6 +16,7 @@ import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
 import type { MapBounds } from "@/components/map/mapConstants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { detectConflicts } from "@/lib/conflict-detection";
+import { detectStationarySuggestions } from "@/lib/stationary-detection";
 import { useDeviceFilters } from "@/components/DeviceFilterProvider";
 
 const MapLibreMap = dynamic(() => import("@/components/map/MapLibreMap"), {
@@ -119,11 +120,12 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   const points = locationsData?.points ?? EMPTY_POINTS;
   boundsIgnoredRef.current = locationsData?.boundsIgnored ?? false;
 
-  const { setConflicts, filters: activeFilters } = useDeviceFilters();
+  const { setConflicts, setStationarySuggestions, filters: activeFilters } = useDeviceFilters();
 
   useEffect(() => {
     setConflicts(detectConflicts(points));
-  }, [points, setConflicts]);
+    setStationarySuggestions(detectStationarySuggestions(points));
+  }, [points, setConflicts, setStationarySuggestions]);
 
   const { data: pointsEnvelope = null } = useQuery<MapBounds | null>({
     queryKey: ["locations-bounds", rangeStart, rangeEnd],
