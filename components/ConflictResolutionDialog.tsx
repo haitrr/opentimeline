@@ -8,11 +8,14 @@ import { useDeviceFilters } from "@/components/DeviceFilterProvider";
 type Props = {
   conflict: ConflictRange;
   onClose: () => void;
+  preselectedDeviceId?: string;
 };
 
-export default function ConflictResolutionDialog({ conflict, onClose }: Props) {
+export default function ConflictResolutionDialog({ conflict, onClose, preselectedDeviceId }: Props) {
   const { createFilter } = useDeviceFilters();
-  const [selectedDevices, setSelectedDevices] = useState<string[]>([conflict.deviceIds[0]]);
+  const [selectedDevices, setSelectedDevices] = useState<string[]>(
+    preselectedDeviceId ? [preselectedDeviceId] : [conflict.deviceIds[0]]
+  );
   const [label, setLabel] = useState("");
   const [saving, setSaving] = useState(false);
 
