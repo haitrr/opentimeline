@@ -249,6 +249,26 @@ html.dark img.leaflet-tile {
   border-right-color: var(--line) !important;
 }
 
+/* MapLibre popup dark mode */
+html.dark .maplibregl-popup-content {
+  background-color: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+html.dark .maplibregl-popup-tip {
+  border-top-color: var(--surface);
+}
+
+html.dark .maplibregl-popup-close-button {
+  color: var(--text-muted);
+}
+
+html.dark .maplibregl-popup-close-button:hover {
+  color: var(--text-primary);
+  background: transparent;
+}
+
 /* Hide native scrollbar while keeping scrollability */
 .scrollbar-hide {
   -ms-overflow-style: none;
