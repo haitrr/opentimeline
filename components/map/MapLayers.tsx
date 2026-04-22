@@ -184,7 +184,7 @@ export default function MapLayers({
           paint={{
             "circle-radius": 4,
             "circle-color": "#fef08a",
-            "circle-stroke-color": "#f97316",
+            "circle-stroke-color": "#b45309",
             "circle-stroke-width": 2,
             "circle-opacity": 0.95,
           }}
