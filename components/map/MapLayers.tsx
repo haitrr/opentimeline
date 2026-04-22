@@ -182,11 +182,11 @@ export default function MapLayers({
           type="circle"
           layout={{ visibility: vis(!hidePhotos) }}
           paint={{
-            "circle-radius": 3,
-            "circle-color": "#f97316",
-            "circle-stroke-color": "#ea580c",
-            "circle-stroke-width": 1.5,
-            "circle-opacity": 0.9,
+            "circle-radius": 4,
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-stroke-color": "#f97316",
+            "circle-stroke-width": 2,
+            "circle-opacity": 1,
           }}
         />
       </Source>
