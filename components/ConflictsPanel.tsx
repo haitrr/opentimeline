@@ -7,9 +7,10 @@ import type { SerializedDeviceFilter } from "@/components/DeviceFilterProvider";
 import ConflictResolutionDialog from "@/components/ConflictResolutionDialog";
 import EditFilterDialog from "@/components/EditFilterDialog";
 import type { ConflictRange } from "@/lib/conflict-detection";
+import type { StationarySuggestion } from "@/lib/stationary-detection";
 
 export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: string; rangeEnd?: string }) {
-  const { filters, conflicts, deleteFilter } = useDeviceFilters();
+  const { filters, conflicts, stationarySuggestions, deleteFilter } = useDeviceFilters();
 
   const visibleFilters = filters.filter((f) => {
     if (!rangeStart || !rangeEnd) return true;
@@ -30,8 +31,19 @@ export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: 
       )
   );
 
-  const [open, setOpen] = useState(() => unresolvedConflicts.length > 0);
+  const unresolvedStationary = stationarySuggestions.filter(
+    (s) =>
+      !visibleFilters.some(
+        (f) =>
+          new Date(f.fromTime) <= s.fromTime &&
+          new Date(f.toTime) >= s.toTime &&
+          !f.deviceIds.includes(s.stationaryDeviceId)
+      )
+  );
+
+  const [open, setOpen] = useState(() => unresolvedConflicts.length > 0 || unresolvedStationary.length > 0);
   const [resolvingConflict, setResolvingConflict] = useState<ConflictRange | null>(null);
+  const [resolvingStationary, setResolvingStationary] = useState<StationarySuggestion | null>(null);
   const [editingFilter, setEditingFilter] = useState<SerializedDeviceFilter | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -54,6 +66,11 @@ export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: 
           {unresolvedConflicts.length > 0 && (
             <span className="rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
               {unresolvedConflicts.length} conflict{unresolvedConflicts.length !== 1 ? "s" : ""}
+            </span>
+          )}
+          {unresolvedStationary.length > 0 && (
+            <span className="rounded-full bg-yellow-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white">
+              {unresolvedStationary.length} stationary
             </span>
           )}
           {visibleFilters.length > 0 && (
@@ -94,6 +111,34 @@ export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: 
               </ul>
             )}
           </section>
+
+          {unresolvedStationary.length > 0 && (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Stationary Device Detected
+              </h3>
+              <ul className="space-y-2">
+                {unresolvedStationary.map((suggestion, i) => (
+                  <li key={i} className="rounded border border-yellow-200 bg-yellow-50 p-3">
+                    <p className="text-xs font-medium text-yellow-800">
+                      {suggestion.stationaryDeviceId} ·{" "}
+                      {format(suggestion.fromTime, "MMM d, HH:mm")} –{" "}
+                      {format(suggestion.toTime, "HH:mm")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-yellow-600">
+                      Stationary while {suggestion.movingDeviceId} was moving
+                    </p>
+                    <button
+                      onClick={() => setResolvingStationary(suggestion)}
+                      className="mt-2 rounded bg-yellow-500 px-2 py-1 text-xs font-medium text-white hover:bg-yellow-600"
+                    >
+                      Filter out
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -141,6 +186,18 @@ export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: 
         <ConflictResolutionDialog
           conflict={resolvingConflict}
           onClose={() => setResolvingConflict(null)}
+        />
+      )}
+
+      {resolvingStationary && (
+        <ConflictResolutionDialog
+          conflict={{
+            fromTime: resolvingStationary.fromTime,
+            toTime: resolvingStationary.toTime,
+            deviceIds: [resolvingStationary.movingDeviceId, resolvingStationary.stationaryDeviceId],
+          }}
+          preselectedDeviceId={resolvingStationary.movingDeviceId}
+          onClose={() => setResolvingStationary(null)}
         />
       )}
 
