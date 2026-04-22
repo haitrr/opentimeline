@@ -7,6 +7,7 @@ import type { UnknownVisitData } from "@/components/map/MapWrapper";
 import type { ImmichPhoto } from "@/lib/immich";
 import { haversineKm } from "@/lib/geo";
 import { geoCircle, interpolateColor } from "@/components/map/mapUtils";
+import { buildDeviceColorMap, NULL_DEVICE_COLOR } from "@/lib/deviceColors";
 
 const PATH_SPLIT_SEC = 600;
 const PATH_SPLIT_KM = 0.5;
@@ -81,23 +82,51 @@ export function useMapGeoJSON(
     return { type: "FeatureCollection" as const, features };
   }, [points, rangeStart, rangeEnd]);
 
+  const deviceColors = useMemo(
+    () => buildDeviceColorMap(points.map((p) => p.deviceId ?? null)),
+    [points],
+  );
+
   const pointsGeoJSON = useMemo(() => {
     const features: Array<{
       type: "Feature";
       geometry: { type: "Point"; coordinates: [number, number] };
-      properties: { id: number; isFirst: boolean; isLast: boolean; batt: number | null; recordedAt: string; acc: number | null; vel: number | null; deviceId: string | null };
+      properties: {
+        id: number;
+        isFirst: boolean;
+        isLast: boolean;
+        batt: number | null;
+        recordedAt: string;
+        acc: number | null;
+        vel: number | null;
+        deviceId: string | null;
+        deviceColor: string;
+        deviceStrokeColor: string;
+      };
     }> = [];
     points.forEach((p, i) => {
       const isFirst = i === 0;
       const isLast = i === points.length - 1;
+      const dc = deviceColors.get(p.deviceId ?? null) ?? NULL_DEVICE_COLOR;
       features.push({
         type: "Feature",
         geometry: { type: "Point", coordinates: [p.lon, p.lat] },
-        properties: { id: p.id, isFirst, isLast, batt: p.batt, recordedAt: p.recordedAt, acc: p.acc, vel: p.vel, deviceId: p.deviceId ?? null },
+        properties: {
+          id: p.id,
+          isFirst,
+          isLast,
+          batt: p.batt,
+          recordedAt: p.recordedAt,
+          acc: p.acc,
+          vel: p.vel,
+          deviceId: p.deviceId ?? null,
+          deviceColor: dc.color,
+          deviceStrokeColor: dc.strokeColor,
+        },
       });
     });
     return { type: "FeatureCollection" as const, features };
-  }, [points]);
+  }, [points, deviceColors]);
 
   const heatGeoJSON = useMemo(() => {
     if (points.length === 0) return { type: "FeatureCollection" as const, features: [] };
@@ -214,5 +243,6 @@ export function useMapGeoJSON(
     placeDotsGeoJSON,
     unknownVisitsGeoJSON,
     photosGeoJSON,
+    deviceColors,
   };
 }

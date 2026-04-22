@@ -75,7 +75,7 @@ export default function MapPopups({
         <Popup latitude={popup.lat} longitude={popup.lon} onClose={onClosePopup} closeButton anchor="bottom">
           <div className="text-xs">
             <p className="font-semibold">
-              {format(new Date(popup.point.recordedAt), "HH:mm:ss")}
+              {format(new Date(popup.point.recordedAt), "MMM d, HH:mm:ss")}
             </p>
             {popup.point.acc != null && (
               <p className="text-gray-500">±{Math.round(popup.point.acc)}m</p>

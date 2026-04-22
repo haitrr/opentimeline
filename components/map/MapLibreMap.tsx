@@ -16,6 +16,7 @@ import FlyToHandler from "@/components/map/FlyToHandler";
 import MapLayers from "@/components/map/MapLayers";
 import MapPopups from "@/components/map/MapPopups";
 import MapControls from "@/components/map/MapControls";
+import PointsLegend from "@/components/map/PointsLegend";
 
 export default function MapLibreMap({
   points,
@@ -320,6 +321,11 @@ export default function MapLibreMap({
           playTimestampFmt={playTimestampFmt}
         />
       </Map>
+
+      <PointsLegend
+        deviceColors={geoJSON.deviceColors}
+        hidePoints={layerSettings.hidePoints}
+      />
 
       {/* Place hover tooltip */}
       {hoveredPlace && hoveredPlaceData && (

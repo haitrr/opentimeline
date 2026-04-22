@@ -161,13 +161,13 @@ export default function MapLayers({
             "circle-radius": ["case", ["any", ["get", "isFirst"], ["get", "isLast"]], 6, 4],
             "circle-color": ["case",
               ["get", "isFirst"], "#22c55e",
-              ["get", "isLast"], "#ef4444",
-              "#3b82f6",
+              ["get", "isLast"],  "#ef4444",
+              ["get", "deviceColor"],
             ],
             "circle-stroke-color": ["case",
               ["get", "isFirst"], "#15803d",
-              ["get", "isLast"], "#b91c1c",
-              "#1d4ed8",
+              ["get", "isLast"],  "#b91c1c",
+              ["get", "deviceStrokeColor"],
             ],
             "circle-stroke-width": 1.5,
             "circle-opacity": 0.85,
@@ -182,11 +182,11 @@ export default function MapLayers({
           type="circle"
           layout={{ visibility: vis(!hidePhotos) }}
           paint={{
-            "circle-radius": 3,
-            "circle-color": "#f97316",
-            "circle-stroke-color": "#ea580c",
-            "circle-stroke-width": 1.5,
-            "circle-opacity": 0.9,
+            "circle-radius": 4,
+            "circle-color": "#ffffff",
+            "circle-stroke-color": "#64748b",
+            "circle-stroke-width": 2,
+            "circle-opacity": 0.95,
           }}
         />
       </Source>
