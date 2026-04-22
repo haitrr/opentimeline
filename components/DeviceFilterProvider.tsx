@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ConflictRange } from "@/lib/conflict-detection";
+import type { StationarySuggestion } from "@/lib/stationary-detection";
 
 export type SerializedDeviceFilter = {
   id: string;
@@ -19,6 +20,8 @@ type DeviceFilterContextValue = {
   filters: SerializedDeviceFilter[];
   conflicts: ConflictRange[];
   setConflicts: (conflicts: ConflictRange[]) => void;
+  stationarySuggestions: StationarySuggestion[];
+  setStationarySuggestions: (suggestions: StationarySuggestion[]) => void;
   createFilter: (filter: FilterPayload) => Promise<void>;
   updateFilter: (id: string, filter: FilterPayload) => Promise<void>;
   deleteFilter: (id: string) => Promise<void>;
@@ -29,6 +32,7 @@ const DeviceFilterContext = createContext<DeviceFilterContextValue | null>(null)
 export function DeviceFilterProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [conflicts, setConflicts] = useState<ConflictRange[]>([]);
+  const [stationarySuggestions, setStationarySuggestions] = useState<StationarySuggestion[]>([]);
 
   const { data: filters = [] } = useQuery<SerializedDeviceFilter[]>({
     queryKey: ["device-filters"],
@@ -79,7 +83,7 @@ export function DeviceFilterProvider({ children }: { children: React.ReactNode }
 
   return (
     <DeviceFilterContext.Provider
-      value={{ filters, conflicts, setConflicts, createFilter, updateFilter, deleteFilter }}
+      value={{ filters, conflicts, setConflicts, stationarySuggestions, setStationarySuggestions, createFilter, updateFilter, deleteFilter }}
     >
       {children}
     </DeviceFilterContext.Provider>
