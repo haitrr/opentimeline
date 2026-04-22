@@ -1,0 +1,42 @@
+<h2>3 Approaches for Manual Filter Creation</h2>
+<p class="subtitle">Drag on timeline → highlight on map → popover to configure</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Dedicated "Filter Mode" Toggle</h3>
+      <p>User activates a filter-drawing mode via a button in the sidebar/toolbar. While active, the timeline becomes draggable to select a range. Escape or clicking outside deactivates. Clear separation between browse mode and filter creation mode.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>No accidental filter creation</li><li>Explicit intent — UI state is clear</li><li>Drag gesture is unambiguous in filter mode</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Extra click to enter mode</li><li>Less discoverable</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Always-On Drag to Select (Recommended)</h3>
+      <p>The timeline always supports drag-to-select. A subtle "drag to filter" hint shows on hover. Dragging highlights the range immediately and shows a lightweight popover to confirm/configure. No mode switching needed.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Fastest path — one gesture to start</li><li>Live map preview as you drag</li><li>Most natural feel</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Must not conflict with timeline scroll</li><li>Need to distinguish drag vs click clearly</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Right-Click / Long-Press to Start Selection</h3>
+      <p>User right-clicks (desktop) or long-presses (mobile) on the timeline to anchor the selection start, then drags to extend. A context menu or drag handle appears to guide the interaction.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>No conflict with normal scroll/click</li><li>Works on both mobile and desktop</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Right-click is unfamiliar in mobile apps</li><li>Long-press delay disrupts flow</li><li>Harder to discover</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 1.5rem">My recommendation: <strong>Option B</strong> — always-on drag is the fastest and most natural. The timeline scrubber already exists and the drag gesture maps cleanly to time range selection. The only risk (conflict with scroll) is solved by detecting horizontal drag distance before committing.</p>

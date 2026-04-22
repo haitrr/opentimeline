@@ -1,0 +1,130 @@
+<h2>Manual Filter Creation — Design</h2>
+<p class="subtitle">Drag on the timeline scrubber → live map preview → popover to configure</p>
+
+<div class="section">
+  <h3>Interaction Flow</h3>
+  <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-top:1rem">
+
+    <!-- Main layout mockup -->
+    <div style="flex:1;min-width:320px">
+      <div class="mockup">
+        <div class="mockup-header">Timeline page — during range drag</div>
+        <div class="mockup-body" style="padding:0;display:flex;height:420px;gap:0;font-size:12px">
+
+          <!-- Map area -->
+          <div style="flex:1;background:#1a1a2e;position:relative;border-radius:4px 0 0 4px;overflow:hidden">
+            <div style="position:absolute;top:8px;left:8px;color:#888;font-size:10px">MapLibre GL</div>
+
+            <!-- Dimmed track points (outside range) -->
+            <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 200 300">
+              <!-- grey path outside range -->
+              <polyline points="40,20 55,45 60,70 65,90 70,110" stroke="#555" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <!-- highlighted path inside range -->
+              <polyline points="70,110 80,140 90,160 100,175 110,185" stroke="#f97316" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <!-- grey path after range -->
+              <polyline points="110,185 120,210 130,230 140,250 150,270" stroke="#555" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+              <!-- dimmed points outside range -->
+              <circle cx="40" cy="20" r="3" fill="#555"/>
+              <circle cx="55" cy="45" r="3" fill="#555"/>
+              <circle cx="60" cy="70" r="3" fill="#555"/>
+              <circle cx="65" cy="90" r="3" fill="#555"/>
+
+              <!-- highlighted points inside range (orange) -->
+              <circle cx="70" cy="110" r="4" fill="#f97316"/>
+              <circle cx="80" cy="140" r="4" fill="#f97316"/>
+              <circle cx="90" cy="160" r="4" fill="#f97316"/>
+              <circle cx="100" cy="175" r="4" fill="#f97316"/>
+              <circle cx="110" cy="185" r="4" fill="#f97316"/>
+
+              <!-- dimmed points after range -->
+              <circle cx="120" cy="210" r="3" fill="#555"/>
+              <circle cx="130" cy="230" r="3" fill="#555"/>
+              <circle cx="140" cy="250" r="3" fill="#555"/>
+
+              <!-- second device in range (also highlighted, different shade) -->
+              <polyline points="75,115 82,145 88,162 98,178 108,188" stroke="#fb923c" stroke-width="2" fill="none" stroke-dasharray="4 3" stroke-linecap="round" opacity="0.8"/>
+            </svg>
+
+            <!-- Map legend -->
+            <div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.7);border-radius:4px;padding:4px 8px;color:#ccc;font-size:9px;line-height:1.8">
+              <div><span style="display:inline-block;width:10px;height:3px;background:#f97316;vertical-align:middle;border-radius:2px;margin-right:4px"></span>Selected range</div>
+              <div><span style="display:inline-block;width:10px;height:3px;background:#555;vertical-align:middle;border-radius:2px;margin-right:4px"></span>Outside range</div>
+            </div>
+          </div>
+
+          <!-- Timeline sidebar -->
+          <div style="width:160px;background:#fff;border-left:1px solid #e5e7eb;display:flex;flex-direction:column">
+            <div style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600;font-size:11px;color:#374151">Timeline</div>
+            <div style="flex:1;display:flex;position:relative">
+              <!-- visit list -->
+              <div style="flex:1;padding:6px;overflow:hidden">
+                <div style="padding:4px 6px;border-radius:4px;background:#f9fafb;margin-bottom:4px;font-size:10px;color:#6b7280">9:00 AM — Home</div>
+                <div style="padding:4px 6px;border-radius:4px;background:#f9fafb;margin-bottom:4px;font-size:10px;color:#6b7280">10:30 AM — Office</div>
+                <div style="padding:4px 6px;border-radius:4px;background:#fed7aa;margin-bottom:4px;font-size:10px;color:#92400e;border:1px solid #fdba74">11:00 AM — ?</div>
+                <div style="padding:4px 6px;border-radius:4px;background:#fed7aa;margin-bottom:4px;font-size:10px;color:#92400e;border:1px solid #fdba74">12:30 PM — ?</div>
+                <div style="padding:4px 6px;border-radius:4px;background:#f9fafb;margin-bottom:4px;font-size:10px;color:#6b7280">2:00 PM — Coffee shop</div>
+                <div style="padding:4px 6px;border-radius:4px;background:#f9fafb;margin-bottom:4px;font-size:10px;color:#6b7280">4:00 PM — Home</div>
+              </div>
+
+              <!-- Scrubber (right edge) -->
+              <div style="width:32px;border-left:1px solid #f3f4f6;position:relative;background:#fafafa">
+                <!-- track line -->
+                <div style="position:absolute;top:8px;bottom:8px;width:1px;background:#d1d5db;left:50%"></div>
+
+                <!-- selection range highlight -->
+                <div style="position:absolute;top:90px;height:80px;left:4px;right:4px;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);border-radius:2px"></div>
+
+                <!-- drag handles -->
+                <div style="position:absolute;top:88px;left:6px;right:6px;height:3px;background:#f97316;border-radius:2px"></div>
+                <div style="position:absolute;top:168px;left:6px;right:6px;height:3px;background:#f97316;border-radius:2px"></div>
+
+                <!-- blue scroll indicator -->
+                <div style="position:absolute;top:40px;left:0;right:0;height:2px;background:rgba(59,130,246,0.6)"></div>
+
+                <!-- tick marks -->
+                <div style="position:absolute;top:30px;left:40%;right:0;height:1px;background:#d1d5db"></div>
+                <div style="position:absolute;top:100px;left:40%;right:0;height:1px;background:#e5e7eb"></div>
+                <div style="position:absolute;top:170px;left:40%;right:0;height:1px;background:#e5e7eb"></div>
+                <div style="position:absolute;top:240px;left:40%;right:0;height:1px;background:#d1d5db"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Popover anchored to scrubber -->
+          <div style="position:absolute;right:40px;top:160px;width:190px;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.15);padding:10px;z-index:10;font-size:11px">
+            <div style="font-weight:600;color:#111827;margin-bottom:4px">Create Filter</div>
+            <div style="color:#6b7280;margin-bottom:8px;font-size:10px">11:00 AM – 12:30 PM</div>
+            <div style="margin-bottom:6px;font-size:10px;color:#374151;font-weight:500">Exclude device(s):</div>
+            <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#374151">
+              <input type="checkbox" checked style="accent-color:#f97316"> iPhone (tid: ab)
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px;color:#374151">
+              <input type="checkbox"> iPad (tid: cd)
+            </label>
+            <input type="text" placeholder="Label (optional)" style="width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:4px;padding:4px 6px;font-size:10px;margin-bottom:8px;color:#374151">
+            <div style="display:flex;gap:6px">
+              <button style="flex:1;background:#f97316;color:#fff;border:none;border-radius:4px;padding:5px;font-size:10px;cursor:pointer;font-weight:500">Create</button>
+              <button style="flex:1;background:#f9fafb;color:#374151;border:1px solid #d1d5db;border-radius:4px;padding:5px;font-size:10px;cursor:pointer">Cancel</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <h3>Key Design Decisions</h3>
+  <ul style="line-height:2;color:#374151;font-size:13px">
+    <li><strong>Drag replaces existing scroll drag</strong> — click still jumps to position; drag now creates a time range selection</li>
+    <li><strong>Live map update during drag</strong> — orange = points in selected range, grey = outside. Both device tracks shown</li>
+    <li><strong>Popover on release</strong> — anchored to the scrubber, to the left, showing only devices that have data in the range</li>
+    <li><strong>Drag handles</strong> — orange lines at top/bottom of selection; user can drag either to adjust range after initial select</li>
+    <li><strong>Escape / click-outside</strong> — cancels selection, map returns to normal</li>
+  </ul>
+</div>
+
+<p class="subtitle">Does this overall layout and flow look right? Let me know what to adjust before we go deeper.</p>
