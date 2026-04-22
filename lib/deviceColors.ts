@@ -19,16 +19,20 @@ export const DEVICE_COLOR_PALETTE: DeviceColor[] = [
 export function buildDeviceColorMap(
   deviceIds: (string | null)[],
 ): Map<string | null, DeviceColor> {
-  const result = new Map<string | null, DeviceColor>();
-  let paletteIndex = 0;
+  const counts = new Map<string | null, number>();
   for (const id of deviceIds) {
-    if (result.has(id)) continue;
-    if (id === null) {
-      result.set(null, NULL_DEVICE_COLOR);
-    } else {
-      result.set(id, DEVICE_COLOR_PALETTE[paletteIndex % DEVICE_COLOR_PALETTE.length]);
-      paletteIndex++;
-    }
+    counts.set(id, (counts.get(id) ?? 0) + 1);
   }
+
+  const sorted = Array.from(counts.keys()).sort((a, b) => {
+    const diff = (counts.get(b) ?? 0) - (counts.get(a) ?? 0);
+    if (diff !== 0) return diff;
+    return String(a) < String(b) ? -1 : 1;
+  });
+
+  const result = new Map<string | null, DeviceColor>();
+  sorted.forEach((id, index) => {
+    result.set(id, DEVICE_COLOR_PALETTE[index % DEVICE_COLOR_PALETTE.length]);
+  });
   return result;
 }

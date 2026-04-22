@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDeviceColorMap, DEVICE_COLOR_PALETTE, NULL_DEVICE_COLOR } from "@/lib/deviceColors";
+import { buildDeviceColorMap, DEVICE_COLOR_PALETTE } from "@/lib/deviceColors";
 
 describe("buildDeviceColorMap", () => {
   it("returns empty map for empty input", () => {
@@ -7,23 +7,33 @@ describe("buildDeviceColorMap", () => {
     expect(result.size).toBe(0);
   });
 
-  it("maps null deviceId to fallback blue", () => {
-    const result = buildDeviceColorMap([null]);
-    expect(result.get(null)).toEqual(NULL_DEVICE_COLOR);
-  });
-
-  it("assigns first palette color to first non-null device", () => {
+  it("assigns first palette color to the sole device", () => {
     const result = buildDeviceColorMap(["phone"]);
     expect(result.get("phone")).toEqual(DEVICE_COLOR_PALETTE[0]);
   });
 
+  it("assigns first palette color to null deviceId when it's the only device", () => {
+    const result = buildDeviceColorMap([null]);
+    expect(result.get(null)).toEqual(DEVICE_COLOR_PALETTE[0]);
+  });
+
+  it("assigns first palette color to device with the most points", () => {
+    const ids = ["watch", "phone", "phone", "phone", "watch"];
+    const result = buildDeviceColorMap(ids);
+    expect(result.get("phone")).toEqual(DEVICE_COLOR_PALETTE[0]);
+    expect(result.get("watch")).toEqual(DEVICE_COLOR_PALETTE[1]);
+  });
+
+  it("assigns null the first palette color when it has the most points", () => {
+    const ids = [null, null, null, "phone", "phone"];
+    const result = buildDeviceColorMap(ids);
+    expect(result.get(null)).toEqual(DEVICE_COLOR_PALETTE[0]);
+    expect(result.get("phone")).toEqual(DEVICE_COLOR_PALETTE[1]);
+  });
+
   it("assigns distinct colors to distinct devices", () => {
     const result = buildDeviceColorMap(["phone", "watch"]);
-    const phoneColor = result.get("phone");
-    const watchColor = result.get("watch");
-    expect(phoneColor).toBeDefined();
-    expect(watchColor).toBeDefined();
-    expect(phoneColor?.color).not.toBe(watchColor?.color);
+    expect(result.get("phone")?.color).not.toBe(result.get("watch")?.color);
   });
 
   it("cycles colors when there are more devices than palette entries", () => {
