@@ -183,8 +183,8 @@ export default function MapLayers({
           layout={{ visibility: vis(!hidePhotos) }}
           paint={{
             "circle-radius": 4,
-            "circle-color": "#fef08a",
-            "circle-stroke-color": "#b45309",
+            "circle-color": "#f1f5f9",
+            "circle-stroke-color": "#334155",
             "circle-stroke-width": 2,
             "circle-opacity": 0.95,
           }}
