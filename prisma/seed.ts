@@ -63,8 +63,8 @@ function stationaryPoints(
 }
 
 /**
- * Device cycles north then south in a ~600 m loop so the track stays
- * near the start point but clearly exceeds the 300 m moving threshold.
+ * Device follows a rectangular block loop: north → east → south → west → repeat.
+ * Each leg is ~400 m, so the full loop is ~1.6 km and clearly 2D on the map.
  * Speed: ~5 m/s (~18 km/h cycling pace).
  */
 function movingPoints(
@@ -75,15 +75,32 @@ function movingPoints(
 ): Point[] {
   const points: Point[] = [];
   const speedMps = 5;
-  const loopMeters = 600; // ride 600 m north, come back, repeat
+  const legM = 400; // metres per leg
+
+  // Four corners of the rectangle (offsets in metres from start)
+  const legs: [number, number][] = [
+    [0, legM],       // north
+    [legM, legM],    // east
+    [legM, 0],       // south
+    [0, 0],          // west back to start
+  ];
+  const loopM = legM * 4;
+
   for (let i = 0; i < durationMinutes; i++) {
     const recordedAt = new Date(startTime.getTime() + i * 60_000);
-    const totalDist = i * 60 * speedMps; // metres covered since start
-    const posInLoop = totalDist % (loopMeters * 2);
-    const northDist = posInLoop < loopMeters ? posInLoop : loopMeters * 2 - posInLoop;
+    const totalDist = (i * 60 * speedMps) % loopM;
+
+    // Which leg are we on?
+    const legIdx = Math.floor(totalDist / legM);
+    const t = (totalDist % legM) / legM; // 0–1 progress along leg
+    const [fromN, fromE] = legs[legIdx];
+    const [toN, toE] = legs[(legIdx + 1) % legs.length];
+    const northM = fromN + (toN - fromN) * t;
+    const eastM = fromE + (toE - fromE) * t;
+
     points.push({
-      lat: start.lat + northDist / METERS_PER_DEG_LAT,
-      lon: start.lon,
+      lat: start.lat + northM / METERS_PER_DEG_LAT,
+      lon: start.lon + eastM / METERS_PER_DEG_LON,
       tst: toTst(recordedAt),
       recordedAt,
       vel: speedMps,
