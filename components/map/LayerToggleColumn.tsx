@@ -39,7 +39,7 @@ export default function LayerToggleColumn({ layerSettings }: Props) {
   const toggles = buildToggles(layerSettings);
   return (
     <TooltipProvider delay={200}>
-      <div className="pointer-events-none absolute top-4 right-4 z-900 flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         {toggles.map(({ label, icon: Icon, active, onToggle }) => (
           <Tooltip key={label}>
             <TooltipTrigger

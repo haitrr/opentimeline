@@ -3,10 +3,8 @@
 import React from "react";
 import { format } from "date-fns";
 import type { MapRef } from "react-map-gl/maplibre";
-import type { LayerSettings } from "@/components/map/hooks/useLayerSettings";
 import { FIT_BOUNDS_PADDING, FIT_BOUNDS_MAX_ZOOM, type MapBounds } from "@/components/map/mapConstants";
 import type { SerializedPoint } from "@/lib/groupByHour";
-import LayerToggleColumn from "@/components/map/LayerToggleColumn";
 
 type ContextMenu = { x: number; y: number; lat: number; lon: number } | null;
 
@@ -14,7 +12,6 @@ type Props = {
   mapRef: React.RefObject<MapRef | null>;
   points: SerializedPoint[];
   pointsEnvelope?: MapBounds | null;
-  layerSettings: LayerSettings;
   isPlaying: boolean;
   startPlay: () => void;
   stopPlay: () => void;
@@ -31,7 +28,6 @@ export default function MapControls({
   mapRef,
   points,
   pointsEnvelope = null,
-  layerSettings,
   isPlaying,
   startPlay,
   stopPlay,
@@ -147,7 +143,6 @@ export default function MapControls({
         </div>
       )}
 
-      <LayerToggleColumn layerSettings={layerSettings} />
     </>
   );
 }

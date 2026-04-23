@@ -17,6 +17,7 @@ import MapLayers from "@/components/map/MapLayers";
 import MapPopups from "@/components/map/MapPopups";
 import MapControls from "@/components/map/MapControls";
 import PointsLegend from "@/components/map/PointsLegend";
+import LayerToggleColumn from "@/components/map/LayerToggleColumn";
 
 export default function MapLibreMap({
   points,
@@ -322,10 +323,13 @@ export default function MapLibreMap({
         />
       </Map>
 
-      <PointsLegend
-        deviceColors={geoJSON.deviceColors}
-        hidePoints={layerSettings.hidePoints}
-      />
+      <div className="pointer-events-none absolute top-4 right-4 z-900 flex items-start gap-2">
+        <PointsLegend
+          deviceColors={geoJSON.deviceColors}
+          hidePoints={layerSettings.hidePoints}
+        />
+        <LayerToggleColumn layerSettings={layerSettings} />
+      </div>
 
       {/* Place hover tooltip */}
       {hoveredPlace && hoveredPlaceData && (
@@ -346,7 +350,6 @@ export default function MapLibreMap({
         mapRef={mapRef}
         points={points}
         pointsEnvelope={pointsEnvelope}
-        layerSettings={layerSettings}
         isPlaying={isPlaying}
         startPlay={startPlay}
         stopPlay={stopPlay}
