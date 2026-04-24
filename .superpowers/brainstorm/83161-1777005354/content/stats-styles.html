@@ -1,0 +1,165 @@
+<h2>Stats bar styles</h2>
+<p class="subtitle">How should the visit stats look in the filter bar?</p>
+
+<style>
+  .demo-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    padding: 8px 16px;
+    background: var(--surface, #f8fafc);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    margin-bottom: 6px;
+  }
+  .demo-bar .label-show {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-right: 8px;
+  }
+  .demo-btn {
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    background: #1e293b;
+    color: #fff;
+    cursor: default;
+  }
+  .demo-btn.ghost {
+    background: transparent;
+    color: #64748b;
+  }
+
+  /* Option A — plain text (current) */
+  .stats-plain {
+    margin-left: auto;
+    font-size: 11px;
+    color: #94a3b8;
+    white-space: nowrap;
+  }
+
+  /* Option B — pill badges */
+  .stats-pills {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+  .pill svg { flex-shrink: 0; }
+
+  /* Option C — structured with emphasis */
+  .stats-structured {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .stats-structured .stat-primary {
+    font-weight: 600;
+    color: #334155;
+  }
+  .stats-structured .stat-secondary {
+    color: #94a3b8;
+  }
+  .stats-structured .dot {
+    color: #cbd5e1;
+    margin: 0 5px;
+  }
+  .stats-structured .stat-time {
+    font-weight: 600;
+    color: #0f766e;
+  }
+</style>
+
+<div class="cards">
+
+  <!-- Option A: current plain text -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px 12px;">
+      <div class="demo-bar">
+        <span class="label-show">Show:</span>
+        <button class="demo-btn">All</button>
+        <button class="demo-btn ghost">Confirmed</button>
+        <button class="demo-btn ghost">Suggested</button>
+        <span class="stats-plain">5 visits · 2 yr (Jan 2024 – Apr 2026) · 14h 30m</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Plain text (current)</h3>
+      <p>Single muted string, no change needed. Simple but all runs together.</p>
+    </div>
+  </div>
+
+  <!-- Option B: pill badges -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px 12px;">
+      <div class="demo-bar">
+        <span class="label-show">Show:</span>
+        <button class="demo-btn">All</button>
+        <button class="demo-btn ghost">Confirmed</button>
+        <button class="demo-btn ghost">Suggested</button>
+        <div class="stats-pills">
+          <span class="pill">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+            5 visits
+          </span>
+          <span class="pill">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="12" height="11" rx="1"/><path d="M5 1v4M11 1v4M2 7h12"/></svg>
+            Jan 2024 – Apr 2026
+          </span>
+          <span class="pill">
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>
+            14h 30m
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Pill badges</h3>
+      <p>Each stat in its own chip with icon. Clearly separated, scannable at a glance.</p>
+    </div>
+  </div>
+
+  <!-- Option C: structured emphasis -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px 12px;">
+      <div class="demo-bar">
+        <span class="label-show">Show:</span>
+        <button class="demo-btn">All</button>
+        <button class="demo-btn ghost">Confirmed</button>
+        <button class="demo-btn ghost">Suggested</button>
+        <div class="stats-structured">
+          <span class="stat-primary">5 visits</span>
+          <span class="dot">·</span>
+          <span class="stat-secondary">Jan 2024 – Apr 2026</span>
+          <span class="dot">·</span>
+          <span class="stat-time">14h 30m total</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Structured emphasis</h3>
+      <p>Count and total time in bold, date range dimmed. Hierarchy without extra chrome.</p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px">Click a card to select, then tell me in the terminal.</p>
