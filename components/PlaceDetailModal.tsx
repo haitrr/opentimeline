@@ -11,7 +11,7 @@ import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import PlaceDetailHeader from "@/components/PlaceDetailHeader";
 import EditVisitModal from "@/components/EditVisitModal";
 import VisitCard, { type Visit } from "@/components/VisitCard";
-import { parseTimeMs, formatVisitSpan, gapToPx } from "@/lib/placeDetailUtils";
+import { parseTimeMs, gapToPx, formatDuration } from "@/lib/placeDetailUtils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,10 +99,20 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
 
   const visitStats = useMemo(() => {
     if (displayed.length === 0) return null;
-    if (displayed.length === 1) return `1 visit · ${format(new Date(displayed[0].arrivalAt), "MMM d, yyyy")}`;
+    const totalMin = displayed.reduce((sum, v) => {
+      const arr = new Date(v.arrivalAt).getTime();
+      const dep = new Date(v.departureAt).getTime();
+      return sum + Math.max(0, Math.round((dep - arr) / 60000));
+    }, 0);
+    const count = `${displayed.length} visit${displayed.length !== 1 ? "s" : ""}`;
+    const totalTime = totalMin > 0 ? formatDuration(totalMin) : null;
+    if (displayed.length === 1) {
+      return { count, dateRange: format(new Date(displayed[0].arrivalAt), "MMM d, yyyy"), totalTime };
+    }
     const newest = new Date(displayed[0].arrivalAt);
     const oldest = new Date(displayed[displayed.length - 1].arrivalAt);
-    return `${displayed.length} visits · ${formatVisitSpan(oldest, newest)} (${format(oldest, "MMM yyyy")} – ${format(newest, "MMM yyyy")})`;
+    const dateRange = `${format(oldest, "MMM yyyy")} – ${format(newest, "MMM yyyy")}`;
+    return { count, dateRange, totalTime };
   }, [displayed]);
 
   const scrubberSegments = useMemo<ScrollSegment[]>(() => {
@@ -170,7 +180,21 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                 {f === "all" ? "All" : f === "confirmed" ? "Confirmed" : "Suggested"}
               </Button>
             ))}
-            {visitStats && <span className="ml-auto text-xs text-muted-foreground">{visitStats}</span>}
+            {visitStats && (
+              <div className="ml-auto flex items-center gap-1.5">
+                <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                  {visitStats.count}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs text-violet-700 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300">
+                  {visitStats.dateRange}
+                </span>
+                {visitStats.totalTime && (
+                  <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                    {visitStats.totalTime}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Timeline */}

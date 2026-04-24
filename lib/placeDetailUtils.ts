@@ -41,9 +41,21 @@ export function formatGapMs(ms: number): string {
 
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  const totalHours = Math.floor(minutes / 60);
+  if (totalHours < 24) {
+    const m = minutes % 60;
+    return m === 0 ? `${totalHours}h` : `${totalHours}h ${m}m`;
+  }
+  const totalDays = Math.floor(minutes / 1440);
+  if (totalDays < 31) {
+    const remHours = Math.floor((minutes % 1440) / 60);
+    return remHours > 0 ? `${totalDays}d ${remHours}h` : `${totalDays}d`;
+  }
+  const totalMonths = Math.round(totalDays / 30.44);
+  if (totalMonths < 12) return `${totalMonths}mo`;
+  const years = Math.floor(totalMonths / 12);
+  const remMonths = totalMonths % 12;
+  return remMonths > 0 ? `${years}yr ${remMonths}mo` : `${years}yr`;
 }
 
 export function toDateTimeLocalValue(value: string): string {
