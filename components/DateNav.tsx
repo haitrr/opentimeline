@@ -47,8 +47,8 @@ export default function DateNav({
     const dateStr = format(d, "yyyy-MM-dd");
     const params =
       r2 !== "day"
-        ? `?range=${r2}${end ? `&end=${end}` : ""}&fit=1`
-        : `?fit=1`;
+        ? `?range=${r2}${end ? `&end=${end}` : ""}`
+        : "";
     router.push(`/timeline/${dateStr}${params}`);
   };
 

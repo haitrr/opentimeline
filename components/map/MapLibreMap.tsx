@@ -46,7 +46,7 @@ export default function MapLibreMap({
   const [hoveredPlace, setHoveredPlace] = useState<{ id: number; x: number; y: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lat: number; lon: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const autoFitAppliedForRangeKeyRef = useRef<string | null>(null);
+  const autoFitDoneRef = useRef(false);
 
   const internalLayerSettings = useLayerSettings();
   const layerSettings = layerSettingsProp ?? internalLayerSettings;
@@ -107,22 +107,18 @@ export default function MapLibreMap({
     };
   }, []);
 
-  // Auto-fit bounds on range change
+  // Auto-fit bounds only on initial load
   useEffect(() => {
-    if (!shouldAutoFit) {
-      autoFitAppliedForRangeKeyRef.current = null;
-      return;
-    }
-    if (!isMapLoaded || !rangeKey || !pointsEnvelope) return;
-    if (autoFitAppliedForRangeKeyRef.current === rangeKey) return;
+    if (!shouldAutoFit || autoFitDoneRef.current) return;
+    if (!isMapLoaded || !pointsEnvelope) return;
     const map = mapRef.current;
     if (!map) return;
     map.fitBounds(
       [[pointsEnvelope.minLon, pointsEnvelope.minLat], [pointsEnvelope.maxLon, pointsEnvelope.maxLat]],
       { padding: FIT_BOUNDS_PADDING, duration: 800, maxZoom: FIT_BOUNDS_MAX_ZOOM }
     );
-    autoFitAppliedForRangeKeyRef.current = rangeKey;
-  }, [shouldAutoFit, isMapLoaded, rangeKey, pointsEnvelope]);
+    autoFitDoneRef.current = true;
+  }, [shouldAutoFit, isMapLoaded, pointsEnvelope]);
 
   // Keep label layers on top after every render batch.
   // Guard: skip if place-labels is already the topmost layer, otherwise moveLayer()
