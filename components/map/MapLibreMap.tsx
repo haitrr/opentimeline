@@ -124,13 +124,17 @@ export default function MapLibreMap({
     autoFitAppliedForRangeKeyRef.current = rangeKey;
   }, [shouldAutoFit, isMapLoaded, rangeKey, pointsEnvelope]);
 
-  // Keep label layers on top after every render batch
+  // Keep label layers on top after every render batch.
+  // Guard: skip if place-labels is already the topmost layer, otherwise moveLayer()
+  // triggers a re-render that fires idle again, creating an infinite GPU loop.
   useEffect(() => {
     if (!isMapLoaded) return;
     const map = mapRef.current;
     if (!map) return;
     const bringLabelsToTop = () => {
       try {
+        const layers = map.getStyle()?.layers;
+        if (layers && layers[layers.length - 1]?.id === "place-labels") return;
         if (map.getLayer("uv-labels")) map.moveLayer("uv-labels");
         if (map.getLayer("place-labels")) map.moveLayer("place-labels");
       } catch { /* layer may not exist yet */ }
