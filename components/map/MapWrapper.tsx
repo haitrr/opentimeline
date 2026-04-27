@@ -120,7 +120,11 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   const points = locationsData?.points ?? EMPTY_POINTS;
   boundsIgnoredRef.current = locationsData?.boundsIgnored ?? false;
 
-  const { setConflicts, setStationarySuggestions, filters: activeFilters } = useDeviceFilters();
+  const { setConflicts, setStationarySuggestions, filters } = useDeviceFilters();
+  const activeFilters = filters.filter((f) => {
+    if (!rangeStart || !rangeEnd) return true;
+    return new Date(f.fromTime) <= new Date(rangeEnd) && new Date(f.toTime) >= new Date(rangeStart);
+  });
 
   useEffect(() => {
     setConflicts(detectConflicts(points));
