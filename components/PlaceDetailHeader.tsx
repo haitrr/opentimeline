@@ -185,8 +185,8 @@ export default function PlaceDetailHeader({ placeInfo, onClose, onPlaceUpdated, 
               disabled={togglingActive}
               className={`rounded border px-2.5 py-1 text-xs font-medium disabled:opacity-50 ${
                 placeInfo.isActive
-                  ? "border-gray-300 text-gray-600 hover:bg-gray-100"
-                  : "border-green-300 text-green-700 hover:bg-green-50"
+                  ? "border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950"
+                  : "border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-950"
               }`}
             >
               {placeInfo.isActive ? "Deactivate" : "Activate"}
@@ -194,13 +194,13 @@ export default function PlaceDetailHeader({ placeInfo, onClose, onPlaceUpdated, 
             <button
               onClick={handleDetectVisits}
               disabled={detecting || togglingActive}
-              className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+              className="rounded border border-blue-300 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950"
             >
               {detecting ? "Detecting…" : "Detect visits"}
             </button>
             <button
               onClick={() => setEditing(true)}
-              className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+              className="rounded border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800"
             >
               Edit
             </button>
