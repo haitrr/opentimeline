@@ -72,7 +72,7 @@ export default function FilterPreviewMap({ points, className }: Props) {
   }, [points]);
 
   return (
-    <div className={className} style={{ height: 250 }}>
+    <div className={className} style={{ height: "100%" }}>
       <Map
         ref={mapRef}
         initialViewState={initialViewState}

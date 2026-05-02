@@ -105,8 +105,8 @@ export default function CreateFilterDialog({ rangeStart, rangeEnd, onClose }: Pr
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-      <div className="max-h-[90vh] w-full overflow-hidden rounded-lg bg-white shadow-xl sm:max-w-2xl">
-        <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
+      <div className="flex h-[90vh] w-full flex-col overflow-hidden rounded-lg bg-white shadow-xl sm:w-[80vw] sm:max-w-none">
+        <div className="flex shrink-0 items-start justify-between border-b border-gray-200 px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-gray-900">Create Device Filter</h2>
             <p className="mt-0.5 text-xs text-gray-500">
@@ -122,61 +122,65 @@ export default function CreateFilterDialog({ rangeStart, rangeEnd, onClose }: Pr
           </button>
         </div>
 
-        <div className="space-y-4 overflow-y-auto px-5 py-4">
-          <div>
-            <p className="mb-2 text-xs text-gray-500">Time range</p>
-            <TimeRangeSlider
-              min={rangeStart}
-              max={rangeEnd}
-              value={[fromTime, toTime]}
-              onChange={(from, to) => {
-                setFromTime(from);
-                setToTime(to);
-              }}
-            />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="shrink-0 space-y-4 px-5 pt-4 pb-3">
+            <div>
+              <p className="mb-2 text-xs text-gray-500">Time range</p>
+              <TimeRangeSlider
+                min={rangeStart}
+                max={rangeEnd}
+                value={[fromTime, toTime]}
+                onChange={(from, to) => {
+                  setFromTime(from);
+                  setToTime(to);
+                }}
+              />
+            </div>
           </div>
 
           <FilterPreviewMap
             points={previewPoints}
-            className="overflow-hidden rounded border border-gray-200"
+            className="flex-1 min-h-0 mx-5 overflow-hidden rounded border border-gray-200"
           />
 
-          <div>
-            <p className="mb-1.5 text-xs text-gray-500">Show data from</p>
-            {availableDeviceIds.length === 0 ? (
-              <p className="text-xs text-gray-400">No devices found in this time range.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {availableDeviceIds.map((deviceId) => (
-                  <label
-                    key={deviceId}
-                    className="flex cursor-pointer items-center gap-2 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedDeviceIds.includes(deviceId)}
-                      onChange={() => toggleDevice(deviceId)}
-                      disabled={saving}
-                      className="h-4 w-4 rounded border-gray-300"
-                    />
-                    <span className="font-mono text-gray-900">{deviceId}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          <div className="shrink-0 space-y-4 px-5 pt-3 pb-4">
+            <div>
+              <p className="mb-1.5 text-xs text-gray-500">Show data from</p>
+              {availableDeviceIds.length === 0 ? (
+                <p className="text-xs text-gray-400">No devices found in this time range.</p>
+              ) : (
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                  {availableDeviceIds.map((deviceId) => (
+                    <label
+                      key={deviceId}
+                      className="flex cursor-pointer items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedDeviceIds.includes(deviceId)}
+                        onChange={() => toggleDevice(deviceId)}
+                        disabled={saving}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <span className="font-mono text-gray-900">{deviceId}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <div>
-            <label className="mb-1 block text-xs text-gray-500">Label (optional)</label>
-            <input
-              type="text"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="e.g. Left phone at home"
-              className="w-full rounded border border-gray-300 px-2 py-1.5 text-gray-900 focus:border-blue-500 focus:outline-none"
-              style={{ fontSize: "16px" }}
-              disabled={saving}
-            />
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Label (optional)</label>
+              <input
+                type="text"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="e.g. Left phone at home"
+                className="w-full rounded border border-gray-300 px-2 py-1.5 text-gray-900 focus:border-blue-500 focus:outline-none"
+                style={{ fontSize: "16px" }}
+                disabled={saving}
+              />
+            </div>
           </div>
         </div>
 
