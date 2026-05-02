@@ -1,5 +1,29 @@
 import { test, expect } from "@playwright/test";
 
+test("manual create filter dialog opens and closes", async ({ page }) => {
+  await page.goto("/timeline?date=all");
+
+  // Open the Device Filters panel
+  await page.getByRole("button", { name: /Device Filters/i }).click();
+
+  // The "Create filter" button should be visible
+  const createBtn = page.getByRole("button", { name: "+ Create filter" });
+  await expect(createBtn).toBeVisible();
+
+  // Open the dialog
+  await createBtn.click();
+
+  // Dialog should appear with expected elements
+  await expect(page.getByText("Create Device Filter")).toBeVisible();
+  await expect(page.getByPlaceholder("e.g. Left phone at home")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save filter" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeVisible();
+
+  // Cancel closes the dialog
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByText("Create Device Filter")).not.toBeVisible();
+});
+
 test("device filter CRUD via API", async ({ request }) => {
   // Create a filter
   const create = await request.post("/api/device-filters", {
