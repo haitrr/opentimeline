@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Map, { Source, Layer, type MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureCollection, Feature } from "geojson";
@@ -50,6 +50,16 @@ export default function FilterPreviewMap({ points, className }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const initialViewState = useMemo(() => computeInitialViewState(points), []);
 
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => setIsDark(root.classList.contains("dark"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => {
     if (points.length === 0) return;
     const lats = points.map((p) => p.lat);
@@ -66,7 +76,9 @@ export default function FilterPreviewMap({ points, className }: Props) {
       <Map
         ref={mapRef}
         initialViewState={initialViewState}
-        mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+        mapStyle={isDark
+          ? "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+          : "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
       >
