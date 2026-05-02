@@ -6,6 +6,7 @@ import { useDeviceFilters } from "@/components/DeviceFilterProvider";
 import type { SerializedDeviceFilter } from "@/components/DeviceFilterProvider";
 import ConflictResolutionDialog from "@/components/ConflictResolutionDialog";
 import EditFilterDialog from "@/components/EditFilterDialog";
+import CreateFilterDialog from "@/components/CreateFilterDialog";
 import type { ConflictRange } from "@/lib/conflict-detection";
 import type { StationarySuggestion } from "@/lib/stationary-detection";
 
@@ -46,6 +47,7 @@ export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: 
   const [resolvingStationary, setResolvingStationary] = useState<StationarySuggestion | null>(null);
   const [editingFilter, setEditingFilter] = useState<SerializedDeviceFilter | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [creatingFilter, setCreatingFilter] = useState(false);
 
   return (
     <>
@@ -141,9 +143,19 @@ export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: 
           )}
 
           <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Active Filters
-            </h3>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Active Filters
+              </h3>
+              {rangeStart && rangeEnd && (
+                <button
+                  onClick={() => setCreatingFilter(true)}
+                  className="rounded bg-blue-500 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-600"
+                >
+                  + Create filter
+                </button>
+              )}
+            </div>
             {visibleFilters.length === 0 ? (
               <p className="text-xs text-gray-400">No filters saved.</p>
             ) : (
@@ -231,6 +243,14 @@ export default function ConflictsPanel({ rangeStart, rangeEnd }: { rangeStart?: 
           filter={editingFilter}
           allDeviceIds={allDeviceIds}
           onClose={() => setEditingFilter(null)}
+        />
+      )}
+
+      {creatingFilter && rangeStart && rangeEnd && (
+        <CreateFilterDialog
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          onClose={() => setCreatingFilter(false)}
         />
       )}
     </>
