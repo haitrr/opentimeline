@@ -16,6 +16,8 @@ type PlaceRow = {
   radius: number;
   isActive: boolean;
   createdAt: Date;
+  parentId: number | null;
+  childCount: bigint | number;
   lastVisitAt: Date | null;
   confirmedVisits: bigint | number;
   totalVisits: bigint | number;
@@ -51,6 +53,12 @@ export async function GET(request: NextRequest) {
     !Number.isNaN(start.getTime()) &&
     !Number.isNaN(end.getTime());
 
+  const parentIdParam = sp.get("parentId");
+  const parentIdFilter: number | "root" =
+    parentIdParam === null
+      ? "root"
+      : Number.parseInt(parentIdParam, 10);
+
   const conditions: Prisma.Sql[] = [];
   if (minLat != null && maxLat != null && minLon != null && maxLon != null) {
     conditions.push(
@@ -62,6 +70,11 @@ export async function GET(request: NextRequest) {
   }
   if (q) {
     conditions.push(Prisma.sql`LOWER(p.name) LIKE ${"%" + q.toLowerCase() + "%"}`);
+  }
+  if (parentIdFilter === "root") {
+    conditions.push(Prisma.sql`p."parentId" IS NULL`);
+  } else {
+    conditions.push(Prisma.sql`p."parentId" = ${parentIdFilter}`);
   }
   const whereClause = conditions.length
     ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
@@ -85,10 +98,18 @@ export async function GET(request: NextRequest) {
       p.radius,
       p."isActive",
       p."createdAt",
+      p."parentId",
+      COALESCE(child_counts.child_count, 0) AS "childCount",
       last_confirmed.last_at AS "lastVisitAt",
       COALESCE(v_counts.confirmed, 0) AS "confirmedVisits",
       COALESCE(v_counts.total, 0) AS "totalVisits"
     FROM "Place" p
+    LEFT JOIN (
+      SELECT "parentId", COUNT(*) AS child_count
+      FROM "Place"
+      WHERE "parentId" IS NOT NULL
+      GROUP BY "parentId"
+    ) child_counts ON child_counts."parentId" = p.id
     LEFT JOIN (
       SELECT "placeId", MAX("departureAt") AS last_at
       FROM "Visit"
@@ -143,6 +164,8 @@ export async function GET(request: NextRequest) {
       radius: r.radius,
       isActive: r.isActive,
       createdAt: r.createdAt.toISOString(),
+      parentId: r.parentId,
+      childCount: Number(r.childCount),
       totalVisits: Number(r.totalVisits),
       confirmedVisits: Number(r.confirmedVisits),
       visitsInRange: inR.confirmed + inR.suggested,
@@ -157,13 +180,28 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, lat, lon, radius, supersedesVisitId } = body;
+  const { name, lat, lon, radius, supersedesVisitId, parentId } = body;
 
   if (!name || lat == null || lon == null) {
     return NextResponse.json(
       { error: "name, lat, and lon are required" },
       { status: 400 }
     );
+  }
+
+  const place = await prisma.place.create({
+    data: {
+      name: String(name),
+      lat: Number(lat),
+      lon: Number(lon),
+      radius: radius != null ? Number(radius) : 50,
+      ...(parentId != null ? { parentId: Number(parentId) } : {}),
+    },
+  });
+
+  // Sub-places are annotation-only — skip visit detection and unknown suggestion dismissal.
+  if (parentId != null) {
+    return NextResponse.json({ place }, { status: 201 });
   }
 
   let supersededVisit: {
@@ -181,15 +219,6 @@ export async function POST(request: NextRequest) {
       });
     }
   }
-
-  const place = await prisma.place.create({
-    data: {
-      name: String(name),
-      lat: Number(lat),
-      lon: Number(lon),
-      radius: radius != null ? Number(radius) : 50,
-    },
-  });
 
   // Dismiss any unknown visit suggestions whose cluster center falls within
   // the new place's radius, before running visit detection to avoid duplicates.

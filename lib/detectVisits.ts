@@ -8,6 +8,7 @@ export type PlaceData = {
   lon: number;
   radius: number;
   isActive: boolean;
+  childCount?: number;
   visitsInRange?: number;
   confirmedVisitsInRange?: number;
   suggestedVisitsInRange?: number;
@@ -482,7 +483,7 @@ export async function detectVisitsForAllPlaces(
   rangeStart?: Date,
   rangeEnd?: Date
 ): Promise<number> {
-  const places = await prisma.place.findMany({ where: { isActive: true } });
+  const places = await prisma.place.findMany({ where: { isActive: true, parentId: null } });
 
   // Fetch all points once and share across all places to avoid N separate DB queries.
   const dayBufferMs = 5 * 24 * 60 * 60 * 1000;

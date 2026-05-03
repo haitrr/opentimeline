@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
+import VisitSubPlacesPanel from "@/components/VisitSubPlacesPanel";
+import SubPlacesSection from "@/components/SubPlacesSection";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import PlaceDetailHeader from "@/components/PlaceDetailHeader";
@@ -40,6 +42,17 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
       if (!res.ok) return [];
       return res.json();
     },
+  });
+
+  const { data: subPlaces = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["places", "children", placeInfo.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/places?parentId=${placeInfo.id}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.places.map((p: { id: number; name: string }) => ({ id: p.id, name: p.name }));
+    },
+    enabled: (placeInfo.childCount ?? 0) > 0,
   });
 
   async function handleConfirm(visitId: number) {
@@ -225,22 +238,31 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                     );
                     const hasDateSeparator = yearChanges || monthChanges;
                     return (
-                      <VisitCard
-                        key={v.id}
-                        visit={v}
-                        gapPx={isLast ? 0 : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, hasDateSeparator)}
-                        gapMs={gapsMs[i] ?? NaN}
-                        hasDateSeparator={hasDateSeparator}
-                        nextYear={yearChanges && nextArrival ? nextArrival.getFullYear() : null}
-                        nextMonthLabel={monthChanges && nextArrival ? format(nextArrival, "MMM") : null}
-                        scrubberSegmentKey={monthChanges && nextArrival ? `m:${format(nextArrival, "yyyy-MM")}` : undefined}
-                        isLast={isLast}
-                        onConfirm={handleConfirm}
-                        onReject={handleReject}
-                        onEdit={setEditingVisit}
-                        onCreatePlace={openCreatePlaceForVisit}
-                        onViewDay={handleViewDay}
-                      />
+                      <div key={v.id}>
+                        <VisitCard
+                          visit={v}
+                          gapPx={isLast ? 0 : gapToPx(gapsMs[i] ?? NaN, minMs, maxMs, hasDateSeparator)}
+                          gapMs={gapsMs[i] ?? NaN}
+                          hasDateSeparator={hasDateSeparator}
+                          nextYear={yearChanges && nextArrival ? nextArrival.getFullYear() : null}
+                          nextMonthLabel={monthChanges && nextArrival ? format(nextArrival, "MMM") : null}
+                          scrubberSegmentKey={monthChanges && nextArrival ? `m:${format(nextArrival, "yyyy-MM")}` : undefined}
+                          isLast={isLast}
+                          onConfirm={handleConfirm}
+                          onReject={handleReject}
+                          onEdit={setEditingVisit}
+                          onCreatePlace={openCreatePlaceForVisit}
+                          onViewDay={handleViewDay}
+                        />
+                        {subPlaces.length > 0 && (
+                          <VisitSubPlacesPanel
+                            visitId={v.id}
+                            parentPlaceId={placeInfo.id}
+                            subPlaces={subPlaces}
+                            checkedSubPlaceIds={v.checkedSubPlaceIds ?? []}
+                          />
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -254,6 +276,12 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
               />
             )}
           </div>
+          <SubPlacesSection
+            parentPlaceId={placeInfo.id}
+            parentLat={placeInfo.lat}
+            parentLon={placeInfo.lon}
+            parentRadius={placeInfo.radius}
+          />
         </DialogContent>
       </Dialog>
 

@@ -12,6 +12,7 @@ export type Visit = {
   arrivalAt: string;
   departureAt: string;
   status: string;
+  checkedSubPlaceIds?: number[];
 };
 
 export type VisitCardProps = {

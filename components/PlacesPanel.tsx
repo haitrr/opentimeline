@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   useInfiniteQuery,
+  useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -39,8 +40,18 @@ export default function PlacesPanel() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sort, setSort] = useState<PlacesSort>(() => readSort());
   const [editingPlace, setEditingPlace] = useState<PlacePanelItem | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  function toggleExpand(id: number) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -75,6 +86,26 @@ export default function PlacesPanel() {
 
   const places = data?.pages.flatMap((p) => p.places) ?? [];
   const hasQuery = debouncedQuery.length > 0;
+
+  const expandedIdsSorted = [...expandedIds].sort().join(",");
+  const { data: childrenByParent } = useQuery<Record<number, PlacePanelItem[]>>({
+    queryKey: ["places", "children-map", expandedIdsSorted],
+    queryFn: async () => {
+      if (expandedIds.size === 0) return {};
+      const results: Record<number, PlacePanelItem[]> = {};
+      await Promise.all(
+        [...expandedIds].map(async (parentId) => {
+          const params = new URLSearchParams({ parentId: String(parentId) });
+          const res = await fetch(`/api/places?${params}`);
+          if (!res.ok) return;
+          const d = await res.json();
+          results[parentId] = d.places;
+        })
+      );
+      return results;
+    },
+    enabled: expandedIds.size > 0,
+  });
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -156,15 +187,35 @@ export default function PlacesPanel() {
       ) : (
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           <ul className="space-y-0.5 p-2">
-            {places.map((p) => (
-              <li key={p.id}>
-                <PlaceListItem
-                  place={p}
-                  onEdit={setEditingPlace}
-                  onDelete={handleDelete}
-                />
-              </li>
-            ))}
+            {places.flatMap((p) => {
+              const rows = [
+                <li key={p.id}>
+                  <PlaceListItem
+                    place={p}
+                    onEdit={setEditingPlace}
+                    onDelete={handleDelete}
+                    isExpanded={expandedIds.has(p.id)}
+                    onToggleExpand={p.childCount > 0 ? toggleExpand : undefined}
+                  />
+                </li>,
+              ];
+              if (expandedIds.has(p.id)) {
+                const children = childrenByParent?.[p.id] ?? [];
+                children.forEach((child) => {
+                  rows.push(
+                    <li key={child.id}>
+                      <PlaceListItem
+                        place={child}
+                        onEdit={setEditingPlace}
+                        onDelete={handleDelete}
+                        isChild
+                      />
+                    </li>
+                  );
+                });
+              }
+              return rows;
+            })}
           </ul>
           <div ref={sentinelRef} aria-hidden="true" className="h-4" />
           {isFetchingNextPage && (

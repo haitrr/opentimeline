@@ -18,6 +18,8 @@ const BASE: PlacePanelItem = {
   lon: 106.7,
   radius: 50,
   isActive: true,
+  parentId: null,
+  childCount: 0,
   totalVisits: 128,
   confirmedVisits: 128,
   visitsInRange: 128,

@@ -58,9 +58,18 @@ export async function GET(request: NextRequest) {
       place: {
         select: { id: true, name: true, lat: true, lon: true, radius: true },
       },
+      childVisits: {
+        select: { id: true, placeId: true },
+      },
     },
     orderBy: { arrivalAt: "asc" },
   });
 
-  return NextResponse.json(visits);
+  return NextResponse.json(
+    visits.map((v) => ({
+      ...v,
+      checkedSubPlaceIds: v.childVisits.map((c) => c.placeId),
+      childVisits: undefined,
+    }))
+  );
 }

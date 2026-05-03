@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Navigation, Copy, Trash2 } from "lucide-react";
+import { MapPin, Navigation, Copy, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import { formatRelative } from "@/lib/relativeTime";
 import { toast } from "sonner";
 
@@ -11,6 +11,8 @@ export type PlacePanelItem = {
   lon: number;
   radius: number;
   isActive: boolean;
+  parentId: number | null;
+  childCount: number;
   totalVisits: number;
   confirmedVisits: number;
   visitsInRange: number;
@@ -24,9 +26,12 @@ type Props = {
   place: PlacePanelItem;
   onEdit: (place: PlacePanelItem) => void;
   onDelete: (place: PlacePanelItem) => void;
+  isExpanded?: boolean;
+  onToggleExpand?: (id: number) => void;
+  isChild?: boolean;
 };
 
-export default function PlaceListItem({ place, onEdit, onDelete }: Props) {
+export default function PlaceListItem({ place, onEdit, onDelete, isExpanded, onToggleExpand, isChild }: Props) {
   const hasVisits = place.confirmedVisits > 0;
   const visitsLabel = hasVisits
     ? `${place.confirmedVisits} ${place.confirmedVisits === 1 ? "visit" : "visits"} · ${place.radius}m radius`
@@ -71,8 +76,22 @@ export default function PlaceListItem({ place, onEdit, onDelete }: Props) {
           onEdit(place);
         }
       }}
-      className="group relative flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 pr-28 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:pr-20"
+      className={`group relative flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-2 pr-28 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:pr-20 ${isChild ? "pl-8" : ""}`}
     >
+      {place.childCount > 0 && onToggleExpand && (
+        <button
+          type="button"
+          aria-label={isExpanded ? "Collapse sub-places" : "Expand sub-places"}
+          onClick={(e) => { e.stopPropagation(); onToggleExpand(place.id); }}
+          className="absolute left-0 top-2.5 rounded p-1 text-muted-foreground hover:text-foreground"
+        >
+          {isExpanded ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
+        </button>
+      )}
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
         <MapPin className="h-4 w-4" />
       </div>

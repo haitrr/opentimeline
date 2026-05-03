@@ -34,28 +34,36 @@ model Place {
   lat       Float
   lon       Float
   radius    Float    @default(50)
+  parentId  Int?
+  parent    Place?   @relation("PlaceChildren", fields: [parentId], references: [id])
+  children  Place[]  @relation("PlaceChildren")
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   visits    Visit[]
 
   @@index([lat, lon])
+  @@index([parentId])
 }
 
 model Visit {
-  id          Int      @id @default(autoincrement())
-  placeId     Int
-  place       Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
-  arrivalAt   DateTime
-  departureAt DateTime
-  status      String   @default("suggested")
-  pointCount  Int      @default(0)
-  createdAt   DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  placeId       Int
+  place         Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  parentVisitId Int?
+  parentVisit   Visit?   @relation("VisitChildren", fields: [parentVisitId], references: [id])
+  childVisits   Visit[]  @relation("VisitChildren")
+  arrivalAt     DateTime
+  departureAt   DateTime
+  status        String   @default("suggested")
+  pointCount    Int      @default(0)
+  createdAt     DateTime @default(now())
 
   @@index([placeId])
   @@index([status])
   @@index([placeId, status])
   @@index([arrivalAt])
   @@index([departureAt])
+  @@index([parentVisitId])
 }
 
 model UnknownVisitSuggestion {
