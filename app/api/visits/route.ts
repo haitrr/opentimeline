@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
   const visits = await prisma.visit.findMany({
     where: {
-      parentVisitId: null,
+      ...(!placeId ? { parentVisitId: null } : {}),
       ...(status ? { status } : {}),
       ...(placeId ? { placeId: parseInt(placeId, 10) } : {}),
       ...(start || end

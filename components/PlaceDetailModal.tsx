@@ -31,6 +31,7 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
   const [placeInfo, setPlaceInfo] = useState<PlaceData>(place);
   const [filter, setFilter] = useState<Filter>("all");
   const [editingVisit, setEditingVisit] = useState<Visit | null>(null);
+  const [nestedSubPlace, setNestedSubPlace] = useState<PlaceData | null>(null);
   const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<Visit | null>(null);
   const [creatingPlaceForVisitCentroid, setCreatingPlaceForVisitCentroid] = useState<{ lat: number; lon: number } | null>(null);
 
@@ -261,6 +262,14 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
             parentLat={placeInfo.lat}
             parentLon={placeInfo.lon}
             parentRadius={placeInfo.radius}
+            onOpenPlace={(sp) => setNestedSubPlace({
+              id: sp.id,
+              name: sp.name,
+              lat: placeInfo.lat,
+              lon: placeInfo.lon,
+              radius: placeInfo.radius,
+              isActive: true,
+            })}
           />
         </DialogContent>
       </Dialog>
@@ -280,6 +289,13 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
           placeInfo={placeInfo}
           onClose={() => setEditingVisit(null)}
           onSaved={() => setEditingVisit(null)}
+        />
+      )}
+
+      {nestedSubPlace && (
+        <PlaceDetailModal
+          place={nestedSubPlace}
+          onClose={() => setNestedSubPlace(null)}
         />
       )}
     </>

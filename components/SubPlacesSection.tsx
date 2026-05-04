@@ -14,6 +14,7 @@ type Props = {
   parentLat: number;
   parentLon: number;
   parentRadius: number;
+  onOpenPlace?: (sp: { id: number; name: string }) => void;
 };
 
 export default function SubPlacesSection({
@@ -21,6 +22,7 @@ export default function SubPlacesSection({
   parentLat,
   parentLon,
   parentRadius,
+  onOpenPlace,
 }: Props) {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
@@ -121,12 +123,17 @@ export default function SubPlacesSection({
         <ul className="space-y-1">
           {subPlaces.map((sp) => (
             <li key={sp.id} className="group flex items-center justify-between rounded px-2 py-1 hover:bg-muted">
-              <div>
-                <span className="text-sm">{sp.name}</span>
-                <span className="ml-2 text-xs text-muted-foreground">
+              <button
+                type="button"
+                className="flex items-baseline gap-2 text-left"
+                onClick={() => onOpenPlace?.(sp)}
+                disabled={!onOpenPlace}
+              >
+                <span className={`text-sm ${onOpenPlace ? "hover:underline cursor-pointer" : ""}`}>{sp.name}</span>
+                <span className="text-xs text-muted-foreground">
                   {sp.confirmedVisits} {sp.confirmedVisits === 1 ? "visit" : "visits"}
                 </span>
-              </div>
+              </button>
               <button
                 type="button"
                 aria-label={`Delete ${sp.name}`}
