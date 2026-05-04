@@ -17,6 +17,7 @@ type PlaceRow = {
   isActive: boolean;
   createdAt: Date;
   parentId: number | null;
+  parentName: string | null;
   childCount: bigint | number;
   lastVisitAt: Date | null;
   confirmedVisits: bigint | number;
@@ -54,10 +55,8 @@ export async function GET(request: NextRequest) {
     !Number.isNaN(end.getTime());
 
   const parentIdParam = sp.get("parentId");
-  const parentIdFilter: number | "root" =
-    parentIdParam === null
-      ? "root"
-      : Number.parseInt(parentIdParam, 10);
+  const parentIdFilter: number | null =
+    parentIdParam != null ? Number.parseInt(parentIdParam, 10) : null;
 
   const conditions: Prisma.Sql[] = [];
   if (minLat != null && maxLat != null && minLon != null && maxLon != null) {
@@ -71,9 +70,7 @@ export async function GET(request: NextRequest) {
   if (q) {
     conditions.push(Prisma.sql`LOWER(p.name) LIKE ${"%" + q.toLowerCase() + "%"}`);
   }
-  if (parentIdFilter === "root") {
-    conditions.push(Prisma.sql`p."parentId" IS NULL`);
-  } else {
+  if (parentIdFilter != null) {
     conditions.push(Prisma.sql`p."parentId" = ${parentIdFilter}`);
   }
   const whereClause = conditions.length
@@ -99,11 +96,13 @@ export async function GET(request: NextRequest) {
       p."isActive",
       p."createdAt",
       p."parentId",
+      parent.name AS "parentName",
       COALESCE(child_counts.child_count, 0) AS "childCount",
       last_confirmed.last_at AS "lastVisitAt",
       COALESCE(v_counts.confirmed, 0) AS "confirmedVisits",
       COALESCE(v_counts.total, 0) AS "totalVisits"
     FROM "Place" p
+    LEFT JOIN "Place" parent ON parent.id = p."parentId"
     LEFT JOIN (
       SELECT "parentId", COUNT(*) AS child_count
       FROM "Place"
@@ -165,6 +164,7 @@ export async function GET(request: NextRequest) {
       isActive: r.isActive,
       createdAt: r.createdAt.toISOString(),
       parentId: r.parentId,
+      parentName: r.parentName ?? null,
       childCount: Number(r.childCount),
       totalVisits: Number(r.totalVisits),
       confirmedVisits: Number(r.confirmedVisits),

@@ -19,6 +19,7 @@ const BASE: PlacePanelItem = {
   radius: 50,
   isActive: true,
   parentId: null,
+  parentName: null,
   childCount: 0,
   totalVisits: 128,
   confirmedVisits: 128,
