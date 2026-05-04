@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PlaceData } from "@/lib/detectVisits";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
-import VisitSubPlacesPanel from "@/components/VisitSubPlacesPanel";
 import SubPlacesSection from "@/components/SubPlacesSection";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
 import { fetchVisitCentroid } from "@/lib/visitCentroid";
@@ -42,17 +41,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
       if (!res.ok) return [];
       return res.json();
     },
-  });
-
-  const { data: subPlaces = [] } = useQuery<{ id: number; name: string }[]>({
-    queryKey: ["places", "children", placeInfo.id],
-    queryFn: async () => {
-      const res = await fetch(`/api/places?parentId=${placeInfo.id}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.places.map((p: { id: number; name: string }) => ({ id: p.id, name: p.name }));
-    },
-    enabled: (placeInfo.childCount ?? 0) > 0,
   });
 
   async function handleConfirm(visitId: number) {
@@ -254,14 +242,6 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
                           onCreatePlace={openCreatePlaceForVisit}
                           onViewDay={handleViewDay}
                         />
-                        {subPlaces.length > 0 && (
-                          <VisitSubPlacesPanel
-                            visitId={v.id}
-                            parentPlaceId={placeInfo.id}
-                            subPlaces={subPlaces}
-                            checkedSubPlaceIds={v.checkedSubPlaceIds ?? []}
-                          />
-                        )}
                       </div>
                     );
                   })}
