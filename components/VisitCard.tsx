@@ -13,6 +13,7 @@ export type Visit = {
   departureAt: string;
   status: string;
   checkedSubPlaceIds?: number[];
+  checkedSubPlaces?: { id: number; name: string }[];
 };
 
 export type VisitCardProps = {
@@ -134,6 +135,15 @@ export default function VisitCard({
             />
           </div>
           <FetchVisitPhotos arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
+          {v.checkedSubPlaces && v.checkedSubPlaces.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {v.checkedSubPlaces.map((sp) => (
+                <span key={sp.id} className="inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                  {sp.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

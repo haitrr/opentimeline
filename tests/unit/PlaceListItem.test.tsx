@@ -68,36 +68,40 @@ describe("PlaceListItem", () => {
     expect(screen.queryByText(/ago|Never|Yesterday/)).not.toBeInTheDocument();
   });
 
-  it("dispatches opentimeline:fly-to when the row is clicked", async () => {
-    const user = userEvent.setup();
-    render(<PlaceListItem place={BASE} onEdit={noop} onDelete={noop} />);
-    await user.click(screen.getByRole("button", { name: "Home" }));
-    expect(flyHandler).toHaveBeenCalledTimes(1);
-    const detail = (flyHandler.mock.calls[0][0] as CustomEvent).detail;
-    expect(detail).toEqual({ lat: BASE.lat, lon: BASE.lon });
-  });
-
-  it("dispatches fly-to on Enter key", () => {
-    render(<PlaceListItem place={BASE} onEdit={noop} onDelete={noop} />);
-    const row = screen.getByRole("button", { name: "Home" });
-    fireEvent.keyDown(row, { key: "Enter" });
-    expect(flyHandler).toHaveBeenCalledTimes(1);
-  });
-
-  it("dispatches fly-to on Space key", () => {
-    render(<PlaceListItem place={BASE} onEdit={noop} onDelete={noop} />);
-    const row = screen.getByRole("button", { name: "Home" });
-    fireEvent.keyDown(row, { key: " " });
-    expect(flyHandler).toHaveBeenCalledTimes(1);
-  });
-
-  it("edit button calls onEdit and does NOT dispatch fly-to", async () => {
+  it("calls onEdit when the row is clicked", async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();
     render(<PlaceListItem place={BASE} onEdit={onEdit} onDelete={noop} />);
-    await user.click(screen.getByRole("button", { name: /edit place/i }));
+    await user.click(screen.getByRole("button", { name: "Home" }));
     expect(onEdit).toHaveBeenCalledWith(BASE);
     expect(flyHandler).not.toHaveBeenCalled();
+  });
+
+  it("calls onEdit on Enter key", () => {
+    const onEdit = vi.fn();
+    render(<PlaceListItem place={BASE} onEdit={onEdit} onDelete={noop} />);
+    const row = screen.getByRole("button", { name: "Home" });
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(onEdit).toHaveBeenCalledWith(BASE);
+  });
+
+  it("calls onEdit on Space key", () => {
+    const onEdit = vi.fn();
+    render(<PlaceListItem place={BASE} onEdit={onEdit} onDelete={noop} />);
+    const row = screen.getByRole("button", { name: "Home" });
+    fireEvent.keyDown(row, { key: " " });
+    expect(onEdit).toHaveBeenCalledWith(BASE);
+  });
+
+  it("fly-to button dispatches opentimeline:fly-to and does NOT call onEdit", async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    render(<PlaceListItem place={BASE} onEdit={onEdit} onDelete={noop} />);
+    await user.click(screen.getByRole("button", { name: /fly to place/i }));
+    expect(flyHandler).toHaveBeenCalledTimes(1);
+    const detail = (flyHandler.mock.calls[0][0] as CustomEvent).detail;
+    expect(detail).toEqual({ lat: BASE.lat, lon: BASE.lon });
+    expect(onEdit).not.toHaveBeenCalled();
   });
 
   it("copy-coords writes to clipboard and shows a success toast", async () => {

@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
 
   const visits = await prisma.visit.findMany({
     where: {
+      parentVisitId: null,
       ...(status ? { status } : {}),
       ...(placeId ? { placeId: parseInt(placeId, 10) } : {}),
       ...(start || end
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
         select: { id: true, name: true, lat: true, lon: true, radius: true },
       },
       childVisits: {
-        select: { id: true, placeId: true },
+        select: { id: true, placeId: true, place: { select: { name: true } } },
       },
     },
     orderBy: { arrivalAt: "asc" },
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
     visits.map((v) => ({
       ...v,
       checkedSubPlaceIds: v.childVisits.map((c) => c.placeId),
+      checkedSubPlaces: v.childVisits.map((c) => ({ id: c.placeId, name: c.place.name })),
       childVisits: undefined,
     }))
   );

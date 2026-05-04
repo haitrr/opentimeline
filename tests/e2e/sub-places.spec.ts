@@ -7,8 +7,8 @@ test.describe("Sub-places", () => {
     // Open Places panel
     await page.getByRole("button", { name: /places/i }).first().click();
 
-    // Wait for places to load and click the first one
-    const firstPlaceItem = page.locator('[role="button"][aria-label]').first();
+    // Wait for places to load and click the first one (scope to list items to avoid nav buttons)
+    const firstPlaceItem = page.locator('li [role="button"][aria-label]').first();
     await firstPlaceItem.waitFor({ state: "visible", timeout: 10000 });
     await firstPlaceItem.click();
 
@@ -32,8 +32,9 @@ test.describe("Sub-places", () => {
     // Submit
     await page.locator('[role="dialog"]').getByRole("button", { name: /^add$/i }).last().click();
 
-    // The sub-place should appear in the list
-    await expect(page.locator('[role="dialog"]').getByText("H&M")).toBeVisible({ timeout: 5000 });
+    // The sub-place should appear in the "Places inside" section list
+    const placesInsideSection = page.locator('[role="dialog"]').filter({ hasText: /places inside/i }).last();
+    await expect(placesInsideSection.getByText("H&M").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("Places panel shows expand toggle for places with children", async ({ page }) => {

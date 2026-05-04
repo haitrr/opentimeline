@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
+import EditVisitModal from "@/components/EditVisitModal";
 import { fetchVisitCentroid } from "@/lib/visitCentroid";
 import type { ImmichPhoto } from "@/lib/immich";
 import DraggableScrollbar, { type ScrollSegment } from "@/components/DraggableScrollbar";
@@ -15,6 +16,8 @@ type KnownVisit = {
   arrivalAt: string;
   departureAt: string;
   status: string;
+  checkedSubPlaceIds?: number[];
+  checkedSubPlaces?: { id: number; name: string }[];
   place: { id: number; name: string; lat: number; lon: number };
 };
 
@@ -30,13 +33,6 @@ type UnknownVisit = {
 };
 
 type TimelineItem = KnownVisit | UnknownVisit;
-
-type NearbyPlaceOption = {
-  id: number;
-  name: string;
-  distanceM: number;
-};
-
 
 function durationLabel(arrival: string, departure: string): string {
   const mins = Math.round(
@@ -68,14 +64,6 @@ export default function TimelineSidebar({
   const [creatingPlaceForVisit, setCreatingPlaceForVisit] = useState<KnownVisit | null>(null);
   const [creatingPlaceForVisitCentroid, setCreatingPlaceForVisitCentroid] = useState<{ lat: number; lon: number } | null>(null);
   const [editingVisit, setEditingVisit] = useState<KnownVisit | null>(null);
-  const [editArrivalAt, setEditArrivalAt] = useState("");
-  const [editDepartureAt, setEditDepartureAt] = useState("");
-  const [editPlaceId, setEditPlaceId] = useState<number | null>(null);
-  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlaceOption[]>([]);
-  const [loadingNearbyPlaces, setLoadingNearbyPlaces] = useState(false);
-  const [editStatus, setEditStatus] = useState("suggested");
-  const [editError, setEditError] = useState<string | null>(null);
-  const [savingEdit, setSavingEdit] = useState(false);
 
   const [editingUnknown, setEditingUnknown] = useState<UnknownVisit | null>(null);
   const [editUnknownArrivalAt, setEditUnknownArrivalAt] = useState("");
@@ -267,124 +255,6 @@ export default function TimelineSidebar({
     queryClient.invalidateQueries({ queryKey: ["places"] });
   }
 
-  async function loadNearbyPlaces(visitId: number) {
-    setLoadingNearbyPlaces(true);
-    try {
-      const res = await fetch(`/api/visits/${visitId}/nearby-places`);
-      if (!res.ok) {
-        setNearbyPlaces([]);
-        return;
-      }
-      const data = await res.json();
-      setNearbyPlaces(Array.isArray(data.places) ? data.places : []);
-    } catch {
-      setNearbyPlaces([]);
-    } finally {
-      setLoadingNearbyPlaces(false);
-    }
-  }
-
-  function openEditVisit(visit: KnownVisit) {
-    setEditingVisit(visit);
-    setEditArrivalAt(toDateTimeLocalValue(visit.arrivalAt));
-    setEditDepartureAt(toDateTimeLocalValue(visit.departureAt));
-    setEditPlaceId(visit.place.id);
-    setNearbyPlaces([]);
-    setEditStatus(visit.status);
-    setEditError(null);
-    void loadNearbyPlaces(visit.id);
-  }
-
-  function closeEditVisit() {
-    setEditingVisit(null);
-    setEditArrivalAt("");
-    setEditDepartureAt("");
-    setEditPlaceId(null);
-    setNearbyPlaces([]);
-    setLoadingNearbyPlaces(false);
-    setEditStatus("suggested");
-    setEditError(null);
-    setSavingEdit(false);
-  }
-
-  async function saveVisitChanges() {
-    if (!editingVisit) return;
-
-    const arrivalDate = new Date(editArrivalAt);
-    const departureDate = new Date(editDepartureAt);
-
-    if (Number.isNaN(arrivalDate.getTime()) || Number.isNaN(departureDate.getTime())) {
-      setEditError("Arrival and departure time are required");
-      return;
-    }
-
-    if (departureDate.getTime() <= arrivalDate.getTime()) {
-      setEditError("Departure time must be after arrival time");
-      return;
-    }
-
-    if (editPlaceId == null) {
-      setEditError("Please select a place");
-      return;
-    }
-
-    setSavingEdit(true);
-    setEditError(null);
-    try {
-      const res = await fetch(`/api/visits/${editingVisit.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          placeId: editPlaceId,
-          arrivalAt: arrivalDate.toISOString(),
-          departureAt: departureDate.toISOString(),
-          status: editStatus,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setEditError(data.error ?? "Failed to update visit");
-        return;
-      }
-
-      closeEditVisit();
-      queryClient.invalidateQueries({ queryKey: ["visits"] });
-      queryClient.invalidateQueries({ queryKey: ["places"] });
-    } catch {
-      setEditError("Network error");
-    } finally {
-      setSavingEdit(false);
-    }
-  }
-
-  async function deleteVisit() {
-    if (!editingVisit) return;
-    const shouldDelete = window.confirm("Delete this visit? This action cannot be undone.");
-    if (!shouldDelete) return;
-
-    setSavingEdit(true);
-    setEditError(null);
-    try {
-      const res = await fetch(`/api/visits/${editingVisit.id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setEditError(data.error ?? "Failed to delete visit");
-        return;
-      }
-
-      closeEditVisit();
-      queryClient.invalidateQueries({ queryKey: ["visits"] });
-      queryClient.invalidateQueries({ queryKey: ["places"] });
-    } catch {
-      setEditError("Network error");
-    } finally {
-      setSavingEdit(false);
-    }
-  }
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -557,7 +427,7 @@ export default function TimelineSidebar({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            void openEditVisit(item);
+                            setEditingVisit(item);
                           }}
                           className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                           title="Edit visit"
@@ -592,6 +462,16 @@ export default function TimelineSidebar({
                         {durationLabel(item.arrivalAt, item.departureAt)}
                       </span>
                     </p>
+
+                    {item.kind === "known" && item.checkedSubPlaces && item.checkedSubPlaces.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {item.checkedSubPlaces.map((sp) => (
+                          <span key={sp.id} className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                            {sp.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     <LazyVisitPhotos
                       photos={photos}
@@ -764,116 +644,12 @@ export default function TimelineSidebar({
       )}
 
       {editingVisit && (
-        <div className="fixed inset-0 z-1000 flex items-end justify-center bg-black/40 p-2 sm:items-center sm:p-4">
-          <div className="max-h-[90vh] w-full overflow-hidden rounded-lg bg-white shadow-xl sm:max-w-md">
-            <div className="flex items-start justify-between border-b border-gray-200 px-5 py-4">
-              <div>
-                <h2 className="text-base font-semibold text-gray-900">Edit Visit</h2>
-                <p className="mt-0.5 text-xs text-gray-500">{editingVisit.place.name}</p>
-              </div>
-              <button
-                onClick={closeEditVisit}
-                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                disabled={savingEdit}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 overflow-y-auto px-5 py-4">
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Arrival</label>
-                <input
-                  type="datetime-local"
-                  value={editArrivalAt}
-                  onChange={(e) => setEditArrivalAt(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                  disabled={savingEdit}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Departure</label>
-                <input
-                  type="datetime-local"
-                  value={editDepartureAt}
-                  onChange={(e) => setEditDepartureAt(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                  disabled={savingEdit}
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Place</label>
-                <select
-                  value={editPlaceId != null ? String(editPlaceId) : ""}
-                  onChange={(e) =>
-                    setEditPlaceId(
-                      e.target.value ? Number(e.target.value) : null
-                    )
-                  }
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                  disabled={savingEdit || loadingNearbyPlaces}
-                >
-                  <option value="">Select nearby place</option>
-                  {nearbyPlaces.map((place) => (
-                    <option key={place.id} value={place.id}>
-                      {`${place.name} (${place.distanceM}m)`}
-                    </option>
-                  ))}
-                </select>
-                {loadingNearbyPlaces && (
-                  <p className="mt-1 text-xs text-gray-400">Loading nearby places…</p>
-                )}
-                {!loadingNearbyPlaces && nearbyPlaces.length === 0 && (
-                  <p className="mt-1 text-xs text-gray-400">No places found within 100m.</p>
-                )}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">Status</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
-                  disabled={savingEdit}
-                >
-                  <option value="suggested">Suggested</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-              </div>
-
-              {editError && <p className="text-xs text-red-600">{editError}</p>}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-5 py-3">
-              <button
-                onClick={deleteVisit}
-                className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-                disabled={savingEdit}
-              >
-                Delete
-              </button>
-              <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-                <button
-                  onClick={closeEditVisit}
-                  className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-                  disabled={savingEdit}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveVisitChanges}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                  disabled={savingEdit || !editArrivalAt || !editDepartureAt || editPlaceId == null}
-                >
-                  {savingEdit ? "Saving…" : "Save"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EditVisitModal
+          visit={editingVisit}
+          placeInfo={editingVisit.place}
+          onClose={() => setEditingVisit(null)}
+          onSaved={() => setEditingVisit(null)}
+        />
       )}
     </>
   );

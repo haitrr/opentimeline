@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import type { PlaceData } from "@/lib/detectVisits";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Visit } from "@/components/VisitCard";
+import VisitSubPlacesPanel from "@/components/VisitSubPlacesPanel";
 import { toDateTimeLocalValue } from "@/lib/placeDetailUtils";
 import {
   Dialog,
@@ -16,6 +16,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+type PlaceInfo = {
+  id: number;
+  name: string;
+};
+
 type NearbyPlaceOption = {
   id: number;
   name: string;
@@ -24,7 +29,7 @@ type NearbyPlaceOption = {
 
 type Props = {
   visit: Visit;
-  placeInfo: PlaceData;
+  placeInfo: PlaceInfo;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -39,6 +44,17 @@ export default function EditVisitModal({ visit, placeInfo, onClose, onSaved }: P
   const [saving, setSaving] = useState(false);
   const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlaceOption[]>([]);
   const [loadingNearbyPlaces, setLoadingNearbyPlaces] = useState(false);
+
+  const { data: subPlaces = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["places", "children", editPlaceId],
+    queryFn: async () => {
+      const res = await fetch(`/api/places?parentId=${editPlaceId}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.places.map((p: { id: number; name: string }) => ({ id: p.id, name: p.name }));
+    },
+    enabled: editPlaceId != null,
+  });
 
   useEffect(() => {
     void (async () => {
@@ -188,6 +204,15 @@ export default function EditVisitModal({ visit, placeInfo, onClose, onSaved }: P
               <option value="rejected">Rejected</option>
             </select>
           </div>
+
+          {subPlaces.length > 0 && editPlaceId != null && (
+            <VisitSubPlacesPanel
+              visitId={visit.id}
+              parentPlaceId={editPlaceId}
+              subPlaces={subPlaces}
+              checkedSubPlaceIds={visit.checkedSubPlaceIds ?? []}
+            />
+          )}
 
           {editVisitError && <p className="text-xs text-destructive">{editVisitError}</p>}
         </div>
