@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { $queryRaw: vi.fn() },
+  prisma: {
+    $queryRaw: vi.fn(),
+    deviceFilter: { findMany: vi.fn().mockResolvedValue([]) },
+  },
 }));
 
 import { GET } from "@/app/api/location-centroid/route";

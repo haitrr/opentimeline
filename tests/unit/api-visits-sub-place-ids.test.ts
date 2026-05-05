@@ -37,8 +37,8 @@ describe("GET /api/visits — checkedSubPlaceIds", () => {
       place: PLACE,
       parentVisitId: null,
       childVisits: [
-        { id: 20, placeId: 99 },
-        { id: 21, placeId: 100 },
+        { id: 20, placeId: 99, place: { name: "Sub A" } },
+        { id: 21, placeId: 100, place: { name: "Sub B" } },
       ],
     };
 
