@@ -48,7 +48,7 @@ export default async function TimelineDatePage({ params, searchParams }: Props) 
       <div className="border-b border-gray-200 px-4">
         <DateNav currentDate={date} range={rangeType} endDate={end} />
       </div>
-      <DailyStats stats={stats} range={rangeType} />
+      <DailyStats stats={stats} />
       <TimelineSidebar rangeStart={rangeStart} rangeEnd={rangeEnd} />
     </>
   );
