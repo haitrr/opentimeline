@@ -168,13 +168,30 @@ export function useMapGeoJSON(
             hasConfirmedInRange,
             hasSuggestedInRange,
             hasVisitsInRange: hasConfirmedInRange || hasSuggestedInRange,
-            hovered: p.id === hoveredPlaceId,
           },
         };
       }),
     }),
-    [places, showVisitedPlaces, hoveredPlaceId]
+    [places, showVisitedPlaces]
   );
+
+  const hoveredPlaceCircleGeoJSON = useMemo(() => {
+    const place = hoveredPlaceId != null ? places.find((p) => p.id === hoveredPlaceId) : null;
+    return {
+      type: "FeatureCollection" as const,
+      features: place
+        ? [{
+            type: "Feature" as const,
+            id: place.id,
+            geometry: geoCircle(place.lat, place.lon, place.radius),
+            properties: {
+              placeId: place.id,
+              hasConfirmedInRange: showVisitedPlaces && (place.confirmedVisitsInRange ?? 0) > 0,
+            },
+          }]
+        : [],
+    };
+  }, [places, showVisitedPlaces, hoveredPlaceId]);
 
   const placeDotsGeoJSON = useMemo(
     () => ({
@@ -192,13 +209,12 @@ export function useMapGeoJSON(
             hasConfirmedInRange,
             hasSuggestedInRange,
             hasVisitsInRange: hasConfirmedInRange || hasSuggestedInRange,
-            hovered: p.id === hoveredPlaceId,
             visitCount: (p.confirmedVisitsInRange ?? 0) + (p.suggestedVisitsInRange ?? 0),
           },
         };
       }),
     }),
-    [places, showVisitedPlaces, hoveredPlaceId]
+    [places, showVisitedPlaces]
   );
 
   const unknownVisitsGeoJSON = useMemo(
@@ -240,6 +256,7 @@ export function useMapGeoJSON(
     pointsGeoJSON,
     heatGeoJSON,
     placeCirclesGeoJSON,
+    hoveredPlaceCircleGeoJSON,
     placeDotsGeoJSON,
     unknownVisitsGeoJSON,
     photosGeoJSON,

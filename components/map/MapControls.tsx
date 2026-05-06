@@ -108,10 +108,19 @@ export default function MapControls({
                 return;
               }
               if (points.length === 0) return;
-              const lats = points.map((p) => p.lat);
-              const lons = points.map((p) => p.lon);
+              let minLat = points[0].lat;
+              let maxLat = points[0].lat;
+              let minLon = points[0].lon;
+              let maxLon = points[0].lon;
+              for (let index = 1; index < points.length; index++) {
+                const point = points[index];
+                minLat = Math.min(minLat, point.lat);
+                maxLat = Math.max(maxLat, point.lat);
+                minLon = Math.min(minLon, point.lon);
+                maxLon = Math.max(maxLon, point.lon);
+              }
               map.fitBounds(
-                [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+                [[minLon, minLat], [maxLon, maxLat]],
                 { padding: FIT_BOUNDS_PADDING, duration: 800, maxZoom: FIT_BOUNDS_MAX_ZOOM }
               );
             }}

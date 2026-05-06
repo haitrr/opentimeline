@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Map, { Marker, type MapRef, type MapLayerMouseEvent } from "react-map-gl/maplibre";
+import ReactMap, { Marker, type MapRef, type MapLayerMouseEvent } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { formatDistanceToNow } from "date-fns";
 import { haversineKm } from "@/lib/geo";
@@ -18,6 +18,19 @@ import MapPopups from "@/components/map/MapPopups";
 import MapControls from "@/components/map/MapControls";
 import PointsLegend from "@/components/map/PointsLegend";
 import LayerToggleColumn from "@/components/map/LayerToggleColumn";
+
+const INTERACTIVE_LAYER_IDS = [
+  "place-dot-circle-unvisited",
+  "place-dot-circle-visited",
+  "place-circle-fill",
+  "uv-fill",
+  "photo-circles",
+  "location-points",
+] as const;
+
+function existingInteractiveLayers(map: MapRef) {
+  return INTERACTIVE_LAYER_IDS.filter((id) => !!map.getLayer(id));
+}
 
 export default function MapLibreMap({
   points,
@@ -47,6 +60,9 @@ export default function MapLibreMap({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lat: number; lon: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const autoFitDoneRef = useRef(false);
+  const hoverFrameRef = useRef<number | null>(null);
+  const latestHoverPointRef = useRef<[number, number] | null>(null);
+  const cursorRef = useRef("");
 
   const internalLayerSettings = useLayerSettings();
   const layerSettings = layerSettingsProp ?? internalLayerSettings;
@@ -65,12 +81,20 @@ export default function MapLibreMap({
     [hoveredPlaceId, places]
   );
 
+  const placesById = useMemo(() => new Map(places.map((place) => [place.id, place])), [places]);
+  const unknownVisitsById = useMemo(() => new Map(unknownVisits.map((uv) => [uv.id, uv])), [unknownVisits]);
+  const photosById = useMemo(() => new Map(photos.map((photo) => [photo.id, photo])), [photos]);
+  const photosByTakenAt = useMemo(
+    () => [...photos].sort((a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime()),
+    [photos]
+  );
+
   const unknownVisitPopupPhotos = useMemo(() => {
     if (popup?.kind !== "unknownVisit") return [] as ImmichPhoto[];
     const start = new Date(popup.uv.arrivalAt).getTime();
     const end = new Date(popup.uv.departureAt).getTime();
     const { lat, lon } = popup.uv;
-    return photos
+    return photosByTakenAt
       .filter((photo) => {
         const takenAt = new Date(photo.takenAt).getTime();
         if (takenAt < start || takenAt > end) return false;
@@ -78,9 +102,8 @@ export default function MapLibreMap({
           return haversineKm(photo.lat, photo.lon, lat, lon) <= 0.5;
         }
         return true;
-      })
-      .sort((a, b) => new Date(a.takenAt).getTime() - new Date(b.takenAt).getTime());
-  }, [popup, photos]);
+      });
+  }, [popup, photosByTakenAt]);
 
   // Theme detection
   useEffect(() => {
@@ -140,6 +163,12 @@ export default function MapLibreMap({
     return () => { map.off("idle", bringLabelsToTop); };
   }, [isMapLoaded]);
 
+  useEffect(() => {
+    return () => {
+      if (hoverFrameRef.current != null) cancelAnimationFrame(hoverFrameRef.current);
+    };
+  }, []);
+
   const reportBounds = useCallback(() => {
     if (!onBoundsChange) return;
     const map = mapRef.current;
@@ -162,10 +191,7 @@ export default function MapLibreMap({
       if (!map) return;
       setContextMenu(null);
 
-      const candidateLayers = [
-        "place-dot-circle-unvisited", "place-dot-circle-visited", "place-circle-fill",
-        "uv-fill", "photo-circles", "location-points",
-      ].filter((id) => !!map.getLayer(id));
+      const candidateLayers = existingInteractiveLayers(map);
 
       const features = candidateLayers.length > 0
         ? map.queryRenderedFeatures(event.point, { layers: candidateLayers })
@@ -178,17 +204,17 @@ export default function MapLibreMap({
       const layerId = f.layer.id;
 
       if (layerId === "place-dot-circle-unvisited" || layerId === "place-dot-circle-visited" || layerId === "place-circle-fill") {
-        const place = places.find((p) => p.id === (f.properties?.placeId as number | undefined));
+        const place = placesById.get(Number(f.properties?.placeId));
         if (place) onPlaceClick?.(place);
         return;
       }
       if (layerId === "uv-fill") {
-        const uv = unknownVisits.find((u) => u.id === (f.properties as { uvId: number }).uvId);
+        const uv = unknownVisitsById.get(Number((f.properties as { uvId: number }).uvId));
         if (uv) setPopup({ kind: "unknownVisit", uv, lat: uv.lat, lon: uv.lon });
         return;
       }
       if (layerId === "photo-circles") {
-        const photo = photos.find((p) => p.id === (f.properties?.photoId as string | undefined));
+        const photo = photosById.get(String(f.properties?.photoId));
         if (photo) setPopup({ kind: "photo", photo, lat: photo.lat!, lon: photo.lon! });
         return;
       }
@@ -196,7 +222,7 @@ export default function MapLibreMap({
         setPopup({ kind: "point", point: f.properties as never, lat: event.lngLat.lat, lon: event.lngLat.lng });
       }
     },
-    [places, unknownVisits, photos, onPlaceClick]
+    [placesById, unknownVisitsById, photosById, onPlaceClick]
   );
 
   const handleContextMenu = useCallback((event: MapLayerMouseEvent) => {
@@ -207,31 +233,45 @@ export default function MapLibreMap({
   const handleMouseMove = useCallback((event: MapLayerMouseEvent) => {
     const map = mapRef.current;
     if (!map) return;
-    const candidateLayers = [
-      "place-dot-circle-unvisited", "place-dot-circle-visited", "place-circle-fill",
-      "uv-fill", "photo-circles", "location-points",
-    ].filter((id) => !!map.getLayer(id));
+    latestHoverPointRef.current = [event.point.x, event.point.y];
+    if (hoverFrameRef.current != null) return;
 
-    const features = candidateLayers.length > 0
-      ? map.queryRenderedFeatures(event.point, { layers: candidateLayers })
-      : [];
+    hoverFrameRef.current = requestAnimationFrame(() => {
+      hoverFrameRef.current = null;
+      const point = latestHoverPointRef.current;
+      const currentMap = mapRef.current;
+      if (!point || !currentMap) return;
 
-    map.getCanvas().style.cursor = features.length > 0 ? "pointer" : "";
-    const placeFeature = features.find(
-      (f) => f.layer.id === "place-dot-circle-unvisited" || f.layer.id === "place-dot-circle-visited" || f.layer.id === "place-circle-fill"
-    );
-    const newHoveredId = (placeFeature?.properties?.placeId as number | undefined) ?? null;
-    setHoveredPlace((prev) => {
-      if (newHoveredId === null) return null;
-      if (prev?.id === newHoveredId && prev.x === event.point.x && prev.y === event.point.y) return prev;
-      return { id: newHoveredId, x: event.point.x, y: event.point.y };
+      const candidateLayers = existingInteractiveLayers(currentMap);
+      const features = candidateLayers.length > 0
+        ? currentMap.queryRenderedFeatures(point, { layers: candidateLayers })
+        : [];
+      const cursor = features.length > 0 ? "pointer" : "";
+      if (cursorRef.current !== cursor) {
+        currentMap.getCanvas().style.cursor = cursor;
+        cursorRef.current = cursor;
+      }
+
+      const placeFeature = features.find(
+        (f) => f.layer.id === "place-dot-circle-unvisited" || f.layer.id === "place-dot-circle-visited" || f.layer.id === "place-circle-fill"
+      );
+      const newHoveredId = placeFeature?.properties?.placeId != null ? Number(placeFeature.properties.placeId) : null;
+      setHoveredPlace((prev) => {
+        if (newHoveredId === null) return prev === null ? prev : null;
+        if (prev?.id === newHoveredId && prev.x === point[0] && prev.y === point[1]) return prev;
+        return { id: newHoveredId, x: point[0], y: point[1] };
+      });
     });
   }, []);
 
   const handleMouseLeave = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
+    if (hoverFrameRef.current != null) cancelAnimationFrame(hoverFrameRef.current);
+    hoverFrameRef.current = null;
+    latestHoverPointRef.current = null;
     map.getCanvas().style.cursor = "";
+    cursorRef.current = "";
     setHoveredPlace(null);
   }, []);
 
@@ -269,7 +309,7 @@ export default function MapLibreMap({
 
   return (
     <div className="relative h-full w-full">
-      <Map
+      <ReactMap
         ref={mapRef}
         mapStyle={mapStyle}
         initialViewState={initialViewState}
@@ -291,6 +331,7 @@ export default function MapLibreMap({
           heatGeoJSON={geoJSON.heatGeoJSON}
           pointsGeoJSON={geoJSON.pointsGeoJSON}
           placeCirclesGeoJSON={geoJSON.placeCirclesGeoJSON}
+          hoveredPlaceCircleGeoJSON={geoJSON.hoveredPlaceCircleGeoJSON}
           placeDotsGeoJSON={geoJSON.placeDotsGeoJSON}
           unknownVisitsGeoJSON={geoJSON.unknownVisitsGeoJSON}
           photosGeoJSON={geoJSON.photosGeoJSON}
@@ -321,7 +362,7 @@ export default function MapLibreMap({
           playTimestamp={playTimestamp}
           playTimestampFmt={playTimestampFmt}
         />
-      </Map>
+      </ReactMap>
 
       <div className="pointer-events-none absolute top-4 right-4 z-900 flex items-start gap-2">
         <PointsLegend

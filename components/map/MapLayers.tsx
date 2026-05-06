@@ -14,6 +14,7 @@ type Props = {
   heatGeoJSON: GeoJSONData;
   pointsGeoJSON: GeoJSONData;
   placeCirclesGeoJSON: GeoJSONData;
+  hoveredPlaceCircleGeoJSON: GeoJSONData;
   placeDotsGeoJSON: GeoJSONData;
   unknownVisitsGeoJSON: GeoJSONData;
   photosGeoJSON: GeoJSONData;
@@ -31,6 +32,7 @@ export default function MapLayers({
   heatGeoJSON,
   pointsGeoJSON,
   placeCirclesGeoJSON,
+  hoveredPlaceCircleGeoJSON,
   placeDotsGeoJSON,
   unknownVisitsGeoJSON,
   photosGeoJSON,
@@ -118,7 +120,7 @@ export default function MapLayers({
           id="place-circle-fill"
           type="fill"
           layout={{ visibility: vis(showVisitedPlaces) }}
-          filter={["any", ["get", "hasVisitsInRange"], ["get", "hovered"]]}
+          filter={["get", "hasVisitsInRange"]}
           paint={{
             "fill-color": ["case", ["get", "hasConfirmedInRange"], "#22c55e", "#a855f7"],
             "fill-opacity": ["case", ["get", "hasConfirmedInRange"], 0.2, 0.15],
@@ -128,7 +130,7 @@ export default function MapLayers({
           id="place-circle-solid-outline"
           type="line"
           layout={{ visibility: vis(showVisitedPlaces) }}
-          filter={["any", ["get", "hasConfirmedInRange"], ["get", "hovered"]]}
+          filter={["get", "hasConfirmedInRange"]}
           paint={{
             "line-color": ["case", ["get", "hasConfirmedInRange"], "#16a34a", "#7e22ce"],
             "line-width": 2,
@@ -141,12 +143,33 @@ export default function MapLayers({
           filter={["all",
             ["get", "hasSuggestedInRange"],
             ["!", ["get", "hasConfirmedInRange"]],
-            ["!", ["get", "hovered"]],
           ]}
           paint={{
             "line-color": "#7e22ce",
             "line-width": 2,
             "line-dasharray": [6, 6],
+          }}
+        />
+      </Source>
+
+      {/* Hovered place radius */}
+      <Source id="hovered-place-circle" type="geojson" data={hoveredPlaceCircleGeoJSON}>
+        <Layer
+          id="hovered-place-circle-fill"
+          type="fill"
+          layout={{ visibility: vis(showVisitedPlaces) }}
+          paint={{
+            "fill-color": ["case", ["get", "hasConfirmedInRange"], "#22c55e", "#a855f7"],
+            "fill-opacity": ["case", ["get", "hasConfirmedInRange"], 0.2, 0.15],
+          }}
+        />
+        <Layer
+          id="hovered-place-circle-outline"
+          type="line"
+          layout={{ visibility: vis(showVisitedPlaces) }}
+          paint={{
+            "line-color": ["case", ["get", "hasConfirmedInRange"], "#16a34a", "#7e22ce"],
+            "line-width": 2,
           }}
         />
       </Source>

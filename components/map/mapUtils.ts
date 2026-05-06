@@ -41,12 +41,21 @@ export function geoCircle(
 
 export function computeInitialViewState(points: SerializedPoint[]) {
   if (points.length === 0) return { longitude: 0, latitude: 20, zoom: 2 };
-  const lats = points.map((p) => p.lat);
-  const lons = points.map((p) => p.lon);
+  let minLat = points[0].lat;
+  let maxLat = points[0].lat;
+  let minLon = points[0].lon;
+  let maxLon = points[0].lon;
+  for (let index = 1; index < points.length; index++) {
+    const point = points[index];
+    minLat = Math.min(minLat, point.lat);
+    maxLat = Math.max(maxLat, point.lat);
+    minLon = Math.min(minLon, point.lon);
+    maxLon = Math.max(maxLon, point.lon);
+  }
   return {
     bounds: [
-      [Math.min(...lons), Math.min(...lats)],
-      [Math.max(...lons), Math.max(...lats)],
+      [minLon, minLat],
+      [maxLon, maxLat],
     ] as [[number, number], [number, number]],
     fitBoundsOptions: { padding: 40 },
   };
