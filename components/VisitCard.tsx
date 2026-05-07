@@ -61,7 +61,7 @@ type VisitActionsProps = {
 
 function VisitActions({ visit: v, isSuggested, onConfirm, onReject, onEdit, onCreatePlace, onViewDay }: VisitActionsProps) {
   return (
-    <div className="flex shrink-0 flex-col items-end gap-1.5">
+    <div className="flex flex-wrap items-center gap-1 sm:shrink-0 sm:flex-col sm:flex-nowrap sm:items-end sm:gap-1.5">
       <div className="flex items-center gap-1">
         <Badge variant={isSuggested ? "warning" : "success"}>
           {isSuggested ? "Suggested" : "Confirmed"}
@@ -74,15 +74,13 @@ function VisitActions({ visit: v, isSuggested, onConfirm, onReject, onEdit, onCr
         </Button>
       </div>
       {isSuggested && (
-        <div className="flex items-end gap-1">
-          <div className="flex items-center gap-1">
-            <Button size="sm" className="h-6 px-2 text-xs" onClick={() => onConfirm(v.id)}>
-              Confirm
-            </Button>
-            <Button variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => onReject(v.id)}>
-              Reject
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-center gap-1">
+          <Button size="sm" className="h-6 px-2 text-xs" onClick={() => onConfirm(v.id)}>
+            Confirm
+          </Button>
+          <Button variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => onReject(v.id)}>
+            Reject
+          </Button>
           <Button size="sm" className="h-6 bg-amber-500 px-2 text-xs hover:bg-amber-600" onClick={() => onCreatePlace(v)}>
             Create Place
           </Button>
@@ -122,7 +120,7 @@ export default function VisitCard({
           style={{ marginLeft: 10 }}
         />
         <div className="flex-1 rounded-lg border bg-card px-3 py-2.5 shadow-sm transition-shadow hover:shadow-md">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <VisitMeta arrival={arrival} departure={departure} durationMin={durationMin} />
             <VisitActions
               visit={v}

@@ -124,6 +124,7 @@ export default function PlaceDetailHeader({ placeInfo, onClose, onPlaceUpdated, 
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               className="w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+              style={{ fontSize: 16 }}
               autoFocus
             />
             <div className="flex items-center gap-2">
@@ -134,6 +135,7 @@ export default function PlaceDetailHeader({ placeInfo, onClose, onPlaceUpdated, 
                 onChange={(e) => setRadiusInput(Number(e.target.value))}
                 min={1}
                 className="w-24 rounded border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:border-blue-500 focus:outline-none"
+                style={{ fontSize: 16 }}
               />
             </div>
           </div>

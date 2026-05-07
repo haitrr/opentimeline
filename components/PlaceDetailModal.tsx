@@ -169,21 +169,23 @@ export default function PlaceDetailModal({ place, onClose }: Props) {
           />
 
           {/* Filter */}
-          <div className="flex flex-wrap items-center gap-1 border-b border px-4 py-2 sm:px-5">
-            <span className="mr-2 text-xs text-muted-foreground">Show:</span>
-            {(["all", "confirmed", "suggested"] as const).map((f) => (
-              <Button
-                key={f}
-                variant={filter === f ? "default" : "ghost"}
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setFilter(f)}
-              >
-                {f === "all" ? "All" : f === "confirmed" ? "Confirmed" : "Suggested"}
-              </Button>
-            ))}
+          <div className="flex flex-col gap-1 border-b border px-4 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-1 sm:px-5">
+            <div className="flex items-center gap-1">
+              <span className="mr-2 text-xs text-muted-foreground">Show:</span>
+              {(["all", "confirmed", "suggested"] as const).map((f) => (
+                <Button
+                  key={f}
+                  variant={filter === f ? "default" : "ghost"}
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setFilter(f)}
+                >
+                  {f === "all" ? "All" : f === "confirmed" ? "Confirmed" : "Suggested"}
+                </Button>
+              ))}
+            </div>
             {visitStats && (
-              <div className="ml-auto flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
                 <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
                   {visitStats.count}
                 </span>
