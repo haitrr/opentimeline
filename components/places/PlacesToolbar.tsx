@@ -9,12 +9,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export type PlacesSort = "recent" | "visits" | "name";
+export type PlacesSort = "recent" | "visits" | "name" | "time_spent";
 
 const SORT_LABELS: Record<PlacesSort, string> = {
   recent: "Recent activity",
   visits: "Most visits",
   name: "Name A–Z",
+  time_spent: "Most time spent",
 };
 
 type Props = {
@@ -60,6 +61,7 @@ export default function PlacesToolbar({
           <SelectContent alignItemWithTrigger={false} sideOffset={4}>
             <SelectItem value="recent">Recent activity</SelectItem>
             <SelectItem value="visits">Most visits</SelectItem>
+            <SelectItem value="time_spent">Most time spent</SelectItem>
             <SelectItem value="name">Name A–Z</SelectItem>
           </SelectContent>
         </Select>

@@ -5,7 +5,7 @@ import { haversineKm } from "@/lib/geo";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 10000;
-const VALID_SORTS = ["recent", "visits", "name"] as const;
+const VALID_SORTS = ["recent", "visits", "name", "time_spent"] as const;
 type Sort = (typeof VALID_SORTS)[number];
 
 type PlaceRow = {
@@ -82,6 +82,8 @@ export async function GET(request: NextRequest) {
     orderBy = Prisma.sql`p.name ASC, p.id DESC`;
   } else if (sort === "visits") {
     orderBy = Prisma.sql`v_counts.confirmed DESC NULLS LAST, p.id DESC`;
+  } else if (sort === "time_spent") {
+    orderBy = Prisma.sql`time_spent_agg.total_seconds DESC NULLS LAST, p.id DESC`;
   } else {
     orderBy = Prisma.sql`last_confirmed.last_at DESC NULLS LAST, p.id DESC`;
   }
@@ -123,6 +125,12 @@ export async function GET(request: NextRequest) {
       FROM "Visit"
       GROUP BY "placeId"
     ) v_counts ON v_counts."placeId" = p.id
+    LEFT JOIN (
+      SELECT "placeId", SUM(EXTRACT(EPOCH FROM ("departureAt" - "arrivalAt"))) AS total_seconds
+      FROM "Visit"
+      WHERE status = 'confirmed'
+      GROUP BY "placeId"
+    ) time_spent_agg ON time_spent_agg."placeId" = p.id
     ${whereClause}
     ORDER BY ${orderBy}
     LIMIT ${limit + 1} OFFSET ${offset}

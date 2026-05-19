@@ -84,6 +84,8 @@ function paginatedFor(rawUrl: string): Response {
     places.sort((a, b) => b.confirmedVisits - a.confirmedVisits);
   } else if (sort === "name") {
     places.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sort === "time_spent") {
+    // mock: no timeSpentSeconds in fixture, leave order as-is
   } else {
     places.sort((a, b) => {
       const ta = a.lastVisitAt ? new Date(a.lastVisitAt).getTime() : -Infinity;
@@ -207,6 +209,21 @@ describe("PlacesPanel", () => {
         global.fetch as ReturnType<typeof vi.fn>
       ).mock.calls.map((c) => String(c[0]));
       expect(calls.some((u) => u.includes("sort=name"))).toBe(true);
+    });
+  });
+
+  it("shows Most time spent option and sends sort=time_spent to API", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("Home");
+    await user.click(screen.getByLabelText("Sort places"));
+    await user.click(await screen.findByRole("option", { name: "Most time spent" }));
+    expect(localStorage.getItem("places.sort")).toBe("time_spent");
+    await waitFor(() => {
+      const calls = (
+        global.fetch as ReturnType<typeof vi.fn>
+      ).mock.calls.map((c) => String(c[0]));
+      expect(calls.some((u) => u.includes("sort=time_spent"))).toBe(true);
     });
   });
 

@@ -23,6 +23,7 @@ describe("PlacesToolbar", () => {
   it.each([
     ["visits", "Most visits"],
     ["name", "Name A–Z"],
+    ["time_spent", "Most time spent"],
   ] as const)("maps sort=%s to label %s", (sort, label) => {
     render(
       <PlacesToolbar
