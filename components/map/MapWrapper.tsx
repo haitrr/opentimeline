@@ -67,7 +67,11 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   const [updatingPlaceMove, setUpdatingPlaceMove] = useState(false);
   const [placeMoveError, setPlaceMoveError] = useState<string | null>(null);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
-  const [locationsBounds, setLocationsBounds] = useState<MapBounds | null>(null);
+  // Start with world bounds so the fetch fires immediately in parallel with map tile loading.
+  // The skipBoundsIfSmall param means bounds are ignored for small ranges anyway.
+  const [locationsBounds, setLocationsBounds] = useState<MapBounds>({
+    minLat: -90, maxLat: 90, minLon: -180, maxLon: 180,
+  });
   const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const boundsIgnoredRef = useRef(false);
 
@@ -88,14 +92,13 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
       setLocationsBounds((prev) => {
         // When the server returned the full time-range unbounded, any bounds change
         // would refetch identical point data — skip it to avoid a visible re-render.
-        if (prev !== null && boundsIgnoredRef.current) return prev;
+        if (boundsIgnoredRef.current) return prev;
         return snapped;
       });
     }, 100);
   }, []);
 
-  const locationsEnabled =
-    locationsBounds !== null && Boolean(rangeStart) && Boolean(rangeEnd);
+  const locationsEnabled = Boolean(rangeStart) && Boolean(rangeEnd);
 
   const { data: locationsData } = useQuery<LocationsResponse>({
     queryKey: ["locations", rangeStart, rangeEnd, locationsBounds],

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { DECIMATION_THRESHOLD, haversineKmSql } from "@/lib/locations";
+import { DECIMATION_THRESHOLD, UNBOUNDED_DECIMATION_THRESHOLD, haversineKmSql } from "@/lib/locations";
 import { buildDeviceFilterSql } from "@/lib/device-filters";
 
 type PointRow = {
@@ -40,6 +40,8 @@ function parseBool(raw: string | null): boolean {
 }
 
 
+const CACHE_HEADERS = { "Cache-Control": "private, max-age=30" };
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -74,7 +76,7 @@ export async function GET(request: Request) {
     `;
     const timeTotal = Number(timeCountRows[0]?.total ?? BigInt(0));
 
-    if (timeTotal <= DECIMATION_THRESHOLD) {
+    if (timeTotal <= UNBOUNDED_DECIMATION_THRESHOLD) {
       const rows = await prisma.$queryRaw<PointRow[]>`
         SELECT ${selectCols}
         FROM "LocationPoint"
@@ -87,7 +89,7 @@ export async function GET(request: Request) {
         decimated: false,
         boundsIgnored: true,
         total: timeTotal,
-      });
+      }, { headers: CACHE_HEADERS });
     }
   }
 
@@ -98,21 +100,25 @@ export async function GET(request: Request) {
     AND ${deviceFilterSql}
   `;
 
-  const countRows = await prisma.$queryRaw<{ total: bigint; total_km: number | null }[]>`
-    WITH lagged AS (
-      SELECT lat, lon,
-        LAG(lat) OVER (ORDER BY tst) AS prev_lat,
-        LAG(lon) OVER (ORDER BY tst) AS prev_lon
-      FROM "LocationPoint"
-      WHERE ${where}
-    )
-    SELECT
-      COUNT(*)::bigint AS total,
-      COALESCE(SUM(${haversineKmSql}), 0)::double precision AS total_km
-    FROM lagged;
+  const countRows = await prisma.$queryRaw<{ total: bigint }[]>`
+    SELECT COUNT(*)::bigint AS total FROM "LocationPoint" WHERE ${where};
   `;
   const total = Number(countRows[0]?.total ?? BigInt(0));
-  const totalKm = Number(countRows[0]?.total_km ?? 0);
+
+  let totalKm = 0;
+  if (total > DECIMATION_THRESHOLD) {
+    const distRows = await prisma.$queryRaw<{ total_km: number | null }[]>`
+      WITH lagged AS (
+        SELECT lat, lon,
+          LAG(lat) OVER (ORDER BY tst) AS prev_lat,
+          LAG(lon) OVER (ORDER BY tst) AS prev_lon
+        FROM "LocationPoint"
+        WHERE ${where}
+      )
+      SELECT COALESCE(SUM(${haversineKmSql}), 0)::double precision AS total_km FROM lagged;
+    `;
+    totalKm = Number(distRows[0]?.total_km ?? 0);
+  }
 
   const STATIONARY_EPSILON_KM = 0.001;
 
@@ -135,7 +141,7 @@ export async function GET(request: Request) {
         decimated: true,
         boundsIgnored: false,
         total,
-      });
+      }, { headers: CACHE_HEADERS });
     }
 
     const bucketKm = totalKm / DECIMATION_THRESHOLD;
@@ -169,7 +175,7 @@ export async function GET(request: Request) {
       decimated: true,
       boundsIgnored: false,
       total,
-    });
+    }, { headers: CACHE_HEADERS });
   }
 
   const rows = await prisma.$queryRaw<PointRow[]>`
@@ -184,7 +190,7 @@ export async function GET(request: Request) {
     decimated: false,
     boundsIgnored: false,
     total,
-  });
+  }, { headers: CACHE_HEADERS });
 }
 
 function serializeRow(r: PointRow) {

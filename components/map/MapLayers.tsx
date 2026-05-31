@@ -82,6 +82,7 @@ export default function MapLayers({
         <Layer
           id="path-arrows"
           type="symbol"
+          minzoom={11}
           layout={{
             visibility: vis(showLine && pointCount > 1),
             "symbol-placement": "line",
@@ -179,6 +180,7 @@ export default function MapLayers({
         <Layer
           id="location-points"
           type="circle"
+          minzoom={12}
           layout={{ visibility: vis(!hidePoints) }}
           paint={{
             "circle-radius": ["case", ["any", ["get", "isFirst"], ["get", "isLast"]], 6, 4],

@@ -25,7 +25,7 @@ export function geoCircle(
   lat: number,
   lon: number,
   radiusM: number,
-  steps = 64
+  steps = 32
 ): { type: "Polygon"; coordinates: [number, number][][] } {
   const coords: [number, number][] = [];
   const earthR = 6371000;

@@ -4,6 +4,7 @@ import type { DailyStats } from "@/lib/groupByHour";
 import { assembleStats, type StatsGlobalsRow, type StatsBucketRow } from "@/lib/stats";
 
 export const DECIMATION_THRESHOLD = 20_000;
+export const UNBOUNDED_DECIMATION_THRESHOLD = 50_000;
 
 export const haversineKmExprSql = Prisma.sql`
   2 * 6371 * asin(sqrt(
