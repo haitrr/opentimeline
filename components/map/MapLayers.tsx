@@ -50,19 +50,29 @@ export default function MapLayers({
           layout={{ visibility: vis(showHeatmap) }}
           paint={{
             "heatmap-weight": ["interpolate", ["linear"], ["get", "weight"], 0, 0, 2, 1],
-            "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 8, 0.45, 11, 0.9, 14, 1.8],
-            "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 8, 5, 11, 7, 14, 12],
-            "heatmap-color": [
-              "interpolate",
-              ["linear"],
-              ["heatmap-density"],
-              0, "rgba(0,0,255,0)",
-              0.2, "#93c5fd",
-              0.5, "#c4b5fd",
-              0.8, "#f472b6",
-              1.0, "#ef4444",
-            ],
-            "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 8, 0.75, 11, 0.80, 14, 0.85],
+            "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 0, 0.3, 5, 0.5, 8, 0.8, 11, 1, 14, 1.2],
+            "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 0, 18, 5, 25, 8, 30, 11, 25, 14, 20],
+            "heatmap-color": isDarkTheme
+              ? [
+                  "interpolate", ["linear"], ["heatmap-density"],
+                  0,    "rgba(0,0,0,0)",
+                  0.1,  "rgba(45,0,90,0.9)",
+                  0.3,  "rgba(110,0,140,1)",
+                  0.5,  "rgba(190,20,110,1)",
+                  0.7,  "rgba(240,110,20,1)",
+                  0.9,  "rgba(210,15,15,1)",
+                  1.0,  "rgba(230,30,30,1)",
+                ]
+              : [
+                  "interpolate", ["linear"], ["heatmap-density"],
+                  0,    "rgba(0,0,0,0)",
+                  0.15, "rgba(80,18,123,0.7)",
+                  0.35, "rgba(162,37,155,0.85)",
+                  0.55, "rgba(212,87,157,0.92)",
+                  0.75, "rgba(251,180,109,0.97)",
+                  1.0,  "rgba(220,30,30,1)",
+                ],
+            "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.85, 8, 0.88, 14, 0.9],
           }}
         />
       </Source>
