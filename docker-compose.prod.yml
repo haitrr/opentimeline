@@ -35,13 +35,19 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      SCHEDULE: ${POSTGRES_BACKUP_SCHEDULE:-@daily}
+      SCHEDULE: ${POSTGRES_BACKUP_SCHEDULE:-@hourly}
       BACKUP_KEEP_DAYS: ${POSTGRES_BACKUP_KEEP_DAYS:-7}
       BACKUP_KEEP_WEEKS: ${POSTGRES_BACKUP_KEEP_WEEKS:-4}
       BACKUP_KEEP_MONTHS: ${POSTGRES_BACKUP_KEEP_MONTHS:-6}
       HEALTHCHECK_PORT: 8080
     volumes:
-      - /nfs/opentimeline/backups:/backups
+      - postgres-backups:/backups
 
 volumes:
   postgres_data:
+  postgres-backups:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: "addr=ugnas.lc,rw,noatime,nolock,intr,tcp,actimeo=1800,nfsvers=3"
+      device: ":/volume2/opentimeline/backups"
