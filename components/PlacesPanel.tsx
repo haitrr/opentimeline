@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   useInfiniteQuery,
   useQueryClient,
+  keepPreviousData,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -50,10 +51,7 @@ export default function PlacesPanel() {
   }, [sort]);
 
   useEffect(() => {
-    const t = setTimeout(
-      () => setDebouncedQuery(query.trim()),
-      SEARCH_DEBOUNCE_MS
-    );
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query]);
 
@@ -62,6 +60,7 @@ export default function PlacesPanel() {
       queryKey: ["places", "paged", debouncedQuery, sort],
       initialPageParam: 0,
       getNextPageParam: (lastPage) => lastPage.nextOffset,
+      placeholderData: keepPreviousData,
       queryFn: async ({ pageParam }) => {
         const params = new URLSearchParams();
         params.set("limit", String(PAGE_SIZE));
@@ -69,7 +68,7 @@ export default function PlacesPanel() {
         params.set("sort", sort);
         if (debouncedQuery) params.set("q", debouncedQuery);
         const res = await fetch(`/api/places?${params}`);
-        if (!res.ok) return { places: [], nextOffset: null };
+        if (!res.ok) return { places: [], nextOffset: null, total: 0 };
         return res.json();
       },
     });
