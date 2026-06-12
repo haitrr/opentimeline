@@ -1,7 +1,7 @@
 # Start all dev dependencies and the Next.js dev server
 start:
     docker compose -f docker-compose.dev.yml up -d
-    pnpm dev
+    pnpm dev --port 3847
 
 # Stop Docker services
 stop:
