@@ -51,7 +51,21 @@ type VisitRange = {
   departureAt: Date;
 };
 
-type PointRow = { id: number; lat: number; lon: number; recordedAt: Date; acc: number | null };
+type PointRow = { id: number; lat: number; lon: number; recordedAt: Date; acc: number | null; deviceId?: string | null };
+
+type DeviceFilter = { fromTime: Date; toTime: Date; deviceIds: string[] };
+
+function applyDeviceFilters(points: PointRow[], filters: DeviceFilter[]): PointRow[] {
+  if (filters.length === 0) return points;
+  return points.filter((p) =>
+    filters.every((f) => {
+      const t = p.recordedAt.getTime();
+      if (t < f.fromTime.getTime() || t > f.toTime.getTime()) return true;
+      if (p.deviceId == null) return true;
+      return f.deviceIds.includes(p.deviceId);
+    })
+  );
+}
 
 /**
  * Returns the last point in allPoints that is strictly before `beforeMs`
@@ -273,23 +287,27 @@ async function detectCandidateVisitsForPlace(
   if (!place) return [];
 
   const dayBufferMs = 5 * 24 * 60 * 60 * 1000;
-  const allPoints = await prisma.locationPoint.findMany({
-    orderBy: { recordedAt: "asc" },
-    select: { id: true, lat: true, lon: true, recordedAt: true, acc: true },
-    where:
-      rangeStart || rangeEnd
-        ? {
-            AND: [
-              ...(rangeStart
-                ? [{ recordedAt: { gte: new Date(rangeStart.getTime() - dayBufferMs) } }]
-                : []),
-              ...(rangeEnd
-                ? [{ recordedAt: { lte: new Date(rangeEnd.getTime() + dayBufferMs) } }]
-                : []),
-            ],
-          }
-        : undefined,
-  });
+  const [rawPoints, deviceFilters] = await Promise.all([
+    prisma.locationPoint.findMany({
+      orderBy: { recordedAt: "asc" },
+      select: { id: true, lat: true, lon: true, recordedAt: true, acc: true, deviceId: true },
+      where:
+        rangeStart || rangeEnd
+          ? {
+              AND: [
+                ...(rangeStart
+                  ? [{ recordedAt: { gte: new Date(rangeStart.getTime() - dayBufferMs) } }]
+                  : []),
+                ...(rangeEnd
+                  ? [{ recordedAt: { lte: new Date(rangeEnd.getTime() + dayBufferMs) } }]
+                  : []),
+              ],
+            }
+          : undefined,
+    }),
+    prisma.deviceFilter.findMany({ select: { fromTime: true, toTime: true, deviceIds: true } }),
+  ]);
+  const allPoints = applyDeviceFilters(rawPoints, deviceFilters);
 
   return computeCandidateVisitsForPlace(place, allPoints, sessionGapMinutes, minDwellMinutes, postDepartureMinutes);
 }
@@ -487,23 +505,27 @@ export async function detectVisitsForAllPlaces(
 
   // Fetch all points once and share across all places to avoid N separate DB queries.
   const dayBufferMs = 5 * 24 * 60 * 60 * 1000;
-  const sharedPoints = await prisma.locationPoint.findMany({
-    orderBy: { recordedAt: "asc" },
-    select: { id: true, lat: true, lon: true, recordedAt: true, acc: true },
-    where:
-      rangeStart || rangeEnd
-        ? {
-            AND: [
-              ...(rangeStart
-                ? [{ recordedAt: { gte: new Date(rangeStart.getTime() - dayBufferMs) } }]
-                : []),
-              ...(rangeEnd
-                ? [{ recordedAt: { lte: new Date(rangeEnd.getTime() + dayBufferMs) } }]
-                : []),
-            ],
-          }
-        : undefined,
-  });
+  const [rawSharedPoints, deviceFilters] = await Promise.all([
+    prisma.locationPoint.findMany({
+      orderBy: { recordedAt: "asc" },
+      select: { id: true, lat: true, lon: true, recordedAt: true, acc: true, deviceId: true },
+      where:
+        rangeStart || rangeEnd
+          ? {
+              AND: [
+                ...(rangeStart
+                  ? [{ recordedAt: { gte: new Date(rangeStart.getTime() - dayBufferMs) } }]
+                  : []),
+                ...(rangeEnd
+                  ? [{ recordedAt: { lte: new Date(rangeEnd.getTime() + dayBufferMs) } }]
+                  : []),
+              ],
+            }
+          : undefined,
+    }),
+    prisma.deviceFilter.findMany({ select: { fromTime: true, toTime: true, deviceIds: true } }),
+  ]);
+  const sharedPoints = applyDeviceFilters(rawSharedPoints, deviceFilters);
 
   const allCandidates: CandidateVisitWithPlace[] = [];
   for (const place of places) {
