@@ -60,7 +60,11 @@
       "Bash(curl -s http://localhost:3003/api/device-filters)",
       "Bash(PORT=3003 TURBOPACK=0 pnpm dev)",
       "Bash(PLAYWRIGHT_BASE_URL=http://localhost:3003 pnpm test:e2e tests/e2e/device-filters.spec.ts)",
-      "Bash(npx tsx *)"
+      "Bash(npx tsx *)",
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:brainstorming:*)",
+      "Skill(superpowers:test-driven-development)",
+      "Skill(superpowers:test-driven-development:*)"
     ]
   }
 }
