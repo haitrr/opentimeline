@@ -533,7 +533,32 @@ export async function detectVisitsForAllPlaces(
         })
       : allCandidates;
 
-  const winningCandidates = selectClosestCandidatesPerTimeRange(rangeFiltered);
+  // Fetch confirmed visits before conflict resolution so candidates that are
+  // already covered by a confirmed visit don't win the closest-place selection
+  // and inadvertently eliminate valid candidates at other places.
+  const confirmedVisits = await prisma.visit.findMany({
+    select: { arrivalAt: true, departureAt: true },
+    where: {
+      status: "confirmed",
+      ...(rangeStart || rangeEnd
+        ? {
+            AND: [
+              ...(rangeStart ? [{ departureAt: { gte: rangeStart } }] : []),
+              ...(rangeEnd ? [{ arrivalAt: { lte: rangeEnd } }] : []),
+            ],
+          }
+        : {}),
+    },
+  });
+
+  const notCoveredByConfirmed = rangeFiltered.filter(
+    (c) =>
+      !confirmedVisits.some((v: ExistingVisitRange) =>
+        overlaps(c, { arrivalAt: v.arrivalAt, departureAt: v.departureAt })
+      )
+  );
+
+  const winningCandidates = selectClosestCandidatesPerTimeRange(notCoveredByConfirmed);
 
   // Delete all suggested visits in range — they'll be replaced by fresh detection
   // results. Confirmed visits are never touched.
@@ -551,31 +576,7 @@ export async function detectVisitsForAllPlaces(
     },
   });
 
-  // Only confirmed visits block new suggestions from being created.
-  const confirmedVisits = await prisma.visit.findMany({
-    select: { arrivalAt: true, departureAt: true },
-    where: {
-      status: "confirmed",
-      ...(rangeStart || rangeEnd
-        ? {
-            AND: [
-              ...(rangeStart ? [{ departureAt: { gte: rangeStart } }] : []),
-              ...(rangeEnd ? [{ arrivalAt: { lte: rangeEnd } }] : []),
-            ],
-          }
-        : {}),
-    },
-  });
-
-  const toAdd = winningCandidates.filter(
-    (candidate) =>
-      !confirmedVisits.some((visit: ExistingVisitRange) =>
-        overlaps(candidate, {
-          arrivalAt: visit.arrivalAt,
-          departureAt: visit.departureAt,
-        })
-      )
-  );
+  const toAdd = winningCandidates;
 
   await Promise.all(
     toAdd.map((candidate) =>
