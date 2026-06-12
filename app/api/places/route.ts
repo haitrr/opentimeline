@@ -88,54 +88,62 @@ export async function GET(request: NextRequest) {
     orderBy = Prisma.sql`last_confirmed.last_at DESC NULLS LAST, p.id DESC`;
   }
 
-  const rows = await prisma.$queryRaw<PlaceRow[]>`
-    SELECT
-      p.id,
-      p.name,
-      p.lat,
-      p.lon,
-      p.radius,
-      p."isActive",
-      p."createdAt",
-      p."parentId",
-      parent.name AS "parentName",
-      COALESCE(child_counts.child_count, 0) AS "childCount",
-      last_confirmed.last_at AS "lastVisitAt",
-      COALESCE(v_counts.confirmed, 0) AS "confirmedVisits",
-      COALESCE(v_counts.total, 0) AS "totalVisits"
-    FROM "Place" p
-    LEFT JOIN "Place" parent ON parent.id = p."parentId"
-    LEFT JOIN (
-      SELECT "parentId", COUNT(*) AS child_count
-      FROM "Place"
-      WHERE "parentId" IS NOT NULL
-      GROUP BY "parentId"
-    ) child_counts ON child_counts."parentId" = p.id
-    LEFT JOIN (
-      SELECT "placeId", MAX("departureAt") AS last_at
-      FROM "Visit"
-      WHERE status = 'confirmed'
-      GROUP BY "placeId"
-    ) last_confirmed ON last_confirmed."placeId" = p.id
-    LEFT JOIN (
+  const [rows, countRows] = await Promise.all([
+    prisma.$queryRaw<PlaceRow[]>`
       SELECT
-        "placeId",
-        COUNT(*) AS total,
-        COUNT(*) FILTER (WHERE status = 'confirmed') AS confirmed
-      FROM "Visit"
-      GROUP BY "placeId"
-    ) v_counts ON v_counts."placeId" = p.id
-    LEFT JOIN (
-      SELECT "placeId", SUM(EXTRACT(EPOCH FROM ("departureAt" - "arrivalAt"))) AS total_seconds
-      FROM "Visit"
-      WHERE status = 'confirmed'
-      GROUP BY "placeId"
-    ) time_spent_agg ON time_spent_agg."placeId" = p.id
-    ${whereClause}
-    ORDER BY ${orderBy}
-    LIMIT ${limit + 1} OFFSET ${offset}
-  `;
+        p.id,
+        p.name,
+        p.lat,
+        p.lon,
+        p.radius,
+        p."isActive",
+        p."createdAt",
+        p."parentId",
+        parent.name AS "parentName",
+        COALESCE(child_counts.child_count, 0) AS "childCount",
+        last_confirmed.last_at AS "lastVisitAt",
+        COALESCE(v_counts.confirmed, 0) AS "confirmedVisits",
+        COALESCE(v_counts.total, 0) AS "totalVisits"
+      FROM "Place" p
+      LEFT JOIN "Place" parent ON parent.id = p."parentId"
+      LEFT JOIN (
+        SELECT "parentId", COUNT(*) AS child_count
+        FROM "Place"
+        WHERE "parentId" IS NOT NULL
+        GROUP BY "parentId"
+      ) child_counts ON child_counts."parentId" = p.id
+      LEFT JOIN (
+        SELECT "placeId", MAX("departureAt") AS last_at
+        FROM "Visit"
+        WHERE status = 'confirmed'
+        GROUP BY "placeId"
+      ) last_confirmed ON last_confirmed."placeId" = p.id
+      LEFT JOIN (
+        SELECT
+          "placeId",
+          COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE status = 'confirmed') AS confirmed
+        FROM "Visit"
+        GROUP BY "placeId"
+      ) v_counts ON v_counts."placeId" = p.id
+      LEFT JOIN (
+        SELECT "placeId", SUM(EXTRACT(EPOCH FROM ("departureAt" - "arrivalAt"))) AS total_seconds
+        FROM "Visit"
+        WHERE status = 'confirmed'
+        GROUP BY "placeId"
+      ) time_spent_agg ON time_spent_agg."placeId" = p.id
+      ${whereClause}
+      ORDER BY ${orderBy}
+      LIMIT ${limit + 1} OFFSET ${offset}
+    `,
+    prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*) AS count
+      FROM "Place" p
+      ${whereClause}
+    `,
+  ]);
 
+  const total = Number(countRows[0]?.count ?? 0);
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
   const nextOffset = hasMore ? offset + limit : null;
@@ -183,7 +191,7 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  return NextResponse.json({ places, nextOffset });
+  return NextResponse.json({ places, nextOffset, total });
 }
 
 export async function POST(request: NextRequest) {

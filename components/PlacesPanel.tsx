@@ -31,6 +31,7 @@ function readSort(): PlacesSort {
 type PlacesPage = {
   places: PlacePanelItem[];
   nextOffset: number | null;
+  total: number;
 };
 
 export default function PlacesPanel() {
@@ -74,6 +75,7 @@ export default function PlacesPanel() {
     });
 
   const places = data?.pages.flatMap((p) => p.places) ?? [];
+  const total = data?.pages[0]?.total ?? places.length;
   const hasQuery = debouncedQuery.length > 0;
 
   useEffect(() => {
@@ -142,7 +144,7 @@ export default function PlacesPanel() {
         onQueryChange={setQuery}
         sort={sort}
         onSortChange={setSort}
-        count={places.length}
+        count={total}
       />
       {places.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
