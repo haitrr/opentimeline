@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { haversineKm } from "@/lib/geo";
+import { detectVisitsForPlace } from "@/lib/detectVisits";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 10000;
@@ -222,6 +223,7 @@ export async function POST(request: NextRequest) {
 
   let supersededVisit: {
     id: number;
+    placeId: number;
     arrivalAt: Date;
     departureAt: Date;
     pointCount: number;
@@ -231,7 +233,7 @@ export async function POST(request: NextRequest) {
     if (Number.isInteger(id)) {
       supersededVisit = await prisma.visit.findUnique({
         where: { id },
-        select: { id: true, arrivalAt: true, departureAt: true, pointCount: true },
+        select: { id: true, placeId: true, arrivalAt: true, departureAt: true, pointCount: true },
       });
     }
   }
@@ -269,7 +271,49 @@ export async function POST(request: NextRequest) {
       },
     });
     await prisma.visit.delete({ where: { id: supersededVisit.id } });
+
+    // Remove any other suggestions at the original place that overlap the same
+    // time range — they would otherwise linger alongside the new place's suggestions.
+    await prisma.visit.deleteMany({
+      where: {
+        placeId: supersededVisit.placeId,
+        status: "suggested",
+        arrivalAt: { lt: supersededVisit.departureAt },
+        departureAt: { gt: supersededVisit.arrivalAt },
+      },
+    });
   }
+
+  const newCount = await detectVisitsForPlace(place.id);
+  console.log("[place create] detectVisitsForPlace created", newCount, "suggestions for place", place.id);
+
+  const allSuggested = await prisma.visit.findMany({
+    where: { placeId: place.id, status: "suggested" },
+    select: { id: true, arrivalAt: true, departureAt: true },
+  });
+  console.log("[place create] suggested visits at new place after detection:", JSON.stringify(allSuggested));
+  console.log("[place create] supersededVisit time range:", supersededVisit ? `${supersededVisit.arrivalAt.toISOString()} - ${supersededVisit.departureAt.toISOString()}` : "none");
+
+  // After detection, remove any suggestions at the new place that overlap the
+  // confirmed transplanted time range — detection may produce slightly different
+  // interpolated times that slip through the overlap guard.
+  if (supersededVisit) {
+    const cleaned = await prisma.visit.deleteMany({
+      where: {
+        placeId: place.id,
+        status: "suggested",
+        arrivalAt: { lt: supersededVisit.departureAt },
+        departureAt: { gt: supersededVisit.arrivalAt },
+      },
+    });
+    console.log("[place create] post-detection cleanup deleted", cleaned.count, "suggestions");
+  }
+
+  const finalSuggested = await prisma.visit.findMany({
+    where: { placeId: place.id, status: "suggested" },
+    select: { id: true, arrivalAt: true, departureAt: true },
+  });
+  console.log("[place create] final suggested visits at new place:", JSON.stringify(finalSuggested));
 
   return NextResponse.json({ place }, { status: 201 });
 }
