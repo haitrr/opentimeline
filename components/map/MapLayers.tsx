@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Source, Layer } from "react-map-gl/maplibre";
 import type { GeoJSON } from "geojson";
 import type { LayerSettings } from "@/components/map/hooks/useLayerSettings";
+import { geoCircle } from "@/components/map/mapUtils";
 
 type GeoJSONData = GeoJSON;
 
@@ -19,6 +20,7 @@ type Props = {
   unknownVisitsGeoJSON: GeoJSONData;
   photosGeoJSON: GeoJSONData;
   pointCount: number;
+  previewCircle?: { lat: number; lon: number; radius: number } | null;
 };
 
 function vis(show: boolean): "visible" | "none" {
@@ -37,8 +39,17 @@ export default function MapLayers({
   unknownVisitsGeoJSON,
   photosGeoJSON,
   pointCount,
+  previewCircle,
 }: Props) {
   const { showHeatmap, showLine, showVisitedPlaces, hidePoints, hidePlaces, hidePhotos } = layerSettings;
+
+  const previewCircleGeoJSON = useMemo(
+    () =>
+      previewCircle
+        ? { type: "Feature" as const, geometry: geoCircle(previewCircle.lat, previewCircle.lon, previewCircle.radius), properties: {} }
+        : null,
+    [previewCircle]
+  );
 
   return (
     <>
@@ -304,6 +315,22 @@ export default function MapLayers({
           }}
         />
       </Source>
+
+      {/* Place creation preview circle */}
+      {previewCircleGeoJSON && (
+        <Source id="place-preview-circle" type="geojson" data={previewCircleGeoJSON}>
+          <Layer
+            id="place-preview-fill"
+            type="fill"
+            paint={{ "fill-color": "#3b82f6", "fill-opacity": 0.15 }}
+          />
+          <Layer
+            id="place-preview-outline"
+            type="line"
+            paint={{ "line-color": "#2563eb", "line-width": 2, "line-dasharray": [5, 4] }}
+          />
+        </Source>
+      )}
     </>
   );
 }

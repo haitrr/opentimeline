@@ -56,6 +56,7 @@ export default function MapLibreMap({
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [popup, setPopup] = useState<PopupState>(null);
+  const [previewCircle, setPreviewCircle] = useState<{ lat: number; lon: number; radius: number } | null>(null);
   const [hoveredPlace, setHoveredPlace] = useState<{ id: number; x: number; y: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lat: number; lon: number } | null>(null);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
@@ -104,6 +105,13 @@ export default function MapLibreMap({
         return true;
       });
   }, [popup, photosByTakenAt]);
+
+  // Place creation preview circle
+  useEffect(() => {
+    const handler = (e: Event) => setPreviewCircle((e as CustomEvent).detail ?? null);
+    window.addEventListener("opentimeline:place-preview", handler);
+    return () => window.removeEventListener("opentimeline:place-preview", handler);
+  }, []);
 
   // Theme detection
   useEffect(() => {
@@ -336,6 +344,7 @@ export default function MapLibreMap({
           unknownVisitsGeoJSON={geoJSON.unknownVisitsGeoJSON}
           photosGeoJSON={geoJSON.photosGeoJSON}
           pointCount={points.length}
+          previewCircle={previewCircle}
         />
 
         {/* Drag handles when Meta key held */}
