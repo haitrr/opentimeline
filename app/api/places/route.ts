@@ -284,21 +284,29 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const newCount = await detectVisitsForPlace(place.id);
-  console.log("[place create] detectVisitsForPlace created", newCount, "suggestions for place", place.id);
+  await detectVisitsForPlace(place.id);
 
-  const allSuggested = await prisma.visit.findMany({
+  // After detection, remove overlapping suggestions at OTHER places for the same
+  // time windows — the new place wins those time ranges now.
+  const newSuggestions = await prisma.visit.findMany({
     where: { placeId: place.id, status: "suggested" },
-    select: { id: true, arrivalAt: true, departureAt: true },
+    select: { arrivalAt: true, departureAt: true },
   });
-  console.log("[place create] suggested visits at new place after detection:", JSON.stringify(allSuggested));
-  console.log("[place create] supersededVisit time range:", supersededVisit ? `${supersededVisit.arrivalAt.toISOString()} - ${supersededVisit.departureAt.toISOString()}` : "none");
+  for (const s of newSuggestions) {
+    await prisma.visit.deleteMany({
+      where: {
+        NOT: { placeId: place.id },
+        status: "suggested",
+        arrivalAt: { lt: s.departureAt },
+        departureAt: { gt: s.arrivalAt },
+      },
+    });
+  }
 
-  // After detection, remove any suggestions at the new place that overlap the
-  // confirmed transplanted time range — detection may produce slightly different
-  // interpolated times that slip through the overlap guard.
+  // Also clean up suggestions at the new place that duplicate the confirmed
+  // transplanted time range (detection may produce slightly different interpolated times).
   if (supersededVisit) {
-    const cleaned = await prisma.visit.deleteMany({
+    await prisma.visit.deleteMany({
       where: {
         placeId: place.id,
         status: "suggested",
@@ -306,14 +314,7 @@ export async function POST(request: NextRequest) {
         departureAt: { gt: supersededVisit.arrivalAt },
       },
     });
-    console.log("[place create] post-detection cleanup deleted", cleaned.count, "suggestions");
   }
-
-  const finalSuggested = await prisma.visit.findMany({
-    where: { placeId: place.id, status: "suggested" },
-    select: { id: true, arrivalAt: true, departureAt: true },
-  });
-  console.log("[place create] final suggested visits at new place:", JSON.stringify(finalSuggested));
 
   return NextResponse.json({ place }, { status: 201 });
 }
