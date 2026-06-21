@@ -42,6 +42,7 @@ export type Props = {
   onCreateVisit?: (lat: number, lon: number) => void;
   onPlaceClick?: (place: PlaceData) => void;
   onPlaceMoveRequest?: (place: PlaceData, lat: number, lon: number) => void;
+  onPointMoveRequest?: (id: number, lat: number, lon: number) => void;
   onUnknownVisitCreatePlace?: (uv: UnknownVisitData) => void;
   onPhotoClick?: (photo: ImmichPhoto, list?: ImmichPhoto[]) => void;
 };
