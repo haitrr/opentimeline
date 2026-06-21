@@ -10,6 +10,7 @@ import { computeInitialViewState } from "@/components/map/mapUtils";
 import { FIT_BOUNDS_PADDING, FIT_BOUNDS_MAX_ZOOM, type PopupState, type Props } from "@/components/map/mapConstants";
 import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
 import { useKeyboardShortcuts } from "@/components/map/hooks/useKeyboardShortcuts";
+import { useDraggablePoints, type HoveredPoint } from "@/components/map/hooks/useDraggablePoints";
 import { useJourneyPlayback } from "@/components/map/hooks/useJourneyPlayback";
 import { useMapGeoJSON } from "@/components/map/hooks/useMapGeoJSON";
 import FlyToHandler from "@/components/map/FlyToHandler";
@@ -48,6 +49,7 @@ export default function MapLibreMap({
   onCreateVisit,
   onPlaceClick,
   onPlaceMoveRequest,
+  onPointMoveRequest,
   onUnknownVisitCreatePlace,
   onPhotoClick,
 }: Props) {
@@ -68,10 +70,26 @@ export default function MapLibreMap({
   const internalLayerSettings = useLayerSettings();
   const layerSettings = layerSettingsProp ?? internalLayerSettings;
 
+  const isCtrlPressedRef = useRef(false);
+  const hidePointsRef = useRef(layerSettings.hidePoints);
+  const draggedPointRef = useRef<HoveredPoint>(null);
+
+  useEffect(() => { hidePointsRef.current = layerSettings.hidePoints; });
+
   const shortcuts = useMemo(() => [
     { shortcut: { key: "p", meta: true }, handler: () => layerSettings.setHidePlaces(!layerSettings.hidePlaces) },
   ], [layerSettings]);
   useKeyboardShortcuts(shortcuts);
+
+  const {
+    hoveredPoint,
+    processMouseMove,
+    processMouseLeave,
+    onDragStart: startPointDrag,
+    onDragEnd: endPointDrag,
+  } = useDraggablePoints(mapRef);
+
+  const isPointDragActive = isCtrlPressed && !layerSettings.hidePoints;
 
   const hoveredPlaceId = hoveredPlace?.id ?? null;
   const { isPlaying, playPos, playProgress, playTimestamp, startPlay, stopPlay } = useJourneyPlayback(points, rangeKey);
@@ -125,9 +143,13 @@ export default function MapLibreMap({
 
   // Meta key detection for place drag
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Meta") setIsCtrlPressed(true); };
-    const handleKeyUp = (e: KeyboardEvent) => { if (e.key === "Meta") setIsCtrlPressed(false); };
-    const handleWindowBlur = () => setIsCtrlPressed(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Meta") { setIsCtrlPressed(true); isCtrlPressedRef.current = true; }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Meta") { setIsCtrlPressed(false); isCtrlPressedRef.current = false; }
+    };
+    const handleWindowBlur = () => { setIsCtrlPressed(false); isCtrlPressedRef.current = false; };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("blur", handleWindowBlur);
@@ -254,7 +276,17 @@ export default function MapLibreMap({
       const features = candidateLayers.length > 0
         ? currentMap.queryRenderedFeatures(point, { layers: candidateLayers })
         : [];
-      const cursor = features.length > 0 ? "pointer" : "";
+
+      // Point drag mode: check hover, get cursor override
+      const isPointDragActiveNow = isCtrlPressedRef.current && !hidePointsRef.current;
+      const pointCursor = processMouseMove(point, currentMap, isPointDragActiveNow);
+
+      // When CMD drag is active, don't show 'pointer' for location-points
+      const cursorFeatures = pointCursor != null
+        ? features.filter((f) => f.layer.id !== "location-points")
+        : features;
+      const cursor = pointCursor ?? (cursorFeatures.length > 0 ? "pointer" : "");
+
       if (cursorRef.current !== cursor) {
         currentMap.getCanvas().style.cursor = cursor;
         cursorRef.current = cursor;
@@ -270,7 +302,7 @@ export default function MapLibreMap({
         return { id: newHoveredId, x: point[0], y: point[1] };
       });
     });
-  }, []);
+  }, [processMouseMove]);
 
   const handleMouseLeave = useCallback(() => {
     const map = mapRef.current;
@@ -281,7 +313,8 @@ export default function MapLibreMap({
     map.getCanvas().style.cursor = "";
     cursorRef.current = "";
     setHoveredPlace(null);
-  }, []);
+    processMouseLeave(map);
+  }, [processMouseLeave]);
 
   const handleMapLoad = useCallback(() => {
     setIsMapLoaded(true);
@@ -359,6 +392,32 @@ export default function MapLibreMap({
             <div className="h-4 w-4 rounded-full border-2 border-blue-700 bg-blue-500 opacity-80 shadow" style={{ cursor: "grab" }} />
           </Marker>
         ))}
+
+        {/* Point drag handle when CMD is held and a point is hovered */}
+        {isPointDragActive && hoveredPoint && (
+          <Marker
+            latitude={hoveredPoint.lat}
+            longitude={hoveredPoint.lon}
+            draggable
+            onDragStart={() => {
+              draggedPointRef.current = hoveredPoint;
+              startPointDrag();
+              const canvas = mapRef.current?.getCanvas();
+              if (canvas) { canvas.style.cursor = "grabbing"; cursorRef.current = "grabbing"; }
+            }}
+            onDragEnd={(e) => {
+              const p = draggedPointRef.current;
+              draggedPointRef.current = null;
+              endPointDrag();
+              if (p) onPointMoveRequest?.(p.id, e.lngLat.lat, e.lngLat.lng);
+            }}
+          >
+            <div
+              className="h-5 w-5 rounded-full border-2 border-blue-700 bg-blue-500 opacity-80 shadow"
+              style={{ cursor: "grab" }}
+            />
+          </Marker>
+        )}
 
         <MapPopups
           popup={popup}

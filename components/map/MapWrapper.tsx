@@ -12,6 +12,7 @@ import PlaceDetailModal from "@/components/PlaceDetailModal";
 import PhotoModal from "@/components/PhotoModal";
 import CreateVisitModal from "@/components/CreateVisitModal";
 import PlaceMoveConfirmDialog from "@/components/PlaceMoveConfirmDialog";
+import PointMoveConfirmDialog from "@/components/map/PointMoveConfirmDialog";
 import { useLayerSettings } from "@/components/map/hooks/useLayerSettings";
 import type { MapBounds } from "@/components/map/mapConstants";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -66,6 +67,9 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
   const [createVisitCoords, setCreateVisitCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [updatingPlaceMove, setUpdatingPlaceMove] = useState(false);
   const [placeMoveError, setPlaceMoveError] = useState<string | null>(null);
+  const [pendingPointMove, setPendingPointMove] = useState<{ id: number; lat: number; lon: number } | null>(null);
+  const [updatingPointMove, setUpdatingPointMove] = useState(false);
+  const [pointMoveError, setPointMoveError] = useState<string | null>(null);
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   // Start with world bounds so the fetch fires immediately in parallel with map tile loading.
   // The skipBoundsIfSmall param means bounds are ignored for small ranges anyway.
@@ -114,7 +118,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         maxLon: String(locationsBounds!.maxLon),
         skipBoundsIfSmall: "true",
       });
-      const res = await fetch(`/api/locations?${params}`);
+      const res = await fetch(`/api/locations?${params}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`locations ${res.status}`);
       return res.json();
     },
@@ -235,6 +239,35 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
     }
   }
 
+  function handlePointMoveRequest(id: number, lat: number, lon: number) {
+    setPointMoveError(null);
+    setPendingPointMove({ id, lat, lon });
+  }
+
+  async function handleConfirmPointMove() {
+    if (!pendingPointMove) return;
+    setUpdatingPointMove(true);
+    setPointMoveError(null);
+    try {
+      const res = await fetch(`/api/locations/${pendingPointMove.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: pendingPointMove.lat, lon: pendingPointMove.lon }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setPointMoveError(data?.error ?? "Failed to update location");
+        return;
+      }
+      setPendingPointMove(null);
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+    } catch {
+      setPointMoveError("Network error");
+    } finally {
+      setUpdatingPointMove(false);
+    }
+  }
+
   async function handlePlaceCreated(_place: PlaceData) {
     setModalCoords(null);
     if (pendingUnknownVisit) {
@@ -299,6 +332,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         onCreateVisit={handleCreateVisit}
         onPlaceClick={handlePlaceClick}
         onPlaceMoveRequest={handlePlaceMoveRequest}
+        onPointMoveRequest={handlePointMoveRequest}
         onUnknownVisitCreatePlace={handleUnknownVisitCreatePlace}
         onPhotoClick={(photo: ImmichPhoto, list?: ImmichPhoto[]) => {
           const photoList = list && list.length > 0 ? list : photos;
@@ -333,6 +367,20 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
             if (updatingPlaceMove) return;
             setPendingPlaceMove(null);
             setPlaceMoveError(null);
+          }}
+        />
+      )}
+      {pendingPointMove && (
+        <PointMoveConfirmDialog
+          lat={pendingPointMove.lat}
+          lon={pendingPointMove.lon}
+          error={pointMoveError}
+          updating={updatingPointMove}
+          onConfirm={handleConfirmPointMove}
+          onCancel={() => {
+            if (updatingPointMove) return;
+            setPendingPointMove(null);
+            setPointMoveError(null);
           }}
         />
       )}

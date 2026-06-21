@@ -197,14 +197,19 @@ export default function MapLayers({
       </Source>
 
       {/* Location points */}
-      <Source id="points" type="geojson" data={pointsGeoJSON}>
+      <Source id="points" type="geojson" data={pointsGeoJSON} promoteId="id">
         <Layer
           id="location-points"
           type="circle"
           minzoom={12}
           layout={{ visibility: vis(!hidePoints) }}
           paint={{
-            "circle-radius": ["case", ["any", ["get", "isFirst"], ["get", "isLast"]], 6, 4],
+            "circle-radius": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              8,
+              ["case", ["any", ["get", "isFirst"], ["get", "isLast"]], 6, 4],
+            ],
             "circle-color": ["case",
               ["get", "isFirst"], "#22c55e",
               ["get", "isLast"],  "#ef4444",
