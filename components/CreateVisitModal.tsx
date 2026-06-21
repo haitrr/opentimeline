@@ -134,6 +134,7 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
     format(new Date(), "yyyy-MM-dd'T'HH:mm")
   );
 
+  const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -188,7 +189,7 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
       const res = await fetch("/api/visits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ placeId, arrivalAt, departureAt, status: "confirmed" }),
+        body: JSON.stringify({ placeId, arrivalAt, departureAt, status: "confirmed", notes: notes || null }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -294,6 +295,20 @@ export default function CreateVisitModal({ lat, lon, places, rangeStart, rangeEn
                 setCustomEnd={setCustomEnd}
               />
             </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="create-notes">Notes (markdown supported)</Label>
+            <textarea
+              id="create-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={isSubmitting}
+              rows={3}
+              placeholder="Add notes about this visit…"
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ fontSize: "16px", resize: "vertical" }}
+            />
           </div>
 
           {error && <p className="text-xs text-destructive">{error}</p>}
