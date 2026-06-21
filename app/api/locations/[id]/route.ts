@@ -17,9 +17,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const body = await request.json();
-  const lat = Number(body.lat);
-  const lon = Number(body.lon);
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const lat = Number((body as Record<string, unknown>).lat);
+  const lon = Number((body as Record<string, unknown>).lon);
 
   if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
     return NextResponse.json({ error: "lat must be between -90 and 90" }, { status: 400 });

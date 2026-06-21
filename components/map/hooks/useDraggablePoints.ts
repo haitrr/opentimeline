@@ -66,7 +66,9 @@ export function useDraggablePoints(mapRef: React.RefObject<MapRef | null>) {
       prevHoveredFeatureIdRef.current = featureId;
     }
 
-    setHoveredPoint({ id: pointId, lat: coords[1], lon: coords[0] });
+    setHoveredPoint((prev) =>
+      prev?.id === pointId ? prev : { id: pointId, lat: coords[1], lon: coords[0] }
+    );
     return "grab";
   }, []);
 
