@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { NextRequest } from "next/server";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -26,7 +27,7 @@ function req(id: string, body: object) {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
+  }) as unknown as NextRequest;
 }
 
 function ctx(id: string) {
