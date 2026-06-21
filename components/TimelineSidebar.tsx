@@ -3,6 +3,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import ReactMarkdown from "react-markdown";
 import PlaceCreationModal from "@/components/PlaceCreationModal";
 import EditVisitModal from "@/components/EditVisitModal";
 import { fetchVisitCentroid } from "@/lib/visitCentroid";
@@ -18,6 +19,7 @@ type KnownVisit = {
   status: string;
   checkedSubPlaceIds?: number[];
   checkedSubPlaces?: { id: number; name: string }[];
+  notes?: string;
   place: { id: number; name: string; lat: number; lon: number };
 };
 
@@ -478,6 +480,15 @@ export default function TimelineSidebar({
                       arrivalAt={item.arrivalAt}
                       departureAt={item.departureAt}
                     />
+
+                    {item.kind === "known" && item.notes && (
+                      <div
+                        data-testid="visit-notes"
+                        className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground prose prose-sm max-w-none"
+                      >
+                        <ReactMarkdown>{item.notes}</ReactMarkdown>
+                      </div>
+                    )}
 
                     {/* Actions for suggested known visit */}
                     {item.kind === "known" && isSuggested && (
