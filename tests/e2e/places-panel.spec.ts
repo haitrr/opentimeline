@@ -28,10 +28,11 @@ test("places panel: empty state OR search and row click dispatches fly-to", asyn
     });
   });
 
-  // Click the first row inside the panel (skip the activity-bar buttons and search/sort).
-  // PlaceListItem is a div with role="button" and aria-label equal to the place name.
+  // Hover the first place row so the action buttons become visible, then click
+  // the "Fly to place" button which dispatches the fly-to event.
   const firstRow = page.locator('ul li div[role="button"]').first();
-  await firstRow.click();
+  await firstRow.hover();
+  await page.getByRole("button", { name: "Fly to place" }).first().click();
 
   const detail = await page.evaluate(
     () => (window as Window & { __flyTo?: { lat: number; lon: number } }).__flyTo
