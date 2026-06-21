@@ -7,6 +7,7 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
       findMany: vi.fn(),
     },
     unknownVisitSuggestion: {
@@ -42,6 +43,8 @@ describe("POST /api/places — supersedesVisitId", () => {
     vi.clearAllMocks();
     (prisma.place.create as unknown as MockFn).mockResolvedValue(NEW_PLACE);
     (prisma.unknownVisitSuggestion.findMany as unknown as MockFn).mockResolvedValue([]);
+    (prisma.visit.findMany as unknown as MockFn).mockResolvedValue([]);
+    (prisma.visit.deleteMany as unknown as MockFn).mockResolvedValue({ count: 0 });
   });
 
   it("transplants the superseded visit as a confirmed visit at the new place and deletes the original", async () => {
@@ -80,12 +83,12 @@ describe("POST /api/places — supersedesVisitId", () => {
     expect(prisma.visit.delete).not.toHaveBeenCalled();
   });
 
-  it("does not invoke detectVisitsForPlace when creating a place without supersedesVisitId", async () => {
+  it("invokes detectVisitsForPlace when creating a place without supersedesVisitId", async () => {
     await POST(
       makeRequest({ name: "Home", lat: 10, lon: 20, radius: 50 }),
     );
 
-    expect(detectVisitsForPlace).not.toHaveBeenCalled();
+    expect(detectVisitsForPlace).toHaveBeenCalledWith(NEW_PLACE.id);
   });
 
   it("does not include newVisits in the response body on plain creation", async () => {

@@ -47,10 +47,9 @@ describe("GET /api/places — pagination", () => {
   });
 
   it("returns { places, nextOffset: null } when the result fits in one page", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([
-      mockRow({ id: 1, name: "Airport" }),
-      mockRow({ id: 2, name: "Home" }),
-    ]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([mockRow({ id: 1, name: "Airport" }), mockRow({ id: 2, name: "Home" })])
+      .mockResolvedValueOnce([{ count: BigInt(2) }]);
 
     const res = await GET(makeRequest("http://localhost/api/places?limit=50"));
     const body = await res.json();
@@ -64,7 +63,9 @@ describe("GET /api/places — pagination", () => {
     const rows = Array.from({ length: 6 }, (_, i) =>
       mockRow({ id: i + 1, name: `P${i + 1}` })
     );
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce(rows);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce(rows)
+      .mockResolvedValueOnce([{ count: BigInt(6) }]);
 
     const res = await GET(makeRequest("http://localhost/api/places?limit=5&offset=0"));
     const body = await res.json();
@@ -74,7 +75,9 @@ describe("GET /api/places — pagination", () => {
   });
 
   it("clamps limit to MAX_LIMIT and ignores invalid values", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ count: BigInt(0) }]);
     await GET(makeRequest("http://localhost/api/places?limit=99999999"));
     // The raw query includes LIMIT (10000 + 1) when MAX_LIMIT=10000
     const call = (prisma.$queryRaw as MockFn).mock.calls[0];
@@ -83,7 +86,9 @@ describe("GET /api/places — pagination", () => {
   });
 
   it("applies start/end to the in-range groupBy only when both valid", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([mockRow({ id: 7 })]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([mockRow({ id: 7 })])
+      .mockResolvedValueOnce([{ count: BigInt(1) }]);
     (prisma.visit.groupBy as MockFn).mockResolvedValueOnce([
       { placeId: 7, status: "confirmed", _count: { _all: 3 } },
       { placeId: 7, status: "suggested", _count: { _all: 1 } },
@@ -101,7 +106,9 @@ describe("GET /api/places — pagination", () => {
   });
 
   it("skips the in-range groupBy when start/end are absent", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([mockRow({ id: 8 })]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([mockRow({ id: 8 })])
+      .mockResolvedValueOnce([{ count: BigInt(1) }]);
 
     const res = await GET(makeRequest("http://localhost/api/places"));
     const body = await res.json();
@@ -112,7 +119,9 @@ describe("GET /api/places — pagination", () => {
   });
 
   it("includes search term in the WHERE clause when q is provided", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ count: BigInt(0) }]);
     await GET(makeRequest("http://localhost/api/places?q=OfFicE"));
     // The outer $queryRaw call interpolates the whereClause Prisma.Sql object
     // as its first dynamic arg; the actual bound value lives on .values.
@@ -122,7 +131,9 @@ describe("GET /api/places — pagination", () => {
   });
 
   it("defaults sort to 'recent' and falls back for invalid sort values", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ count: BigInt(0) }]);
     const res = await GET(makeRequest("http://localhost/api/places?sort=bogus"));
     const body = await res.json();
     expect(res.status).toBe(200);

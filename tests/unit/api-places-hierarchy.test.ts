@@ -45,9 +45,9 @@ describe("GET /api/places — hierarchy", () => {
   });
 
   it("returns parentId and childCount in each place", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([
-      mockRow({ id: 1, parentId: null, childCount: BigInt(2) }),
-    ]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([mockRow({ id: 1, parentId: null, childCount: BigInt(2) })])
+      .mockResolvedValueOnce([{ count: BigInt(1) }]);
 
     const res = await GET(makeRequest("http://localhost/api/places"));
     const body = await res.json();
@@ -57,10 +57,12 @@ describe("GET /api/places — hierarchy", () => {
   });
 
   it("returns only rows when no parentId param (root places filter active)", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([
-      mockRow({ id: 1, parentId: null, childCount: BigInt(0) }),
-      mockRow({ id: 2, parentId: null, childCount: BigInt(1) }),
-    ]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([
+        mockRow({ id: 1, parentId: null, childCount: BigInt(0) }),
+        mockRow({ id: 2, parentId: null, childCount: BigInt(1) }),
+      ])
+      .mockResolvedValueOnce([{ count: BigInt(2) }]);
 
     const res = await GET(makeRequest("http://localhost/api/places"));
     const body = await res.json();
@@ -71,10 +73,12 @@ describe("GET /api/places — hierarchy", () => {
   });
 
   it("returns places when ?parentId=5 is provided", async () => {
-    (prisma.$queryRaw as MockFn).mockResolvedValueOnce([
-      mockRow({ id: 10, parentId: 5, childCount: BigInt(0) }),
-      mockRow({ id: 11, parentId: 5, childCount: BigInt(0) }),
-    ]);
+    (prisma.$queryRaw as MockFn)
+      .mockResolvedValueOnce([
+        mockRow({ id: 10, parentId: 5, childCount: BigInt(0) }),
+        mockRow({ id: 11, parentId: 5, childCount: BigInt(0) }),
+      ])
+      .mockResolvedValueOnce([{ count: BigInt(2) }]);
 
     const res = await GET(makeRequest("http://localhost/api/places?parentId=5"));
     const body = await res.json();
