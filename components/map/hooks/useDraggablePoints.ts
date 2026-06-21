@@ -86,12 +86,12 @@ export function useDraggablePoints(mapRef: React.RefObject<MapRef | null>) {
 
   const onDragStart = useCallback(() => {
     isDraggingRef.current = true;
-    mapRef.current?.dragPan.disable();
+    mapRef.current?.dragPan?.disable();
   }, [mapRef]);
 
   const onDragEnd = useCallback(() => {
     isDraggingRef.current = false;
-    mapRef.current?.dragPan.enable();
+    mapRef.current?.dragPan?.enable();
     if (prevHoveredFeatureIdRef.current != null) {
       mapRef.current?.setFeatureState(
         { source: "points", id: prevHoveredFeatureIdRef.current },
