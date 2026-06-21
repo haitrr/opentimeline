@@ -5,11 +5,12 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
 
-  const { placeId, arrivalAt, departureAt, status = "confirmed" } = body as {
+  const { placeId, arrivalAt, departureAt, status = "confirmed", notes } = body as {
     placeId?: number;
     arrivalAt?: string;
     departureAt?: string;
     status?: string;
+    notes?: string;
   };
 
   if (!placeId || !arrivalAt || !departureAt) {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
   }
 
   const visit = await prisma.visit.create({
-    data: { placeId, arrivalAt: arrival, departureAt: departure, status },
+    data: { placeId, arrivalAt: arrival, departureAt: departure, status, notes: notes ?? null },
     include: { place: { select: { id: true, name: true, lat: true, lon: true, radius: true } } },
   });
 
