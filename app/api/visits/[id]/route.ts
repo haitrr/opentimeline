@@ -58,9 +58,11 @@ export async function PUT(
     );
   }
 
+  const notes = "notes" in body ? (body.notes == null ? null : String(body.notes)) : visit.notes;
+
   const updated = await prisma.visit.update({
     where: { id: visitId },
-    data: { placeId: nextPlaceId, status, arrivalAt, departureAt },
+    data: { placeId: nextPlaceId, status, arrivalAt, departureAt, notes },
   });
 
   return NextResponse.json(updated);

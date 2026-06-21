@@ -2,6 +2,7 @@
 
 import { Fragment } from "react";
 import { format, differenceInMinutes, formatDistanceToNow } from "date-fns";
+import ReactMarkdown from "react-markdown";
 import { FetchVisitPhotos } from "@/components/VisitPhotos";
 import { formatDuration, formatGapMs } from "@/lib/placeDetailUtils";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ export type Visit = {
   status: string;
   checkedSubPlaceIds?: number[];
   checkedSubPlaces?: { id: number; name: string }[];
+  notes?: string;
 };
 
 export type VisitCardProps = {
@@ -133,6 +135,14 @@ export default function VisitCard({
             />
           </div>
           <FetchVisitPhotos arrivalAt={v.arrivalAt} departureAt={v.departureAt} />
+          {v.notes && (
+            <div
+              data-testid="visit-notes"
+              className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground prose prose-sm max-w-none"
+            >
+              <ReactMarkdown>{v.notes}</ReactMarkdown>
+            </div>
+          )}
           {v.checkedSubPlaces && v.checkedSubPlaces.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
               {v.checkedSubPlaces.map((sp) => (
