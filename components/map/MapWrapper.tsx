@@ -118,7 +118,7 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
         maxLon: String(locationsBounds!.maxLon),
         skipBoundsIfSmall: "true",
       });
-      const res = await fetch(`/api/locations?${params}`);
+      const res = await fetch(`/api/locations?${params}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`locations ${res.status}`);
       return res.json();
     },
