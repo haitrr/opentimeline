@@ -41,6 +41,7 @@ export default function EditVisitModal({ visit, placeInfo, onClose, onSaved }: P
   const [editPlaceId, setEditPlaceId] = useState<number | null>(placeInfo.id);
   const [editStatus, setEditStatus] = useState(visit.status);
   const [editVisitError, setEditVisitError] = useState<string | null>(null);
+  const [editNotes, setEditNotes] = useState(visit.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlaceOption[]>([]);
   const [loadingNearbyPlaces, setLoadingNearbyPlaces] = useState(false);
@@ -104,6 +105,7 @@ export default function EditVisitModal({ visit, placeInfo, onClose, onSaved }: P
           arrivalAt: arrivalDate.toISOString(),
           departureAt: departureDate.toISOString(),
           status: editStatus,
+          notes: editNotes || null,
         }),
       });
       if (!res.ok) {
@@ -213,6 +215,22 @@ export default function EditVisitModal({ visit, placeInfo, onClose, onSaved }: P
               checkedSubPlaceIds={visit.checkedSubPlaceIds ?? []}
             />
           )}
+
+          <div className="space-y-1">
+            <Label htmlFor="edit-notes" className="text-muted-foreground">
+              Notes (markdown supported)
+            </Label>
+            <textarea
+              id="edit-notes"
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              disabled={saving}
+              rows={4}
+              placeholder="Add notes about this visit…"
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ fontSize: "16px", resize: "vertical" }}
+            />
+          </div>
 
           {editVisitError && <p className="text-xs text-destructive">{editVisitError}</p>}
         </div>
