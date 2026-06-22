@@ -37,7 +37,7 @@ export function useDraggablePoints(mapRef: React.RefObject<MapRef | null>) {
     }
 
     const features = map.queryRenderedFeatures(point, { layers: ["location-points"] });
-    const f = features[0];
+    const f = features.find((feature) => feature.layer?.id === "location-points");
 
     if (!f || f.id == null) {
       if (prevHoveredFeatureIdRef.current != null) {

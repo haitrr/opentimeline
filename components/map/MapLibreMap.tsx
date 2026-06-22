@@ -73,6 +73,7 @@ export default function MapLibreMap({
   const isCtrlPressedRef = useRef(false);
   const hidePointsRef = useRef(layerSettings.hidePoints);
   const draggedPointRef = useRef<HoveredPoint>(null);
+  const [draggedPoint, setDraggedPoint] = useState<HoveredPoint>(null);
 
   useEffect(() => { hidePointsRef.current = layerSettings.hidePoints; });
 
@@ -396,20 +397,38 @@ export default function MapLibreMap({
         {/* Point drag handle when CMD is held and a point is hovered */}
         {isPointDragActive && hoveredPoint && (
           <Marker
-            latitude={hoveredPoint.lat}
-            longitude={hoveredPoint.lon}
+            latitude={(draggedPoint ?? hoveredPoint).lat}
+            longitude={(draggedPoint ?? hoveredPoint).lon}
             draggable
             onDragStart={() => {
-              draggedPointRef.current = hoveredPoint;
+              const point = {
+                id: hoveredPoint.id,
+                lat: hoveredPoint.lat,
+                lon: hoveredPoint.lon,
+              };
+              draggedPointRef.current = point;
+              setDraggedPoint(point);
               startPointDrag();
               const canvas = mapRef.current?.getCanvas();
               if (canvas) { canvas.style.cursor = "grabbing"; cursorRef.current = "grabbing"; }
             }}
+            onDrag={(e) => {
+              const current = draggedPointRef.current;
+              if (!current) return;
+              const nextPoint = {
+                ...current,
+                lat: e.lngLat.lat,
+                lon: e.lngLat.lng,
+              };
+              draggedPointRef.current = nextPoint;
+              setDraggedPoint(nextPoint);
+            }}
             onDragEnd={(e) => {
               const p = draggedPointRef.current;
               draggedPointRef.current = null;
+              setDraggedPoint(null);
               endPointDrag();
-              if (p) onPointMoveRequest?.(p.id, e.lngLat.lat, e.lngLat.lng);
+              if (p) onPointMoveRequest?.(p.id, p.lat ?? e.lngLat.lat, p.lon ?? e.lngLat.lng);
             }}
           >
             <div

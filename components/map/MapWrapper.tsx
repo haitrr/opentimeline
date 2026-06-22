@@ -249,16 +249,32 @@ export default function MapWrapper({ rangeStart, rangeEnd, shouldAutoFit = false
     setUpdatingPointMove(true);
     setPointMoveError(null);
     try {
+      const { id, lat, lon } = pendingPointMove;
       const res = await fetch(`/api/locations/${pendingPointMove.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat: pendingPointMove.lat, lon: pendingPointMove.lon }),
+        body: JSON.stringify({ lat, lon }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setPointMoveError(data?.error ?? "Failed to update location");
         return;
       }
+
+      const updatedPoint = await res.json().catch(() => null) as SerializedPoint | null;
+      queryClient.setQueriesData<LocationsResponse>({ queryKey: ["locations"] }, (current) => {
+        if (!current) return current;
+        const nextPoints = current.points.map((point) => {
+          if (point.id !== id) return point;
+          return {
+            ...point,
+            lat: updatedPoint?.lat ?? lat,
+            lon: updatedPoint?.lon ?? lon,
+          };
+        });
+        return { ...current, points: nextPoints };
+      });
+
       setPendingPointMove(null);
       queryClient.invalidateQueries({ queryKey: ["locations"] });
     } catch {
