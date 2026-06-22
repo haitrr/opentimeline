@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "opentimeline": "tsx --tsconfig tsconfig.json cli/opentimeline.ts",
+    "cli": "tsx --tsconfig tsconfig.json cli/opentimeline.ts",
     "mcp": "tsx --tsconfig tsconfig.json mcp/server.ts"
   },
   "dependencies": {

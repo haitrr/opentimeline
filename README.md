@@ -194,9 +194,99 @@ Relevant endpoints:
 - `PUT /api/unknown-visits/:id`
 - `POST /api/unknown-visits/detect`
 
+## 🧰 CLI
+
+OpenTimeline includes a JSON-first CLI for querying and curating timeline data from a terminal, shell script, Claude Code, or another AI agent.
+
+### Install
+
+The CLI is bundled with this repository. Install the project dependencies once:
+
+```bash
+pnpm install
+```
+
+Make sure `.env` is configured with `DATABASE_URL` as described in Quick Start. The CLI reads the same `.env` file as the web app and MCP server.
+
+### Run From The Project
+
+From the repository root:
+
+```bash
+pnpm opentimeline --help
+pnpm --silent opentimeline visits --date 2026-06-22 --status all
+pnpm --silent opentimeline unknown-visits --status suggested
+pnpm --silent opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
+```
+
+The CLI prints JSON by default. Use `pnpm --silent opentimeline ...` for parseable output without pnpm's script banner, making it suitable for Claude Code, shell scripts, and other AI agents that can run commands in the project directory. It uses the same action layer as the MCP tools and reads configuration from `.env`.
+
+### Run From Anywhere
+
+Use pnpm's `--dir` option when calling the CLI outside the repository:
+
+```bash
+pnpm --dir /absolute/path/to/opentimeline --silent opentimeline places
+pnpm --dir /absolute/path/to/opentimeline --silent opentimeline visits --date 2026-06-22 --status all
+```
+
+For a shorter local command, add an alias to your shell profile, replacing the path with your checkout path:
+
+```bash
+alias opentimeline='pnpm --dir /absolute/path/to/opentimeline --silent opentimeline'
+```
+
+Then reload your shell and run:
+
+```bash
+opentimeline --help
+opentimeline places --compact
+```
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `current-location` | Print the latest recorded GPS point |
+| `locations` | Print GPS points for a date or custom time range |
+| `visits` | Print visits with place details |
+| `places` | List active places with coordinates and visit counts |
+| `detect-visits` | Run known-place visit detection |
+| `detect-unknown-visits` | Run unknown-visit detection |
+| `unknown-visits` | List unknown visit suggestions |
+| `review-unknown-visit <id>` | Show detail for one unknown visit suggestion |
+| `confirm-unknown-visit <id>` | Mark an unknown visit suggestion as confirmed or rejected |
+| `create-place-from-unknown-visit <id>` | Create a place from an unknown visit suggestion |
+
+Common options:
+
+- `--date YYYY-MM-DD` – query a full local day where supported
+- `--start <ISO>` and `--end <ISO>` – query a custom time range
+- `--limit <number>` – cap returned rows
+- `--status confirmed|suggested|rejected|all` – filter where supported
+- `--all` – include inactive places for `places`
+- `--compact` – print compact JSON
+
+Examples:
+
+```bash
+pnpm --silent opentimeline current-location
+pnpm --silent opentimeline locations --date 2026-06-22 --limit 200
+pnpm --silent opentimeline visits --date 2026-06-22 --status all
+pnpm --silent opentimeline places --compact
+pnpm --silent opentimeline detect-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
+pnpm --silent opentimeline detect-unknown-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
+pnpm --silent opentimeline unknown-visits --status suggested --limit 20
+pnpm --silent opentimeline review-unknown-visit 42
+pnpm --silent opentimeline confirm-unknown-visit 42 --status rejected
+pnpm --silent opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
+```
+
+For AI agents, prefer bounded date ranges and `--compact` when the result may be large.
+
 ## 🤖 MCP Server
 
-OpenTimeline ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that lets AI agents interact with your timeline directly.
+OpenTimeline ships an [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that lets AI agents interact with your timeline directly. Use MCP for long-running agent integrations and the CLI for one-shot shell access.
 
 ### Embedded in the web server (HTTP)
 
@@ -296,6 +386,7 @@ Or with `tsx` directly:
 - `pnpm build` – production build
 - `pnpm start` – run production server
 - `pnpm lint` – run ESLint
+- `pnpm opentimeline --help` – show CLI commands for timeline queries and curation actions
 - `pnpm mcp` – run the MCP server (stdio transport)
 
 ## ⚖️ Comparison: OpenTimeline vs Google Timeline vs Dawarich

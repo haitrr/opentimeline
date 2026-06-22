@@ -4,14 +4,21 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { detectVisitsForAllPlaces } from "@/lib/detectVisits";
-import { detectUnknownVisits } from "@/lib/detectUnknownVisits";
-import { haversineKm } from "@/lib/geo";
-import { getImmichPhotos, isImmichConfigured } from "@/lib/immich";
+import {
+  confirmUnknownVisit,
+  createPlaceFromUnknownVisit,
+  getCurrentLocation,
+  getLocationHistory,
+  getPendingUnknownVisits,
+  getPlaces,
+  getVisits,
+  reviewUnknownVisit,
+  triggerUnknownVisitDetection,
+  triggerVisitDetection,
+} from "@/mcp/actions";
 
-async function getSettings() {
-  return prisma.appSettings.findUnique({ where: { id: 1 } });
+function jsonContent(value: unknown) {
+  return { content: [{ type: "text" as const, text: JSON.stringify(value) }] };
 }
 
 // ---------------------------------------------------------------------------
@@ -28,15 +35,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ start, end }) => {
-      const settings = await getSettings();
-      const newVisits = await detectVisitsForAllPlaces(
-        settings?.sessionGapMinutes ?? 15,
-        settings?.minDwellMinutes ?? 15,
-        settings?.postDepartureMinutes ?? 15,
-        start ? new Date(start) : undefined,
-        end ? new Date(end) : undefined,
-      );
-      return { content: [{ type: "text", text: JSON.stringify({ newVisits }) }] };
+      return jsonContent(await triggerVisitDetection({ start, end }));
     }
   );
 
@@ -50,15 +49,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ start, end }) => {
-      const settings = await getSettings();
-      const created = await detectUnknownVisits(
-        start ? new Date(start) : undefined,
-        end ? new Date(end) : undefined,
-        settings?.unknownSessionGapMinutes ?? 15,
-        settings?.unknownMinDwellMinutes ?? 15,
-        settings?.unknownClusterRadiusM ?? 50,
-      );
-      return { content: [{ type: "text", text: JSON.stringify({ created }) }] };
+      return jsonContent(await triggerUnknownVisitDetection({ start, end }));
     }
   );
 
@@ -74,28 +65,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ status, start, end, limit }) => {
-      const suggestions = await prisma.unknownVisitSuggestion.findMany({
-        where: {
-          status,
-          ...(start || end ? {
-            AND: [
-              ...(end ? [{ arrivalAt: { lt: new Date(end) } }] : []),
-              ...(start ? [{ departureAt: { gt: new Date(start) } }] : []),
-            ],
-          } : {}),
-        },
-        orderBy: { arrivalAt: "asc" },
-        take: limit,
-      });
-      return {
-        content: [{ type: "text", text: JSON.stringify(suggestions.map(s => ({
-          ...s,
-          arrivalAt: s.arrivalAt.toISOString(),
-          departureAt: s.departureAt.toISOString(),
-          createdAt: s.createdAt.toISOString(),
-          durationMinutes: Math.round((s.departureAt.getTime() - s.arrivalAt.getTime()) / 60000),
-        }))) }],
-      };
+      return jsonContent(await getPendingUnknownVisits({ status, start, end, limit }));
     }
   );
 
@@ -108,35 +78,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ id }) => {
-      const visit = await prisma.unknownVisitSuggestion.findUnique({ where: { id } });
-      if (!visit) return { content: [{ type: "text", text: JSON.stringify({ error: "Not found" }) }] };
-
-      const places = await prisma.place.findMany({ select: { id: true, name: true, lat: true, lon: true, radius: true } });
-      const nearestKnownPlaces = places
-        .map(p => ({ ...p, distanceM: Math.round(haversineKm(visit.lat, visit.lon, p.lat, p.lon) * 1000) }))
-        .sort((a, b) => a.distanceM - b.distanceM)
-        .slice(0, 5);
-
-      let immichPhotos: { id: string; lat: number | null; lon: number | null; takenAt: string }[] = [];
-      if (isImmichConfigured()) {
-        try { immichPhotos = await getImmichPhotos(visit.arrivalAt, visit.departureAt); } catch { /* unavailable */ }
-      }
-
-      return {
-        content: [{ type: "text", text: JSON.stringify({
-          id: visit.id,
-          status: visit.status,
-          lat: visit.lat,
-          lon: visit.lon,
-          arrivalAt: visit.arrivalAt.toISOString(),
-          departureAt: visit.departureAt.toISOString(),
-          durationMinutes: Math.round((visit.departureAt.getTime() - visit.arrivalAt.getTime()) / 60000),
-          pointCount: visit.pointCount,
-          nearestKnownPlaces,
-          immichPhotos,
-          immichConfigured: isImmichConfigured(),
-        }) }],
-      };
+      return jsonContent(await reviewUnknownVisit(id));
     }
   );
 
@@ -150,18 +92,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ id, status }) => {
-      const visit = await prisma.unknownVisitSuggestion.findUnique({ where: { id } });
-      if (!visit) return { content: [{ type: "text", text: JSON.stringify({ error: "Not found" }) }] };
-
-      const updated = await prisma.unknownVisitSuggestion.update({ where: { id }, data: { status } });
-      return {
-        content: [{ type: "text", text: JSON.stringify({
-          ...updated,
-          arrivalAt: updated.arrivalAt.toISOString(),
-          departureAt: updated.departureAt.toISOString(),
-          createdAt: updated.createdAt.toISOString(),
-        }) }],
-      };
+      return jsonContent(await confirmUnknownVisit(id, status));
     }
   );
 
@@ -176,36 +107,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ id, name, radius }) => {
-      const suggestion = await prisma.unknownVisitSuggestion.findUnique({ where: { id } });
-      if (!suggestion) return { content: [{ type: "text", text: JSON.stringify({ error: "Unknown visit not found" }) }] };
-
-      const place = await prisma.place.create({ data: { name, lat: suggestion.lat, lon: suggestion.lon, radius } });
-
-      const placeRadiusKm = place.radius / 1000;
-      const unknownSuggestions = await prisma.unknownVisitSuggestion.findMany({ where: { status: "suggested" } });
-      const overlapping = unknownSuggestions.filter(s => haversineKm(s.lat, s.lon, place.lat, place.lon) <= placeRadiusKm);
-      if (overlapping.length > 0) {
-        await prisma.unknownVisitSuggestion.updateMany({
-          where: { id: { in: overlapping.map(s => s.id) } },
-          data: { status: "confirmed" },
-        });
-      }
-      await prisma.unknownVisitSuggestion.update({ where: { id }, data: { status: "confirmed" } });
-
-      const settings = await getSettings();
-      const newVisits = await detectVisitsForAllPlaces(
-        settings?.sessionGapMinutes ?? 15,
-        settings?.minDwellMinutes ?? 15,
-        settings?.postDepartureMinutes ?? 15,
-      );
-
-      return {
-        content: [{ type: "text", text: JSON.stringify({
-          place: { ...place, createdAt: place.createdAt.toISOString() },
-          newVisits,
-          dismissedSuggestions: overlapping.length,
-        }) }],
-      };
+      return jsonContent(await createPlaceFromUnknownVisit({ id, name, radius }));
     }
   );
 
@@ -213,12 +115,7 @@ export function registerTools(server: McpServer) {
     "get_current_location",
     { description: "Get the most recent location point recorded for the user." },
     async () => {
-      const point = await prisma.locationPoint.findFirst({
-        orderBy: { recordedAt: "desc" },
-        select: { id: true, lat: true, lon: true, tst: true, recordedAt: true, acc: true, alt: true, vel: true, batt: true },
-      });
-      if (!point) return { content: [{ type: "text", text: JSON.stringify({ location: null, message: "No location data found" }) }] };
-      return { content: [{ type: "text", text: JSON.stringify({ ...point, recordedAt: point.recordedAt.toISOString() }) }] };
+      return jsonContent(await getCurrentLocation());
     }
   );
 
@@ -234,35 +131,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ date, start, end, limit }) => {
-      let startDate: Date;
-      let endDate: Date;
-
-      if (date) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { content: [{ type: "text", text: JSON.stringify({ error: "Invalid date format. Use YYYY-MM-DD" }) }] };
-        startDate = new Date(`${date}T00:00:00`);
-        endDate = new Date(`${date}T23:59:59.999`);
-      } else if (start && end) {
-        startDate = new Date(start);
-        endDate = new Date(end);
-      } else {
-        const today = new Date();
-        startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
-      }
-
-      const points = await prisma.locationPoint.findMany({
-        where: { recordedAt: { gte: startDate, lte: endDate } },
-        orderBy: { recordedAt: "asc" },
-        take: limit,
-        select: { id: true, lat: true, lon: true, tst: true, recordedAt: true, acc: true, alt: true, vel: true, batt: true },
-      });
-
-      return {
-        content: [{ type: "text", text: JSON.stringify({
-          count: points.length,
-          points: points.map(p => ({ ...p, recordedAt: p.recordedAt.toISOString() })),
-        }) }],
-      };
+      return jsonContent(await getLocationHistory({ date, start, end, limit }));
     }
   );
 
@@ -279,43 +148,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ start, end, status, date, limit }) => {
-      let startDate: Date | undefined;
-      let endDate: Date | undefined;
-
-      if (date) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { content: [{ type: "text", text: JSON.stringify({ error: "Invalid date format. Use YYYY-MM-DD" }) }] };
-        startDate = new Date(`${date}T00:00:00`);
-        endDate = new Date(`${date}T23:59:59.999`);
-      } else {
-        if (start) startDate = new Date(start);
-        if (end) endDate = new Date(end);
-      }
-
-      const statusFilter = status === "all" ? undefined : status;
-      const visits = await prisma.visit.findMany({
-        where: {
-          ...(statusFilter ? { status: statusFilter } : {}),
-          ...(startDate || endDate ? {
-            AND: [
-              ...(endDate ? [{ arrivalAt: { lt: endDate } }] : []),
-              ...(startDate ? [{ departureAt: { gt: startDate } }] : []),
-            ],
-          } : {}),
-        },
-        include: { place: { select: { id: true, name: true, lat: true, lon: true, radius: true } } },
-        orderBy: { arrivalAt: "asc" },
-        take: limit,
-      });
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(visits.map(v => ({
-          ...v,
-          arrivalAt: v.arrivalAt.toISOString(),
-          departureAt: v.departureAt.toISOString(),
-          createdAt: v.createdAt.toISOString(),
-          durationMinutes: Math.round((v.departureAt.getTime() - v.arrivalAt.getTime()) / 60000),
-        }))) }],
-      };
+      return jsonContent(await getVisits({ start, end, status, date, limit }));
     }
   );
 
@@ -328,17 +161,7 @@ export function registerTools(server: McpServer) {
       },
     },
     async ({ active_only }) => {
-      const places = await prisma.place.findMany({
-        where: active_only ? { isActive: true } : {},
-        include: { _count: { select: { visits: true } } },
-        orderBy: { createdAt: "desc" },
-      });
-      return {
-        content: [{ type: "text", text: JSON.stringify(places.map(p => ({
-          id: p.id, name: p.name, lat: p.lat, lon: p.lon, radius: p.radius,
-          isActive: p.isActive, createdAt: p.createdAt.toISOString(), totalVisits: p._count.visits,
-        }))) }],
-      };
+      return jsonContent(await getPlaces({ activeOnly: active_only }));
     }
   );
 }

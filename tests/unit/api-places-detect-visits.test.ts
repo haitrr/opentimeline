@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -24,13 +25,17 @@ function makeParams(id: string) {
   } as Parameters<typeof POST>[1];
 }
 
+function makeRequest() {
+  return new NextRequest("http://localhost");
+}
+
 describe("POST /api/places/[id]/detect-visits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("returns 400 for a non-numeric id", async () => {
-    const res = await POST(new Request("http://localhost"), makeParams("abc"));
+    const res = await POST(makeRequest(), makeParams("abc"));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe("Invalid id");
@@ -38,7 +43,7 @@ describe("POST /api/places/[id]/detect-visits", () => {
 
   it("returns 404 when the place does not exist", async () => {
     (prisma.place.findUnique as MockFn).mockResolvedValue(null);
-    const res = await POST(new Request("http://localhost"), makeParams("99"));
+    const res = await POST(makeRequest(), makeParams("99"));
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.error).toBe("Not found");
@@ -47,7 +52,7 @@ describe("POST /api/places/[id]/detect-visits", () => {
   it("calls detectVisitsForPlace and returns newVisits count", async () => {
     (prisma.place.findUnique as MockFn).mockResolvedValue({ id: 1 });
     (detectVisitsForPlace as MockFn).mockResolvedValue(3);
-    const res = await POST(new Request("http://localhost"), makeParams("1"));
+    const res = await POST(makeRequest(), makeParams("1"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ newVisits: 3 });
