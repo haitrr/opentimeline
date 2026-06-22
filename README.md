@@ -200,11 +200,20 @@ OpenTimeline includes a JSON-first CLI for querying and curating timeline data f
 
 ### Install
 
-The CLI is bundled with this repository. Install the project dependencies once:
+The CLI is bundled with this repository. Install the project dependencies once, then link the `opentimeline` command onto your `PATH`:
 
 ```bash
 pnpm install
+pnpm link --global
 ```
+
+Restart your shell, then verify the command is available:
+
+```bash
+opentimeline --help
+```
+
+If pnpm reports that no global bin directory is configured, run `pnpm setup`, restart your shell, then run `pnpm link --global` again from the OpenTimeline repository.
 
 Make sure `.env` is configured with `DATABASE_URL` as described in Quick Start. The CLI reads the same `.env` file as the web app and MCP server.
 
@@ -213,34 +222,25 @@ Make sure `.env` is configured with `DATABASE_URL` as described in Quick Start. 
 From the repository root:
 
 ```bash
+opentimeline --help
+opentimeline visits --date 2026-06-22 --status all
+opentimeline unknown-visits --status suggested
+opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
+
+# Project-local fallback if you have not linked the CLI globally:
 pnpm opentimeline --help
 pnpm --silent opentimeline visits --date 2026-06-22 --status all
-pnpm --silent opentimeline unknown-visits --status suggested
-pnpm --silent opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
 ```
 
-The CLI prints JSON by default. Use `pnpm --silent opentimeline ...` for parseable output without pnpm's script banner, making it suitable for Claude Code, shell scripts, and other AI agents that can run commands in the project directory. It uses the same action layer as the MCP tools and reads configuration from `.env`.
+The CLI prints JSON by default. Use `--compact` when passing output to another command or when token budget matters. It uses the same action layer as the MCP tools and reads configuration from `.env`.
 
 ### Run From Anywhere
 
-Use pnpm's `--dir` option when calling the CLI outside the repository:
+Once linked globally, call `opentimeline` from any directory:
 
 ```bash
-pnpm --dir /absolute/path/to/opentimeline --silent opentimeline places
-pnpm --dir /absolute/path/to/opentimeline --silent opentimeline visits --date 2026-06-22 --status all
-```
-
-For a shorter local command, add an alias to your shell profile, replacing the path with your checkout path:
-
-```bash
-alias opentimeline='pnpm --dir /absolute/path/to/opentimeline --silent opentimeline'
-```
-
-Then reload your shell and run:
-
-```bash
-opentimeline --help
 opentimeline places --compact
+opentimeline visits --date 2026-06-22 --status all
 ```
 
 ### Commands
@@ -270,16 +270,16 @@ Common options:
 Examples:
 
 ```bash
-pnpm --silent opentimeline current-location
-pnpm --silent opentimeline locations --date 2026-06-22 --limit 200
-pnpm --silent opentimeline visits --date 2026-06-22 --status all
-pnpm --silent opentimeline places --compact
-pnpm --silent opentimeline detect-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
-pnpm --silent opentimeline detect-unknown-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
-pnpm --silent opentimeline unknown-visits --status suggested --limit 20
-pnpm --silent opentimeline review-unknown-visit 42
-pnpm --silent opentimeline confirm-unknown-visit 42 --status rejected
-pnpm --silent opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
+opentimeline current-location
+opentimeline locations --date 2026-06-22 --limit 200
+opentimeline visits --date 2026-06-22 --status all
+opentimeline places --compact
+opentimeline detect-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
+opentimeline detect-unknown-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
+opentimeline unknown-visits --status suggested --limit 20
+opentimeline review-unknown-visit 42
+opentimeline confirm-unknown-visit 42 --status rejected
+opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
 ```
 
 For AI agents, prefer bounded date ranges and `--compact` when the result may be large.

@@ -27,8 +27,8 @@ const BOOLEAN_OPTIONS = new Set(["all", "compact", "help"]);
 const HELP = `OpenTimeline CLI
 
 Usage:
-  pnpm opentimeline <command> [options]
-  pnpm --silent opentimeline <command> [options]   # parseable JSON
+  opentimeline <command> [options]
+  pnpm --silent opentimeline <command> [options]   # project-local fallback
 
 Commands:
   current-location                         Print the latest recorded location point
@@ -51,10 +51,10 @@ Common options:
   --help                                   Show this help
 
 Examples:
-  pnpm --silent opentimeline visits --date 2026-06-22 --status all
-  pnpm --silent opentimeline locations --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z --limit 200
-  pnpm --silent opentimeline unknown-visits --status suggested
-  pnpm --silent opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
+  opentimeline visits --date 2026-06-22 --status all
+  opentimeline locations --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z --limit 200
+  opentimeline unknown-visits --status suggested
+  opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
 `;
 
 function parseArgs(argv: string[]): ParsedArgs {
