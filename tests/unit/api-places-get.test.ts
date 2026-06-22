@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => ({
     visit: {
       groupBy: vi.fn(),
     },
+    placeTag: { findMany: vi.fn() },
   },
 }));
 
@@ -44,6 +45,7 @@ describe("GET /api/places — pagination", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (prisma.visit.groupBy as MockFn).mockResolvedValue([]);
+    (prisma.placeTag.findMany as MockFn).mockResolvedValue([]);
   });
 
   it("returns { places, nextOffset: null } when the result fits in one page", async () => {

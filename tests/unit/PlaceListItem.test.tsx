@@ -28,6 +28,7 @@ const BASE: PlacePanelItem = {
   suggestedVisitsInRange: 0,
   lastVisitAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
   createdAt: new Date("2025-01-01").toISOString(),
+  tags: [],
 };
 
 describe("PlaceListItem", () => {

@@ -4,6 +4,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     $queryRaw: vi.fn(),
     visit: { groupBy: vi.fn() },
+    placeTag: { findMany: vi.fn() },
   },
 }));
 
@@ -42,6 +43,7 @@ describe("GET /api/places — hierarchy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (prisma.visit.groupBy as MockFn).mockResolvedValue([]);
+    (prisma.placeTag.findMany as MockFn).mockResolvedValue([]);
   });
 
   it("returns parentId and childCount in each place", async () => {

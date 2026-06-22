@@ -69,7 +69,16 @@ export async function GET(request: NextRequest) {
     );
   }
   if (q) {
-    conditions.push(Prisma.sql`LOWER(p.name) LIKE ${"%" + q.toLowerCase() + "%"}`);
+    conditions.push(
+      Prisma.sql`(
+        LOWER(p.name) LIKE ${"%" + q.toLowerCase() + "%"}
+        OR EXISTS (
+          SELECT 1 FROM "PlaceTag" pt
+          JOIN "Tag" t ON t.id = pt."tagId"
+          WHERE pt."placeId" = p.id AND LOWER(t.name) LIKE ${"%" + q.toLowerCase() + "%"}
+        )
+      )`
+    );
   }
   if (parentIdFilter != null) {
     conditions.push(Prisma.sql`p."parentId" = ${parentIdFilter}`);
@@ -170,6 +179,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const tagsByPlaceId = new Map<number, string[]>();
+  if (placeIds.length > 0) {
+    const placeTags = await prisma.placeTag.findMany({
+      where: { placeId: { in: placeIds } },
+      select: { placeId: true, tag: { select: { name: true } } },
+    });
+    for (const pt of placeTags) {
+      const existing = tagsByPlaceId.get(pt.placeId) ?? [];
+      existing.push(pt.tag.name);
+      tagsByPlaceId.set(pt.placeId, existing);
+    }
+  }
+
   const places = pageRows.map((r) => {
     const inR = inRangeMap.get(r.id) ?? { confirmed: 0, suggested: 0 };
     return {
@@ -189,6 +211,7 @@ export async function GET(request: NextRequest) {
       confirmedVisitsInRange: inR.confirmed,
       suggestedVisitsInRange: inR.suggested,
       lastVisitAt: r.lastVisitAt ? r.lastVisitAt.toISOString() : null,
+      tags: tagsByPlaceId.get(r.id) ?? [],
     };
   });
 

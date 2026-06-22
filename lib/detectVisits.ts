@@ -13,6 +13,7 @@ export type PlaceData = {
   confirmedVisitsInRange?: number;
   suggestedVisitsInRange?: number;
   lastVisitAt?: string;
+  tags?: string[];
 };
 
 type CandidateVisit = {

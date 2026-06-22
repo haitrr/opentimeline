@@ -21,6 +21,7 @@ export type PlacePanelItem = {
   suggestedVisitsInRange: number;
   lastVisitAt: string | null;
   createdAt: string;
+  tags: string[];
 };
 
 type Props = {
