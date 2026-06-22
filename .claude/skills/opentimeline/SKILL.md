@@ -16,26 +16,26 @@ Use this skill when an agent needs to inspect or curate the user's OpenTimeline 
 
 ## CLI Commands
 
-Run commands from the repository root so `.env`, `tsconfig.json`, and path aliases resolve correctly.
+Use the installed `opentimeline` CLI command. It should be configured to run from the OpenTimeline repository so `.env`, `tsconfig.json`, and path aliases resolve correctly.
 
 ```bash
-pnpm opentimeline --help
-pnpm --silent opentimeline current-location
-pnpm --silent opentimeline locations --date 2026-06-22 --limit 200
-pnpm --silent opentimeline locations --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
-pnpm --silent opentimeline visits --date 2026-06-22 --status all
-pnpm --silent opentimeline places
-pnpm --silent opentimeline places --all
-pnpm --silent opentimeline detect-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
-pnpm --silent opentimeline detect-unknown-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
-pnpm --silent opentimeline unknown-visits --status suggested --limit 20
-pnpm --silent opentimeline review-unknown-visit 42
-pnpm --silent opentimeline confirm-unknown-visit 42 --status confirmed
-pnpm --silent opentimeline confirm-unknown-visit 42 --status rejected
-pnpm --silent opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
+opentimeline --help
+opentimeline current-location
+opentimeline locations --date 2026-06-22 --limit 200
+opentimeline locations --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
+opentimeline visits --date 2026-06-22 --status all
+opentimeline places
+opentimeline places --all
+opentimeline detect-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
+opentimeline detect-unknown-visits --start 2026-06-22T00:00:00Z --end 2026-06-23T00:00:00Z
+opentimeline unknown-visits --status suggested --limit 20
+opentimeline review-unknown-visit 42
+opentimeline confirm-unknown-visit 42 --status confirmed
+opentimeline confirm-unknown-visit 42 --status rejected
+opentimeline create-place-from-unknown-visit 42 --name "Coffee Shop" --radius 40
 ```
 
-The CLI prints JSON by default. Use `pnpm --silent opentimeline ...` for parseable output without pnpm's script banner. Add `--compact` when passing output to another command or when token budget matters.
+The CLI prints JSON by default. Add `--compact` when passing output to another command or when token budget matters.
 
 ## MCP Tools
 
