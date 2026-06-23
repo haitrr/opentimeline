@@ -3,6 +3,7 @@
 import { MapPin, Navigation, Copy, Trash2 } from "lucide-react";
 import { formatRelative } from "@/lib/relativeTime";
 import { toast } from "sonner";
+import TagEditor from "@/components/places/TagEditor";
 
 export type PlacePanelItem = {
   id: number;
@@ -95,6 +96,14 @@ export default function PlaceListItem({ place, onEdit, onDelete }: Props) {
           </p>
         )}
         <p className="mt-0.5 text-xs text-muted-foreground">{visitsLabel}</p>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="mt-1"
+          role="presentation"
+        >
+          <TagEditor placeId={place.id} initialTags={place.tags} />
+        </div>
       </div>
       <div className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-60">
         <button

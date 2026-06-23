@@ -163,4 +163,22 @@ describe("PlaceListItem", () => {
       user.click(screen.getByRole("button", { name: /copy coordinates/i }))
     ).resolves.not.toThrow();
   });
+
+  it("renders tag pills when place has tags", () => {
+    render(
+      <PlaceListItem
+        place={{ ...BASE, tags: ["coffee", "work"] }}
+        onEdit={noop}
+        onDelete={noop}
+      />
+    );
+    expect(screen.getByText("coffee")).toBeInTheDocument();
+    expect(screen.getByText("work")).toBeInTheDocument();
+  });
+
+  it("renders no tag pills when place has empty tags", () => {
+    render(<PlaceListItem place={{ ...BASE, tags: [] }} onEdit={noop} onDelete={noop} />);
+    expect(screen.queryByLabelText(/edit tags/i)).toBeInTheDocument();
+    expect(screen.queryByText("coffee")).not.toBeInTheDocument();
+  });
 });
