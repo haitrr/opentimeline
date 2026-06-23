@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { PlaceData } from "@/lib/detectVisits";
+import TagEditor from "@/components/places/TagEditor";
 
 type Props = {
   placeInfo: PlaceData;
@@ -150,6 +151,13 @@ export default function PlaceDetailHeader({ placeInfo, onClose, onPlaceUpdated, 
             <p className="mt-0.5 text-xs text-gray-400">
               Radius: {placeInfo.radius}m &middot; {placeInfo.lat.toFixed(5)}, {placeInfo.lon.toFixed(5)}
             </p>
+            <div className="mt-2">
+              <TagEditor
+                placeId={placeInfo.id}
+                initialTags={placeInfo.tags ?? []}
+                inline
+              />
+            </div>
           </>
         )}
         {editError && <p className="mt-1 text-xs text-red-600">{editError}</p>}
