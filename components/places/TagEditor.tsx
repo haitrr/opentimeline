@@ -181,10 +181,7 @@ export default function TagEditor({ placeId, initialTags, onTagsChange, inline =
           <TagEditorInner
             placeId={placeId}
             tags={tags}
-            setTags={(next) => {
-              setTags(next);
-              onTagsChange?.(next);
-            }}
+            setTags={setTags}
             onTagsChange={onTagsChange}
           />
         </PopoverContent>
