@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -8,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import useDebounce from "@/lib/useDebounce";
 
 export type PlacesSort = "recent" | "visits" | "name" | "time_spent";
 
@@ -33,16 +36,75 @@ export default function PlacesToolbar({
   onSortChange,
   count,
 }: Props) {
+  const [focused, setFocused] = useState(false);
+  // Local input value for autocomplete — tracks user typing even in controlled mode
+  const [localInput, setLocalInput] = useState(query);
+  const debouncedInput = useDebounce(localInput, 200);
+
+  const { data: tagSuggestions = [] } = useQuery<string[]>({
+    queryKey: ["tags", "autocomplete", debouncedInput],
+    queryFn: async () => {
+      const res = await fetch(`/api/tags?q=${encodeURIComponent(debouncedInput)}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.tags as string[];
+    },
+    enabled: debouncedInput.length > 0,
+  });
+
+  const showDropdown = debouncedInput.length > 0 && tagSuggestions.length > 0;
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const next = e.target.value;
+    setLocalInput(next);
+    onQueryChange(next);
+  }
+
   return (
     <div className="flex flex-col gap-2 border-b px-3 py-2">
-      <Input
-        type="text"
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-        placeholder="Search places…"
-        className="h-9 w-full text-base md:h-8 md:text-xs"
-        aria-label="Search places"
-      />
+      <div className="relative">
+        <Input
+          role="combobox"
+          aria-expanded={showDropdown}
+          aria-label="Search places"
+          type="text"
+          value={query}
+          onChange={handleChange}
+          onFocus={() => {
+            setFocused(true);
+            setLocalInput(query);
+          }}
+          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          placeholder="Search places…"
+          className="h-9 w-full text-base md:h-8 md:text-xs"
+        />
+        {showDropdown && (
+          <ul
+            role="listbox"
+            className="absolute left-0 top-full z-50 mt-1 w-full rounded-md border bg-popover p-1 shadow-md"
+          >
+            <li className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Tags
+            </li>
+            {tagSuggestions.map((tag) => (
+              <li key={tag} role="option" aria-selected={false}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onQueryChange(tag);
+                    setLocalInput(tag);
+                    setFocused(false);
+                  }}
+                  className="w-full rounded px-2 py-1 text-left text-xs hover:bg-accent"
+                >
+                  {tag}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <p className="order-last text-[11px] text-muted-foreground md:order-0">
           {count} {count === 1 ? "place" : "places"}

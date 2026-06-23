@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import useDebounce from "@/lib/useDebounce";
 import { X, Tag } from "lucide-react";
 import {
   Popover,
@@ -138,15 +139,6 @@ function TagEditorInner({
       </div>
     </div>
   );
-}
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
 }
 
 export default function TagEditor({ placeId, initialTags, onTagsChange, inline = false }: Props) {
