@@ -37,27 +37,23 @@ export default function PlacesToolbar({
   count,
 }: Props) {
   const [focused, setFocused] = useState(false);
-  // Local input value for autocomplete — tracks user typing even in controlled mode
-  const [localInput, setLocalInput] = useState(query);
-  const debouncedInput = useDebounce(localInput, 200);
+  const debouncedQuery = useDebounce(query, 200);
 
   const { data: tagSuggestions = [] } = useQuery<string[]>({
-    queryKey: ["tags", "autocomplete", debouncedInput],
+    queryKey: ["tags", "autocomplete", debouncedQuery],
     queryFn: async () => {
-      const res = await fetch(`/api/tags?q=${encodeURIComponent(debouncedInput)}`);
+      const res = await fetch(`/api/tags?q=${encodeURIComponent(debouncedQuery)}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.tags as string[];
     },
-    enabled: debouncedInput.length > 0,
+    enabled: focused && debouncedQuery.length > 0,
   });
 
-  const showDropdown = debouncedInput.length > 0 && tagSuggestions.length > 0;
+  const showDropdown = focused && debouncedQuery.length > 0 && tagSuggestions.length > 0;
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const next = e.target.value;
-    setLocalInput(next);
-    onQueryChange(next);
+    onQueryChange(e.target.value);
   }
 
   return (
@@ -70,10 +66,7 @@ export default function PlacesToolbar({
           type="text"
           value={query}
           onChange={handleChange}
-          onFocus={() => {
-            setFocused(true);
-            setLocalInput(query);
-          }}
+          onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
           placeholder="Search places…"
           className="h-9 w-full text-base md:h-8 md:text-xs"
@@ -93,7 +86,6 @@ export default function PlacesToolbar({
                   onMouseDown={(e) => {
                     e.preventDefault();
                     onQueryChange(tag);
-                    setLocalInput(tag);
                     setFocused(false);
                   }}
                   className="w-full rounded px-2 py-1 text-left text-xs hover:bg-accent"

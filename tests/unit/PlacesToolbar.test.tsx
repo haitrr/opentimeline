@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import PlacesToolbar from "@/components/places/PlacesToolbar";
+import PlacesToolbar, { type PlacesSort } from "@/components/places/PlacesToolbar";
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -19,6 +20,12 @@ describe("PlacesToolbar", () => {
   });
 
   const noop = () => {};
+
+  type StatefulProps = Omit<Parameters<typeof PlacesToolbar>[0], "query" | "onQueryChange">;
+  function StatefulToolbar(props: StatefulProps) {
+    const [q, setQ] = useState("");
+    return <PlacesToolbar {...props} query={q} onQueryChange={setQ} />;
+  }
 
   it("shows the sort label (not the raw value) in the trigger", () => {
     render(
@@ -79,11 +86,12 @@ describe("PlacesToolbar", () => {
     } as unknown as Response);
 
     render(
-      <PlacesToolbar query="" onQueryChange={noop} sort="recent" onSortChange={noop} count={3} />,
+      <StatefulToolbar sort="recent" onSortChange={noop} count={3} />,
       { wrapper }
     );
 
     const input = screen.getByRole("combobox", { name: /search places/i });
+    await user.click(input);
     await user.type(input, "c");
 
     await waitFor(() => {
@@ -100,16 +108,23 @@ describe("PlacesToolbar", () => {
       json: async () => ({ tags: ["coffee"] }),
     } as unknown as Response);
 
-    render(
-      <PlacesToolbar
-        query="c"
-        onQueryChange={onQueryChange}
-        sort="recent"
-        onSortChange={noop}
-        count={3}
-      />,
-      { wrapper }
-    );
+    function ControlledToolbar() {
+      const [q, setQ] = useState("c");
+      return (
+        <PlacesToolbar
+          query={q}
+          onQueryChange={(v) => { setQ(v); onQueryChange(v); }}
+          sort="recent"
+          onSortChange={noop}
+          count={3}
+        />
+      );
+    }
+
+    render(<ControlledToolbar />, { wrapper });
+
+    const input = screen.getByRole("combobox", { name: /search places/i });
+    await user.click(input);
 
     await waitFor(() => expect(screen.getByText("coffee")).toBeInTheDocument());
     await user.click(screen.getByText("coffee"));
