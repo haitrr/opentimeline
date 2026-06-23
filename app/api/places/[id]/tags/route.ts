@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function PUT(
   request: NextRequest,
-  params: Promise<{ id: string }>
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const placeId = Number.parseInt(id, 10);

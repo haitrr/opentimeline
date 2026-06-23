@@ -24,7 +24,7 @@ function makeRequest(id: string, tags: string[]) {
 }
 
 function makeParams(id: string) {
-  return Promise.resolve({ id });
+  return { params: Promise.resolve({ id }) };
 }
 
 describe("PUT /api/places/:id/tags", () => {
