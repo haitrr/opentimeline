@@ -83,10 +83,8 @@ export default function PlacesToolbar({
               <li key={tag} role="option" aria-selected={false}>
                 <button
                   type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
+                  onClick={() => {
                     onQueryChange(tag);
-                    setFocused(false);
                   }}
                   className="w-full rounded px-2 py-1 text-left text-xs hover:bg-accent"
                 >
