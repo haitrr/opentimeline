@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
   const minLon = sp.get("minLon");
   const maxLon = sp.get("maxLon");
   const q = sp.get("q")?.trim() || null;
-  const tag = sp.get("tag")?.trim().toLowerCase() || null;
+  const tagsParam = sp.get("tags")?.trim() || null;
+  const tags = tagsParam
+    ? tagsParam.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
+    : [];
   const sortRaw = sp.get("sort");
   const sort: Sort = VALID_SORTS.includes(sortRaw as Sort)
     ? (sortRaw as Sort)
@@ -72,12 +75,12 @@ export async function GET(request: NextRequest) {
   if (q) {
     conditions.push(Prisma.sql`LOWER(p.name) LIKE ${"%" + q.toLowerCase() + "%"}`);
   }
-  if (tag) {
+  for (const t of tags) {
     conditions.push(
       Prisma.sql`EXISTS (
         SELECT 1 FROM "PlaceTag" pt
-        JOIN "Tag" t ON t.id = pt."tagId"
-        WHERE pt."placeId" = p.id AND LOWER(t.name) = ${tag}
+        JOIN "Tag" tg ON tg.id = pt."tagId"
+        WHERE pt."placeId" = p.id AND LOWER(tg.name) = ${t}
       )`
     );
   }

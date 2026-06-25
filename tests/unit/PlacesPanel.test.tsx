@@ -80,7 +80,13 @@ function paginatedFor(rawUrl: string): Response {
 
   let places = [...FIXTURES];
   if (q) places = places.filter((p) => p.name.toLowerCase().includes(q));
-  if (tag) places = places.filter((p) => (p as typeof p & { tags?: string[] }).tags?.includes(tag) ?? false);
+  const tagParam = url.searchParams.get("tags");
+  const activeTags = tagParam ? tagParam.split(",").filter(Boolean) : [];
+  if (activeTags.length > 0) {
+    places = places.filter((p) =>
+      activeTags.every((t) => (p as typeof p & { tags?: string[] }).tags?.includes(t) ?? false)
+    );
+  }
 
   if (sort === "visits") {
     places.sort((a, b) => b.confirmedVisits - a.confirmedVisits);
@@ -250,11 +256,11 @@ describe("PlacesPanel", () => {
 
     await waitFor(() => expect(screen.getByLabelText("Filter by tag")).toBeInTheDocument());
     await user.click(screen.getByLabelText("Filter by tag"));
-    await user.click(await screen.findByRole("option", { name: "coffee" }));
+    await user.click(await screen.findByText("coffee"));
 
     await waitFor(() => {
       const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0]));
-      expect(calls.some((u) => u.includes("tag=coffee"))).toBe(true);
+      expect(calls.some((u) => u.includes("tags=coffee"))).toBe(true);
     });
   });
 

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import TagFilterSelect from "@/components/places/TagFilterSelect";
 
 export type PlacesSort = "recent" | "visits" | "name" | "time_spent";
 
@@ -24,8 +25,8 @@ type Props = {
   onQueryChange: (next: string) => void;
   sort: PlacesSort;
   onSortChange: (next: PlacesSort) => void;
-  tagFilter: string | null;
-  onTagFilterChange: (tag: string | null) => void;
+  tagFilters: string[];
+  onTagFiltersChange: (tags: string[]) => void;
   count: number;
 };
 
@@ -34,8 +35,8 @@ export default function PlacesToolbar({
   onQueryChange,
   sort,
   onSortChange,
-  tagFilter,
-  onTagFilterChange,
+  tagFilters,
+  onTagFiltersChange,
   count,
 }: Props) {
   const { data: availableTags = [] } = useQuery<string[]>({
@@ -64,26 +65,11 @@ export default function PlacesToolbar({
         </p>
         <div className="flex gap-2">
           {availableTags.length > 0 && (
-            <Select
-              value={tagFilter ?? "__all__"}
-              onValueChange={(v) => onTagFilterChange(v === "__all__" ? null : v)}
-            >
-              <SelectTrigger
-                size="sm"
-                className="h-8 text-xs"
-                aria-label="Filter by tag"
-              >
-                <SelectValue>{tagFilter ?? "All tags"}</SelectValue>
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false} sideOffset={4}>
-                <SelectItem value="__all__">All tags</SelectItem>
-                {availableTags.map((tag) => (
-                  <SelectItem key={tag} value={tag}>
-                    {tag}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <TagFilterSelect
+              selected={tagFilters}
+              onChange={onTagFiltersChange}
+              availableTags={availableTags}
+            />
           )}
           <Select
             value={sort}
