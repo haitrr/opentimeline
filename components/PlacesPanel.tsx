@@ -39,6 +39,7 @@ export default function PlacesPanel() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<PlacesSort>(() => readSort());
   const [editingPlace, setEditingPlace] = useState<PlacePanelItem | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -57,7 +58,7 @@ export default function PlacesPanel() {
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteQuery<PlacesPage>({
-      queryKey: ["places", "paged", debouncedQuery, sort],
+      queryKey: ["places", "paged", debouncedQuery, tagFilter, sort],
       initialPageParam: 0,
       getNextPageParam: (lastPage) => lastPage.nextOffset,
       placeholderData: keepPreviousData,
@@ -67,6 +68,7 @@ export default function PlacesPanel() {
         params.set("offset", String(pageParam));
         params.set("sort", sort);
         if (debouncedQuery) params.set("q", debouncedQuery);
+        if (tagFilter) params.set("tag", tagFilter);
         const res = await fetch(`/api/places?${params}`);
         if (!res.ok) return { places: [], nextOffset: null, total: 0 };
         return res.json();
@@ -75,7 +77,7 @@ export default function PlacesPanel() {
 
   const places = data?.pages.flatMap((p) => p.places) ?? [];
   const total = data?.pages[0]?.total ?? places.length;
-  const hasQuery = debouncedQuery.length > 0;
+  const hasFilters = debouncedQuery.length > 0 || tagFilter !== null;
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -132,7 +134,7 @@ export default function PlacesPanel() {
     );
   }
 
-  if (places.length === 0 && !hasQuery) {
+  if (places.length === 0 && !hasFilters) {
     return <PlacesEmptyState />;
   }
 
@@ -143,15 +145,17 @@ export default function PlacesPanel() {
         onQueryChange={setQuery}
         sort={sort}
         onSortChange={setSort}
+        tagFilter={tagFilter}
+        onTagFilterChange={setTagFilter}
         count={total}
       />
       {places.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
           <p className="text-xs text-muted-foreground">
-            No places match &quot;{debouncedQuery}&quot;
+            No places match your search
           </p>
-          <Button variant="ghost" size="sm" onClick={() => setQuery("")}>
-            Clear search
+          <Button variant="ghost" size="sm" onClick={() => { setQuery(""); setTagFilter(null); }}>
+            Clear filters
           </Button>
         </div>
       ) : (

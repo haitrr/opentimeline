@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
   const minLon = sp.get("minLon");
   const maxLon = sp.get("maxLon");
   const q = sp.get("q")?.trim() || null;
+  const tag = sp.get("tag")?.trim().toLowerCase() || null;
   const sortRaw = sp.get("sort");
   const sort: Sort = VALID_SORTS.includes(sortRaw as Sort)
     ? (sortRaw as Sort)
@@ -69,14 +70,14 @@ export async function GET(request: NextRequest) {
     );
   }
   if (q) {
+    conditions.push(Prisma.sql`LOWER(p.name) LIKE ${"%" + q.toLowerCase() + "%"}`);
+  }
+  if (tag) {
     conditions.push(
-      Prisma.sql`(
-        LOWER(p.name) LIKE ${"%" + q.toLowerCase() + "%"}
-        OR EXISTS (
-          SELECT 1 FROM "PlaceTag" pt
-          JOIN "Tag" t ON t.id = pt."tagId"
-          WHERE pt."placeId" = p.id AND LOWER(t.name) LIKE ${"%" + q.toLowerCase() + "%"}
-        )
+      Prisma.sql`EXISTS (
+        SELECT 1 FROM "PlaceTag" pt
+        JOIN "Tag" t ON t.id = pt."tagId"
+        WHERE pt."placeId" = p.id AND LOWER(t.name) = ${tag}
       )`
     );
   }

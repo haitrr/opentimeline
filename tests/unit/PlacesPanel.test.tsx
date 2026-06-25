@@ -73,12 +73,14 @@ class FakeIntersectionObserver {
 function paginatedFor(rawUrl: string): Response {
   const url = new URL(rawUrl, "http://localhost");
   const q = (url.searchParams.get("q") || "").toLowerCase();
+  const tag = url.searchParams.get("tag") || null;
   const sort = url.searchParams.get("sort") || "recent";
   const limit = Number(url.searchParams.get("limit") || "50");
   const offset = Number(url.searchParams.get("offset") || "0");
 
   let places = [...FIXTURES];
   if (q) places = places.filter((p) => p.name.toLowerCase().includes(q));
+  if (tag) places = places.filter((p) => (p as typeof p & { tags?: string[] }).tags?.includes(tag) ?? false);
 
   if (sort === "visits") {
     places.sort((a, b) => b.confirmedVisits - a.confirmedVisits);
@@ -121,6 +123,9 @@ describe("PlacesPanel", () => {
       const u = String(input);
       if (u === "/api/places" || u.startsWith("/api/places?")) {
         return paginatedFor(u);
+      }
+      if (u === "/api/tags" || u.startsWith("/api/tags?")) {
+        return new Response(JSON.stringify({ tags: [] }), { status: 200 });
       }
       return new Response("not found", { status: 404 });
     }) as typeof fetch;
@@ -172,7 +177,7 @@ describe("PlacesPanel", () => {
     expect(
       await screen.findByText(/No places match/i, undefined, { timeout: 2000 })
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /clear search/i }));
+    await user.click(screen.getByRole("button", { name: /clear filters/i }));
     await waitFor(() => expect(screen.getByText("Home")).toBeInTheDocument());
   });
 
@@ -224,6 +229,32 @@ describe("PlacesPanel", () => {
         global.fetch as ReturnType<typeof vi.fn>
       ).mock.calls.map((c) => String(c[0]));
       expect(calls.some((u) => u.includes("sort=time_spent"))).toBe(true);
+    });
+  });
+
+  it("passes tag= param to API when tag filter is active", async () => {
+    const user = userEvent.setup();
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      async (input: string | URL | Request) => {
+        const u = String(input);
+        if (u === "/api/places" || u.startsWith("/api/places?")) return paginatedFor(u);
+        if (u === "/api/tags" || u.startsWith("/api/tags?")) {
+          return new Response(JSON.stringify({ tags: ["coffee"] }), { status: 200 });
+        }
+        return new Response("not found", { status: 404 });
+      }
+    );
+
+    renderPanel();
+    await screen.findByText("Home");
+
+    await waitFor(() => expect(screen.getByLabelText("Filter by tag")).toBeInTheDocument());
+    await user.click(screen.getByLabelText("Filter by tag"));
+    await user.click(await screen.findByRole("option", { name: "coffee" }));
+
+    await waitFor(() => {
+      const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0]));
+      expect(calls.some((u) => u.includes("tag=coffee"))).toBe(true);
     });
   });
 

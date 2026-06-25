@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import PlacesToolbar, { type PlacesSort } from "@/components/places/PlacesToolbar";
 
@@ -21,20 +20,21 @@ describe("PlacesToolbar", () => {
 
   const noop = () => {};
 
-  type StatefulProps = Omit<Parameters<typeof PlacesToolbar>[0], "query" | "onQueryChange">;
-  function StatefulToolbar(props: StatefulProps) {
-    const [q, setQ] = useState("");
-    return <PlacesToolbar {...props} query={q} onQueryChange={setQ} />;
-  }
+  const defaultProps = {
+    sort: "recent" as PlacesSort,
+    onSortChange: noop,
+    tagFilter: null as string | null,
+    onTagFilterChange: noop,
+    count: 3,
+  };
 
   it("shows the sort label (not the raw value) in the trigger", () => {
     render(
       <PlacesToolbar
         query=""
         onQueryChange={noop}
+        {...defaultProps}
         sort="recent"
-        onSortChange={noop}
-        count={3}
       />,
       { wrapper }
     );
@@ -52,8 +52,8 @@ describe("PlacesToolbar", () => {
       <PlacesToolbar
         query=""
         onQueryChange={noop}
+        {...defaultProps}
         sort={sort}
-        onSortChange={noop}
         count={1}
       />,
       { wrapper }
@@ -68,82 +68,63 @@ describe("PlacesToolbar", () => {
       <PlacesToolbar
         query=""
         onQueryChange={onQueryChange}
-        sort="recent"
-        onSortChange={noop}
+        {...defaultProps}
         count={0}
       />,
       { wrapper }
     );
-    await user.type(screen.getByRole("combobox", { name: /search places/i }), "ab");
+    await user.type(screen.getByLabelText("Search places"), "ab");
     expect(onQueryChange).toHaveBeenCalled();
   });
 
-  it("shows tag suggestions when user types and tags are available", async () => {
-    const user = userEvent.setup();
+  it("shows tag filter select when tags are available", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
-      json: async () => ({ tags: ["coffee", "cafe"] }),
+      json: async () => ({ tags: ["coffee", "work"] }),
     } as unknown as Response);
 
     render(
-      <StatefulToolbar sort="recent" onSortChange={noop} count={3} />,
+      <PlacesToolbar query="" onQueryChange={noop} {...defaultProps} />,
       { wrapper }
     );
 
-    const input = screen.getByRole("combobox", { name: /search places/i });
-    await user.click(input);
-    await user.type(input, "c");
-
     await waitFor(() => {
-      expect(screen.getByText("coffee")).toBeInTheDocument();
-      expect(screen.getByText("cafe")).toBeInTheDocument();
+      expect(screen.getByLabelText("Filter by tag")).toBeInTheDocument();
     });
   });
 
-  it("calls onQueryChange with the tag name when a suggestion is clicked", async () => {
+  it("calls onTagFilterChange with the selected tag", async () => {
     const user = userEvent.setup();
-    const onQueryChange = vi.fn();
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({ tags: ["coffee"] }),
-    } as unknown as Response);
-
-    function ControlledToolbar() {
-      const [q, setQ] = useState("c");
-      return (
-        <PlacesToolbar
-          query={q}
-          onQueryChange={(v) => { setQ(v); onQueryChange(v); }}
-          sort="recent"
-          onSortChange={noop}
-          count={3}
-        />
-      );
-    }
-
-    render(<ControlledToolbar />, { wrapper });
-
-    const input = screen.getByRole("combobox", { name: /search places/i });
-    await user.click(input);
-
-    await waitFor(() => expect(screen.getByText("coffee")).toBeInTheDocument());
-    await user.click(screen.getByText("coffee"));
-
-    expect(onQueryChange).toHaveBeenCalledWith("coffee");
-  });
-
-  it("does not show the dropdown when query is empty", async () => {
+    const onTagFilterChange = vi.fn();
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({ tags: ["coffee"] }),
     } as unknown as Response);
 
     render(
-      <PlacesToolbar query="" onQueryChange={noop} sort="recent" onSortChange={noop} count={0} />,
+      <PlacesToolbar
+        query=""
+        onQueryChange={noop}
+        {...defaultProps}
+        onTagFilterChange={onTagFilterChange}
+      />,
+      { wrapper }
+    );
+
+    await waitFor(() => expect(screen.getByLabelText("Filter by tag")).toBeInTheDocument());
+    await user.click(screen.getByLabelText("Filter by tag"));
+    await user.click(await screen.findByRole("option", { name: "coffee" }));
+
+    expect(onTagFilterChange).toHaveBeenCalledWith("coffee");
+  });
+
+  it("does not show tag filter when no tags exist", async () => {
+    render(
+      <PlacesToolbar query="" onQueryChange={noop} {...defaultProps} />,
       { wrapper }
     );
 
     await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryByText("coffee")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Filter by tag")).not.toBeInTheDocument();
   });
 });
