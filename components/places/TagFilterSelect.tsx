@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type Props = {
@@ -37,16 +37,12 @@ export default function TagFilterSelect({ selected, onChange, availableTags }: P
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1 text-xs"
-          aria-label="Filter by tag"
-        >
-          <span>{label}</span>
-          <ChevronDownIcon className="h-3 w-3 opacity-60" />
-        </Button>
+      <PopoverTrigger
+        className={buttonVariants({ variant: "outline", size: "sm", className: "h-8 gap-1 text-xs" })}
+        aria-label="Filter by tag"
+      >
+        <span>{label}</span>
+        <ChevronDownIcon className="h-3 w-3 opacity-60" />
       </PopoverTrigger>
       <PopoverContent className="w-52 p-2" align="end" sideOffset={4}>
         <Input
