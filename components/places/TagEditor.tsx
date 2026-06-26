@@ -167,15 +167,12 @@ export default function TagEditor({ placeId, initialTags, onTagsChange, inline =
         </span>
       ))}
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            aria-label="Edit tags"
-            className="flex items-center gap-0.5 rounded-full border border-dashed border-muted-foreground/40 px-2 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-primary"
-          >
-            <Tag className="h-2.5 w-2.5" />
-            {tags.length === 0 ? "tag" : "+"}
-          </button>
+        <PopoverTrigger
+          aria-label="Edit tags"
+          className="flex items-center gap-0.5 rounded-full border border-dashed border-muted-foreground/40 px-2 py-0.5 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+        >
+          <Tag className="h-2.5 w-2.5" />
+          {tags.length === 0 ? "tag" : "+"}
         </PopoverTrigger>
         <PopoverContent className="w-64 p-2" align="start" side="bottom">
           <TagEditorInner
