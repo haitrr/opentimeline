@@ -36,14 +36,11 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest | { params: Promise<{ id: string }> },
-  context?: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  // Support both (request, context) and (context) call signatures from tests
-  const resolvedParams = context
-    ? await context.params
-    : await (_request as { params: Promise<{ id: string }> }).params;
-  const tripId = parseInt(resolvedParams.id, 10);
+  const { id } = await params;
+  const tripId = parseInt(id, 10);
   if (isNaN(tripId)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 
   const trip = await prisma.trip.findUnique({ where: { id: tripId } });

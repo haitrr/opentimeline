@@ -19,17 +19,14 @@ import { prisma } from "@/lib/prisma";
 
 type MockFn = ReturnType<typeof vi.fn>;
 
-function req(body?: unknown, url = "http://localhost/api/trips") {
+function reqWithBody(body: unknown) {
   return {
     json: async () => body,
-    nextUrl: { searchParams: new URLSearchParams() },
   } as unknown as import("next/server").NextRequest;
 }
 
-function reqWithBody(body: unknown, url = "http://localhost/api/trips") {
-  return {
-    json: async () => body,
-  } as unknown as import("next/server").NextRequest;
+function dummyReq() {
+  return {} as unknown as import("next/server").NextRequest;
 }
 
 function params(id: string) {
@@ -122,7 +119,7 @@ describe("DELETE /api/trips/:id", () => {
     (prisma.trip.findUnique as unknown as MockFn).mockResolvedValue(FAKE_TRIP);
     (prisma.trip.delete as unknown as MockFn).mockResolvedValue(FAKE_TRIP);
 
-    const res = await DELETE(params("1"));
+    const res = await DELETE(dummyReq(), params("1"));
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -131,7 +128,7 @@ describe("DELETE /api/trips/:id", () => {
 
   it("returns 404 when trip not found", async () => {
     (prisma.trip.findUnique as unknown as MockFn).mockResolvedValue(null);
-    const res = await DELETE(params("99"));
+    const res = await DELETE(dummyReq(), params("99"));
     expect(res.status).toBe(404);
   });
 });
