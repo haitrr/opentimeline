@@ -6,10 +6,11 @@ export async function GET() {
 
   const tripsWithCounts = await Promise.all(
     trips.map(async (trip) => {
+      const endOfTripDay = new Date(trip.endDate.getTime() + 86_400_000 - 1);
       const visitCount = await prisma.visit.count({
         where: {
           status: "confirmed",
-          arrivalAt: { lte: trip.endDate },
+          arrivalAt: { lte: endOfTripDay },
           departureAt: { gte: trip.startDate },
         },
       });

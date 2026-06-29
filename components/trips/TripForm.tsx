@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { FormState, Trip, EMPTY_FORM } from "./types";
+import { FormState, Trip } from "./types";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
@@ -74,4 +74,3 @@ export function TripForm({
   );
 }
 
-export { EMPTY_FORM };

@@ -78,7 +78,7 @@ const TABS: { id: SidebarTab; label: string; Icon: React.FC<{ className?: string
   { id: "places", label: "Places", Icon: PlacesIcon },
   { id: "suggestions", label: "Suggestions", Icon: SuggestionsIcon },
   { id: "unknown", label: "Unknown Places", Icon: UnknownIcon },
-  { id: "trips" as SidebarTab, label: "Trips", Icon: TripsIcon },
+  { id: "trips", label: "Trips", Icon: TripsIcon },
 ];
 
 

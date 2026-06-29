@@ -34,4 +34,12 @@ describe("POST /api/trips/detect", () => {
     expect(res.status).toBe(200);
     expect(body.candidates).toEqual([]);
   });
+
+  it("returns 500 when detection throws", async () => {
+    (detectTripCandidates as unknown as MockFn).mockRejectedValue(new Error("DB error"));
+    const res = await POST();
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("Detection failed");
+  });
 });
