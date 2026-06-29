@@ -216,7 +216,7 @@ export default function DateNav({
                         onClick={() => {
                           setTripsOpen(false);
                           setTripSearch("");
-                          router.push(`/timeline/${start}?range=custom&end=${end}`);
+                          router.push(`/timeline/${start}?range=custom&end=${end}&fit=1`);
                         }}
                       >
                         <span className="truncate text-sm font-medium">{trip.name}</span>

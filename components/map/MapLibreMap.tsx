@@ -161,7 +161,13 @@ export default function MapLibreMap({
     };
   }, []);
 
-  // Auto-fit bounds only on initial load
+  // Reset the "done" flag whenever the envelope changes while a fit is requested,
+  // so navigating to a second trip also triggers a fit.
+  useEffect(() => {
+    if (shouldAutoFit) autoFitDoneRef.current = false;
+  }, [shouldAutoFit, pointsEnvelope]);
+
+  // Auto-fit bounds when requested
   useEffect(() => {
     if (!shouldAutoFit || autoFitDoneRef.current) return;
     if (!isMapLoaded || !pointsEnvelope) return;

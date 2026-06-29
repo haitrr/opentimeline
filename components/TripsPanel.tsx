@@ -129,7 +129,7 @@ export default function TripsPanel() {
   function handleNavigate(trip: Trip) {
     const start = tripStartStr(trip.startDate);
     const end = tripStartStr(trip.endDate);
-    router.push(`/timeline/${start}?range=custom&end=${end}`);
+    router.push(`/timeline/${start}?range=custom&end=${end}&fit=1`);
   }
 
   function handleSaveCandidate(candidate: TripCandidate) {
