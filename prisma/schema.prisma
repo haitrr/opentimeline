@@ -118,3 +118,13 @@ model DeviceFilter {
 
   @@index([fromTime, toTime])
 }
+
+model Trip {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([startDate])
+}

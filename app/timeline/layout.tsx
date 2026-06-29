@@ -9,6 +9,7 @@ import PlacesPanel from "@/components/PlacesPanel";
 import VisitSuggestionsPanel from "@/components/VisitSuggestionsPanel";
 import UnknownVisitSuggestionsPanel from "@/components/UnknownVisitSuggestionsPanel";
 import SettingsPanel from "@/components/SettingsPanel";
+import TripsPanel from "@/components/TripsPanel";
 import AsideHeader from "@/components/AsideHeader";
 import ConflictsPanel from "@/components/ConflictsPanel";
 import { DeviceFilterProvider } from "@/components/DeviceFilterProvider";
@@ -21,7 +22,7 @@ import type { RangeType } from "@/app/timeline/[date]/page";
 
 const VALID_RANGES: RangeType[] = ["day", "week", "month", "year", "custom", "all"];
 
-type SidebarTab = "timeline" | "places" | "suggestions" | "unknown" | "settings";
+type SidebarTab = "timeline" | "places" | "suggestions" | "unknown" | "trips" | "settings";
 
 function TimelineIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -56,6 +57,14 @@ function UnknownIcon({ className = "h-5 w-5" }: { className?: string }) {
 }
 
 
+function TripsIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path d="M3.105 2.288a.75.75 0 0 0-.826.95l1.414 4.926A1.5 1.5 0 0 0 5.135 9.25h6.115a.75.75 0 0 1 0 1.5H5.135a1.5 1.5 0 0 0-1.442 1.086l-1.414 4.926a.75.75 0 0 0 .826.95 28.897 28.897 0 0 0 15.293-7.154.75.75 0 0 0 0-1.115A28.897 28.897 0 0 0 3.105 2.288Z" />
+    </svg>
+  );
+}
+
 function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
@@ -69,6 +78,7 @@ const TABS: { id: SidebarTab; label: string; Icon: React.FC<{ className?: string
   { id: "places", label: "Places", Icon: PlacesIcon },
   { id: "suggestions", label: "Suggestions", Icon: SuggestionsIcon },
   { id: "unknown", label: "Unknown Places", Icon: UnknownIcon },
+  { id: "trips", label: "Trips", Icon: TripsIcon },
 ];
 
 
@@ -182,6 +192,16 @@ function PanelContent({
           </div>
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             <UnknownVisitSuggestionsPanel />
+          </div>
+        </div>
+      )}
+      {activeTab === "trips" && (
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Trips</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <TripsPanel />
           </div>
         </div>
       )}

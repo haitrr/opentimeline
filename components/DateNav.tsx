@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   format,
@@ -17,8 +18,18 @@ import {
   endOfMonth,
   endOfYear,
 } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import type { RangeType } from "@/app/timeline/[date]/page";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+type Trip = { id: number; name: string; startDate: string; endDate: string };
+
+async function fetchTrips(): Promise<{ trips: Trip[] }> {
+  const res = await fetch("/api/trips");
+  if (!res.ok) throw new Error("Failed to fetch trips");
+  return res.json();
+}
 
 const RANGE_LABELS: Record<RangeType, string> = {
   day: "Day",
@@ -41,6 +52,13 @@ export default function DateNav({
   const router = useRouter();
   const date = parseISO(currentDate);
   const today = format(new Date(), "yyyy-MM-dd");
+  const [tripsOpen, setTripsOpen] = useState(false);
+  const [tripSearch, setTripSearch] = useState("");
+  const { data: tripsData } = useQuery({ queryKey: ["trips"], queryFn: fetchTrips });
+  const trips = tripsData?.trips ?? [];
+  const filteredTrips = trips.filter((t) =>
+    t.name.toLowerCase().includes(tripSearch.toLowerCase())
+  );
 
   const navigate = (d: Date, r?: RangeType, end?: string) => {
     const r2 = r ?? range;
@@ -151,7 +169,7 @@ export default function DateNav({
 
   return (
     <div className="py-2">
-      {/* Range type selector */}
+      {/* Range type selector + trips picker */}
       <div className="mb-2 flex flex-wrap gap-1">
         {(["day", "week", "month", "year", "custom", "all"] as RangeType[]).map((r) => (
           <Button
@@ -164,6 +182,53 @@ export default function DateNav({
             {RANGE_LABELS[r]}
           </Button>
         ))}
+        {trips.length > 0 && (
+          <Popover open={tripsOpen} onOpenChange={setTripsOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 px-2 text-xs">
+                Trips
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="end">
+              <div className="border-b p-2">
+                <input
+                  type="text"
+                  placeholder="Search trips…"
+                  value={tripSearch}
+                  onChange={(e) => setTripSearch(e.target.value)}
+                  className="w-full rounded border bg-transparent px-2 py-1.5 text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  aria-label="Search trips"
+                  autoFocus
+                />
+              </div>
+              <div className="max-h-56 overflow-y-auto py-1">
+                {filteredTrips.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-muted-foreground">No trips found</p>
+                ) : (
+                  filteredTrips.map((trip) => {
+                    const start = trip.startDate.slice(0, 10);
+                    const end = trip.endDate.slice(0, 10);
+                    return (
+                      <button
+                        key={trip.id}
+                        type="button"
+                        className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted/60 transition-colors"
+                        onClick={() => {
+                          setTripsOpen(false);
+                          setTripSearch("");
+                          router.push(`/timeline/${start}?range=custom&end=${end}&fit=1`);
+                        }}
+                      >
+                        <span className="truncate text-sm font-medium">{trip.name}</span>
+                        <span className="text-xs text-muted-foreground">{start} – {end}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
       {/* Navigation row */}
@@ -232,6 +297,7 @@ export default function DateNav({
           &#8594;
         </Button>
       </div>
+
     </div>
   );
 }
