@@ -123,7 +123,8 @@ export async function detectTripCandidates(): Promise<TripCandidate[]> {
         year: "numeric",
         timeZone: "UTC",
       });
-      return { name: `${location} · ${monthYear}`, startDate, endDate };
+      const locationLabel = location.trim() || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+      return { name: `${locationLabel} · ${monthYear}`, startDate, endDate };
     })
   );
 
