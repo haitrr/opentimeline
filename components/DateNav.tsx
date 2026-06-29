@@ -17,8 +17,17 @@ import {
   endOfMonth,
   endOfYear,
 } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import type { RangeType } from "@/app/timeline/[date]/page";
 import { Button } from "@/components/ui/button";
+
+type Trip = { id: number; name: string; startDate: string; endDate: string };
+
+async function fetchTrips(): Promise<{ trips: Trip[] }> {
+  const res = await fetch("/api/trips");
+  if (!res.ok) throw new Error("Failed to fetch trips");
+  return res.json();
+}
 
 const RANGE_LABELS: Record<RangeType, string> = {
   day: "Day",
@@ -41,6 +50,8 @@ export default function DateNav({
   const router = useRouter();
   const date = parseISO(currentDate);
   const today = format(new Date(), "yyyy-MM-dd");
+  const { data: tripsData } = useQuery({ queryKey: ["trips"], queryFn: fetchTrips });
+  const trips = tripsData?.trips ?? [];
 
   const navigate = (d: Date, r?: RangeType, end?: string) => {
     const r2 = r ?? range;
@@ -232,6 +243,30 @@ export default function DateNav({
           &#8594;
         </Button>
       </div>
+
+      {trips.length > 0 && (
+        <div className="mt-2">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Trips
+          </p>
+          <div className="flex flex-col gap-0.5">
+            {trips.map((trip) => {
+              const start = trip.startDate.slice(0, 10);
+              const end = trip.endDate.slice(0, 10);
+              return (
+                <button
+                  key={trip.id}
+                  type="button"
+                  className="truncate rounded px-2 py-1 text-left text-xs text-foreground hover:bg-muted/60 transition-colors"
+                  onClick={() => router.push(`/timeline/${start}?range=custom&end=${end}`)}
+                >
+                  {trip.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
